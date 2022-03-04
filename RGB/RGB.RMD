@@ -1,0 +1,2678 @@
+---
+title: "RBG.RMD"
+author: "Sarah Speroff"
+date: "2/18/2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+# Libraries 
+library(ggplot2)
+library(dplyr)
+library(Rmisc)
+library(e1071)
+
+library(lme4)
+library(lmerTest)
+library(emmeans)
+library(ggpubr)
+```
+
+###########################################################################################################################
+#
+#                                                           Data Prep
+#
+############################################################################################################################
+
+```{r}
+setwd("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB")
+```
+```{r}
+# RGB data 
+data <- read.csv("RGB data - coralRGB_compiled.csv", header = TRUE)
+
+# Metadata 
+meta.data <- read.csv("~/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Full_ ID Metadata - *Frag metadata (xrack&control).csv", header = TRUE)
+
+# Change names in meta.data df to join 
+names(meta.data)[names(meta.data) == "B.TAG"] <- "B.Tag" 
+names(meta.data)[names(meta.data) == "Treat.ID"] <- "Treatment" 
+
+```
+```{r}
+# select variables from metadata to keep
+meta.data2 <- meta.data %>%
+  select(Colony, Sym.State, B.Tag, Treatment, Plastic, Temperature, Food, Light)
+
+# add variables to new df based on ID
+data <- left_join(meta.data2, data, by = "B.Tag")
+
+# Re-level treatments 
+data$Treatment <- factor(data$Treatment, levels = c("control", "PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF"))
+
+# Re-level times  
+data$Time <- factor(data$Time, levels = c("Post_Frag", "Pre_Treat", "Post_Treat"))
+
+# Change variable types
+data$Colony <- as.factor(data$Colony)
+data$Sym.State <- as.factor(data$Sym.State)
+data$B.Tag <- as.factor(data$B.Tag)
+data$Plastic <- as.factor(data$Plastic)
+data$Temperature <- as.factor(data$Temperature)
+data$Food <- as.factor(data$Food)
+data$Light <- as.factor(data$Light)
+data$Time <- as.factor(data$Time)
+data$CoralR <- as.numeric(data$CoralR)
+data$CoralB <- as.numeric(data$CoralB)
+data$CoralG <- as.numeric(data$CoralG)
+```
+
+###########################################################################################################################
+#
+#                                                     Normality testing and transformations
+#
+############################################################################################################################
+
+```{r}
+# Let's look at the distribution of Coral R color values to test for normality
+par(mfrow=c(1,2))
+hist(data$CoralR)
+qqnorm(data$CoralR)
+qqline(data$CoralR)
+```
+```{r}
+# check the median-mean skew
+skewness(data$CoralR) # fvfm data is almost centered at zero, no need for a transformation
+```
+
+###########################################################################################################################
+#
+#                                                                  Exploratory plots
+#
+############################################################################################################################
+
+```{r}
+# Plot the R values by sym state at each time point
+ggplot(data = data, 
+       aes(x = Sym.State,
+           y = CoralR,
+           color = Sym.State)) +
+  geom_boxplot() +
+  facet_grid(~Time) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  theme_classic()
+```
+
+```{r}
+# Plot the R values by treatment at each time point
+ggplot(data = data, 
+       aes(x = Time,
+           y = CoralR,
+           color = Sym.State)) +
+  geom_boxplot() +
+  facet_wrap(~Treatment) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  theme_classic()
+```
+
+```{r}
+# Plot the R values by temperature at each time point
+ggplot(data = data, 
+       aes(x = Temperature,
+           y = CoralR,
+           color = Sym.State)) +
+  geom_boxplot() +
+  facet_wrap(~Time) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  theme_classic()
+```
+
+# Maybe "Sym.State" is not a good enough qualifier, since the corals could have undergone a state switch
+# Let's look at the change in R color at each time point for individual polyps in each treatment 
+
+```{r}
+#plot the change in coralR color and group it by B.Tag so we can see the trajectory of individuals, but color for phenotype so we can see the change over time 
+
+ggplot(data = data, 
+           aes(x = Time, 
+               y = CoralR, 
+               col = Sym.State,
+               group = B.Tag)) +
+  geom_point() +
+  geom_line() +
+  scale_color_manual(values=c("tan", "coral4")) +
+  facet_wrap(~Treatment) +
+  theme_classic()
+
+# Looks like there is a lot of increase in coral R across the two time points. Let's summarize by phenotype since we know that the starting phenotype is an accurate representation of the coral color
+
+# IF the R color values that are plotted here are on a dark-bright scale, that would indicate that higher levels of "CoralR color" are actually brighter and more close to white. It would make sense then, that the aposymbiotic fragmets are higher than the symbiotic fragments at both time periods, and why both phenotypes increase in R color over time, as they are losing chlorophyll content and getting progressively brighter and more white/aposymbiotic. 
+```
+
+## Since we excluded data from NDF and NLF treatments after 16 and 17 days in the experiment due to the aquarium failure, should we also remove the post_treat data points for those two treatments as well?
+
+###########################################################################################################################
+#
+#                                           Question 1: Does Treatment affect coral color  
+#
+############################################################################################################################
+
+```{r}
+# Let's write a liner mixed effects model to determine the impact of  treatment  on coral Red intensity while using polpy B.tag ID as a random effect to account for repeat measures throughout the experiment 
+
+# write model for effect of treatment on R values, not taking phenotype into account
+treat.lmer <- lmer(CoralR ~ Treatment + (1|B.Tag), data = data)
+summary(treat.lmer) # intercept is PDS
+```
+```{r}
+# EMMEANS post hoc comparisons
+treat.emm1 <- emmeans(treat.lmer, list(pairwise~Treatment))
+summary(treat.emm1)
+```
+
+```{r}
+# summarize to plot
+treatsum1 <- summarySE(data, measurevar = "CoralR", groupvars = c("Treatment"))
+
+# plot the model 
+ggplot(data = treatsum1,
+       aes(x = Treatment,
+           y = CoralR,
+           color = Treatment,
+           group = Treatment)) +
+  geom_point() +
+  geom_errorbar(aes(ymax = CoralR+se, ymin = CoralR-se), width = .1) +
+  geom_line() +
+  #facet_wrap(~Treatment) +
+  scale_color_manual(name = "", values = c("#131513", "#E02D00", "#FF7E33", 
+                                                   "#D6A70A", "#ECDD09", "#075F3C", 
+                                                   "#7BB12F", "#35516E", "#3F88C5")) +
+  theme_classic()
+
+## So, while taking into account all time periods, and individuals, all treatments except for NDF and NLF have significantly higher R intensity (aka brightness) than the control group.
+```
+
+###########################################################################################################################
+#
+#                                     Question 2: Does time affect coral color in each treatment? 
+#
+############################################################################################################################
+
+```{r}
+# write a string of all our treatments
+treatments <- c("control", "PDS","PLS","NDS","NLS","PDF","PLF","NDF","NLF")
+
+for (t in 1:length(treatments)){
+  
+  tmp.data <- filter(data, Treatment == treatments[t])
+  time.lmer <- lmer(CoralR ~ Time + (1|B.Tag), data = tmp.data) # write lmer with fixed and ID random effects
+  print(paste(treatments[t],"LMER sum:", sep = " ")) # name the summary output 
+  print(summary(time.lmer)) # print the summary output
+  
+  # emmeans for pairwise comparisons
+  time.emm <- emmeans(time.lmer, list(pairwise~Time))
+  print(paste(treatments[t],"EMMEANS sum:", sep = " ")) # print emmeans summary output 
+  print(summary(time.emm))
+}
+```
+
+```{r}
+# Summarize
+treatsum2 <- summarySE(data, measurevar = "CoralR", groupvars = c("Treatment", "Time"))
+# Plot 
+ggplot(data = treatsum2,
+              aes(x = Time, 
+                  y = CoralR,
+                  color = Treatment,
+                  group = Treatment)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(name = "", values = c("#131513", "#E02D00", "#FF7E33", 
+                                                   "#D6A70A", "#ECDD09", "#075F3C", 
+                                                   "#7BB12F", "#35516E", "#3F88C5")) +
+  facet_wrap(~Treatment) +
+  theme_classic()
+```
+
+## How does it look for the experimental treatments from day 1-22 during the experiment?
+
+```{r}
+# write a string of all our treatments
+exp.treats <- c("PDS","PLS","NDS","NLS","PDF","PLF","NDF","NLF")
+
+for (t in 1:length(exp.treats)){
+  
+  tmp.data <- filter(data, Treatment == exp.treats[t], Time != "Post_Frag")
+  exptime.lmer <- lmer(CoralR ~ Time + (1|B.Tag), data = tmp.data) # write lmer with fixed and ID random effects
+  print(paste(exp.treats[t],"LMER sum:", sep = " ")) # name the summary output 
+  print(summary(exptime.lmer)) # print the summary output
+  
+  # emmeans for pairwise comparisons
+  exptime.emm <- emmeans(exptime.lmer, list(pairwise~Time))
+  print(paste(exp.treats[t],"EMMEANS sum:", sep = " ")) # print emmeans summary output 
+  print(summary(exptime.emm))
+}
+```
+```{r}
+# isolate experimental data
+exp.data <- filter(data, Treatment != "control", Time != "Post_Frag")
+
+# summarize to plot
+treat.sum.test <- summarySE(exp.data, measurevar = "CoralR", groupvars = c("Treatment", "Time"))
+```
+```{r RGB.alltreat.plot}
+# plot
+RGB.alltreat.plot <-
+ggplot(data = treat.sum.test,
+              aes(x = Time, 
+                  y = CoralR,
+                  color = Treatment,
+                  group = Treatment)) +
+  geom_point(size = 1.2) +
+  geom_line( size = 1.2) +
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1.2) +
+  scale_color_manual(name = "", values = rep("black", times = 8)) +
+  facet_wrap(~Treatment) +
+  scale_x_discrete(limits = c("Pre_Treat", "Post_Treat"),
+                   labels = c("1", "22")) +
+  labs(x = "Day", y = "Insentisty in the red channel \n (0 = darkest, 1 = brightest)") +
+  theme_classic(base_size=13) +
+  theme(legend.position = "none")
+
+RGB.alltreat.plot
+```
+```{r RGB.alltreat.plot}
+# Save plot for publication
+ggsave(plot = RGB.alltreat.plot, 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/RGB.alltreat.plot.pdf", 
+       width = 9, height = 6, units = "in")
+```
+
+###########################################################################################################################
+#
+#                                Question 3 : Does phenotype affect coral color in each treatment?
+#
+############################################################################################################################
+
+```{r}
+# A better way to write this model would be to look at the affect of phenotype on coral r color IN each treatment, let's write a loop to do just that
+
+for (t in 1:length(treatments)){
+  
+  tmp.data <- filter(data, Treatment == treatments[t])
+  phen.lmer <- lmer(CoralR ~ Sym.State + (1|B.Tag), data = tmp.data) # write lmer with fixed and ID random effects
+  print(paste(treatments[t],"LMER sum:", sep = " ")) # name the summary output 
+  print(summary(phen.lmer)) # print the summary output
+  
+  # emmeans for pairwise comparisons
+  phen.emm <- emmeans(phen.lmer, list(pairwise~Sym.State))
+  print(paste(treatments[t],"EMMEANS sum:", sep = " ")) # print emmeans summary output 
+  print(summary(phen.emm))
+}
+
+## Phenotype significantly affects the Coral R color in all treatments 
+```
+
+```{r}
+# summarise to plot
+phen.sum <- summarySE(data, measurevar = "CoralR", groupvars = c("Treatment", "Sym.State"))
+# plot
+ggplot(data = phen.sum,
+       aes(x = Sym.State,
+           y = CoralR,
+           color = Sym.State)) +
+  geom_point() +
+  geom_errorbar(aes(ymax = CoralR+se, ymin = CoralR-se), width = .1) +
+  facet_wrap(~Treatment) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  theme_classic()
+```
+
+###########################################################################################################################
+#
+#                           Question 4 : Does phenotype affect coral color in each treatment over time?
+#
+############################################################################################################################
+
+```{r}
+# A better way to write this model would be to look at the affect of phenotype on coral r color IN each treatment, let's write a loop to do just that
+
+for (t in 1:length(treatments)){
+  
+  tmp.data <- filter(data, Treatment == treatments[t])
+  phen.lmer2 <- lmer(CoralR ~ Sym.State * Time + (1|B.Tag), data = tmp.data) # write lmer with fixed and ID random effects
+  print(paste(treatments[t],"LMER sum:", sep = " ")) # name the summary output 
+  print(summary(phen.lmer2)) # print the summary output
+  
+  # emmeans for pairwise comparisons
+  phen.emm2 <- emmeans(phen.lmer2, list(pairwise~Sym.State:Time))
+  print(paste(treatments[t],"EMMEANS sum:", sep = " ")) # print emmeans summary output 
+  print(summary(phen.emm2))
+}
+
+## Phenotype significantly affects the Coral R color in all treatments 
+```
+
+```{r}
+# Summarize the data 
+phen.sum2 <- summarySE(data, measurevar = "CoralR", groupvars = c("Treatment", "Time", "Sym.State"))
+
+# Plot 
+ggplot(data = phen.sum2,
+              aes(x = Time, 
+                  y = CoralR, 
+                  col = Sym.State,
+                  group = Sym.State)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("tan", "coral4")) +
+  facet_wrap(~Treatment) +
+  theme_classic()
+
+# The passing of time is not shown here very accurately. The time between post_frag and pre_treat is ~ 60 days, while the difference between between pre_treat and post_treat is 21 days exactly. So, let's just look at the change in R color for experimental treatments at those two time points
+```
+
+###########################################################################################################################
+#
+#                       Question 5: Does phenotype affect coral color during the experimental time period?
+#
+############################################################################################################################
+
+## Since the time between post-frag and pre-treat is not an experimental time period, let's take a look at how phenotype and time affects coral R color in experimental fragments during the experimental period
+
+```{r}
+# Let's filter our data to remove the control group and any data collected during the post-frag time 
+exp.data <- filter(data, Treatment != "control", Time != "Post_Frag")
+
+# Create a string of experimental treatment names
+exp.treats <- c("PDS","PLS","NDS","NLS","PDF","PLF","NDF","NLF")
+```
+
+```{r}
+# write a loop for the lmer
+for (e in 1:length(exp.treats)){
+  
+  tmp.data <- filter(exp.data, Treatment == exp.treats[e])
+  phen.ex.lmer <- lmer(CoralR ~ Sym.State + (1|B.Tag), data = tmp.data) # write lmer with fixed and ID random effects
+  print(paste(exp.treats[e],"LMER sum:", sep = " ")) # name the summary output 
+  print(summary(phen.ex.lmer)) # print the summary output
+  
+  # emmeans for pairwise comparisons
+  phen.ex.emm <- emmeans(phen.ex.lmer, list(pairwise~Sym.State))
+  print(paste(exp.treats[e],"EMMEANS sum:", sep = " ")) # print emmeans summary output 
+  print(summary(phen.ex.emm))
+}
+```
+```{r}
+# Summarize to plot
+phen.ex.sum <- summarySE(exp.data, measurevar = "CoralR", groupvars = c("Treatment", "Sym.State"))
+# plot
+ggplot(data = phen.ex.sum,
+       aes(x = Sym.State,
+           y = CoralR,
+           color = Sym.State)) +
+  geom_point() +
+  geom_errorbar(aes(ymax = CoralR+se, ymin = CoralR-se), width = .1) +
+  facet_wrap(~Treatment) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  theme_classic()
+```
+
+###########################################################################################################################
+#
+#                       Question 6 : Does phenotype affect coral color during the experiment over time?
+#
+############################################################################################################################
+
+```{r}
+# write a loop for the lmer
+for (e in 1:length(exp.treats)){
+  
+  tmp.data <- filter(exp.data, Treatment == exp.treats[e])
+  phen.ex.lmer2 <- lmer(CoralR ~ Sym.State * Time + (1|B.Tag), data = tmp.data) # write lmer with fixed and ID random effects
+  print(paste(exp.treats[e],"LMER sum:", sep = " ")) # name the summary output 
+  print(summary(phen.ex.lmer2)) # print the summary output
+  
+  # emmeans for pairwise comparisons
+  phen.ex.emm2 <- emmeans(phen.ex.lmer2, list(pairwise~Sym.State:Time))
+  print(paste(exp.treats[e],"EMMEANS sum:", sep = " ")) # print emmeans summary output 
+  print(summary(phen.ex.emm2))
+}
+
+```
+
+```{r}
+# summarize
+exp.sum <- summarySE(exp.data, measurevar = "CoralR", groupvars = c("Treatment", "Time", "Sym.State"))
+
+# Plot 
+RGB.alltreat.phen.plot <-
+ggplot(data = exp.sum,
+              aes(x = Time, 
+                  y = CoralR, 
+                  col = Sym.State,
+                  group = Sym.State,
+                  linetype=Sym.State)) +
+  
+  geom_point(size=1.2) +
+  geom_line(size=1.2) +
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1.2) +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"),
+                     values=c("black", "black")) +
+  scale_linetype_manual(labels = c("Aposymbiotic", "Symbiotic"),
+                    values=c(5, 1)) +
+  
+  facet_wrap(~Treatment) +
+  scale_x_discrete(limits = c("Pre_Treat", "Post_Treat"),
+                   labels = c("1", "22")) +
+  labs(x = "Day", y = "Insentisty in the red channel \n (0.35 = darkest, 0.55 = brightest)") +
+  
+  theme_classic(base_size=13) +
+  theme(legend.position = "top",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+
+RGB.alltreat.phen.plot
+
+# Now this is interesting. In EVERY single treatment, the apo and sym fragments, which started as disperate phenotypes before the experiment began, seemed to converge towards a single symbiotic state. Where the apo and sym fragments are essentially identical
+```
+
+```{r}
+# save plot
+ggsave(plot = RGB.alltreat.phen.plot,
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/RGB.alltreat.phen.plot.pdf", 
+       width = 8, height = 6, units = "in")
+```
+
+###########################################################################################################################
+#
+#                Individual stressors; Question 1: Does temperature / plastic / food / light / phenotype affect RBG?
+# 
+############################################################################################################################
+
+## Temperature
+```{r}
+# For thermal stress, isolate the post-fragment and post-treat times since there is no pre-treatment data for the ambient temperature 
+temp.dat <- filter(data, Time != "Pre_Treat")
+
+# model the effect of thermal stress on R color 
+temp.mod1 <- lmer(CoralR ~ Temperature + (1|B.Tag), data = temp.dat)
+summary(temp.mod1)
+```
+```{r}
+# emmeans post hoc
+temp.emm1 <- emmeans(temp.mod1, list(pairwise~Temperature))
+summary(temp.emm1)
+```
+```{r}
+# Summarize to plot
+temp.sum1 <- summarySE(temp.dat, measurevar = "CoralR", groupvars = "Temperature")
+
+#plot
+ggplot(data = temp.sum1,
+       aes(x = Temperature,
+           y = CoralR,
+           color = Temperature)) +
+  geom_point()+
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("blue","red")) +
+  theme_classic()
+
+## Thermal stress *clearly* impacts coral brightness (ie more bleached)
+```
+
+## Plastic
+```{r}
+# For plastic, we can use the full dataset
+plastic.mod1 <- lmer(CoralR ~ Plastic + (1|B.Tag), data = data)
+summary(plastic.mod1)
+```
+```{r}
+# emmeans post hoc
+plastic.emm1 <- emmeans(plastic.mod1, list(pairwise~Plastic))
+summary(plastic.emm1)
+```
+```{r}
+# Summarize to plot
+plastic.sum1 <- summarySE(data, measurevar = "CoralR", groupvars = "Plastic")
+
+#plot
+ggplot(data = plastic.sum1,
+       aes(x = Plastic,
+           y = CoralR,
+           color = Plastic)) +
+  geom_point()+
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("black","darkgreen")) +
+  theme_classic()
+
+## corals in plastic treatment significantly more bleached than no plastic. Howver, this includes all experimental and ambient control fragments. Do we still see a significant affect if we repeat this test with the experimental fragments only?
+```
+
+```{r}
+# plastic model using experimental data
+plastic.mod1.1 <- lmer(CoralR ~ Plastic + (1|B.Tag), data = exp.data)
+summary(plastic.mod1.1)
+```
+```{r}
+# emmeans post hoc
+plastic.emm1.1 <- emmeans(plastic.mod1.1, list(pairwise~Plastic))
+summary(plastic.emm1.1)
+```
+```{r}
+# Summarize to plot
+plastic.sum1 <- summarySE(exp.data, measurevar = "CoralR", groupvars = "Plastic")
+
+#plot
+ggplot(data = plastic.sum1,
+       aes(x = Plastic,
+           y = CoralR,
+           color = Plastic)) +
+  geom_point()+
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("black","darkgreen")) +
+  theme_classic()
+
+## yes, still significant at elevated temperatures, but less so
+```
+
+## Light
+```{r}
+# For light, we can use the full dataset
+light.mod1 <- lmer(CoralR ~ Light + (1|B.Tag), data = data)
+summary(light.mod1)
+```
+```{r}
+# emmeans post hoc
+light.emm1 <- emmeans(light.mod1, list(pairwise~Light))
+summary(light.emm1)
+```
+```{r}
+# Summarize to plot
+light.sum1 <- summarySE(data, measurevar = "CoralR", groupvars = "Light")
+
+#plot
+ggplot(data = light.sum1,
+       aes(x = Light,
+           y = CoralR,
+           color = Light)) +
+  geom_point()+
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("black","goldenrod")) +
+  theme_classic()
+
+## corals in the dark are more bleached than corals in the light treatments
+```
+
+## and we'll do light again for the experimental treatments only as well
+```{r}
+# For light, we can use the full dataset
+light.mod1.1 <- lmer(CoralR ~ Light + (1|B.Tag), data = exp.data)
+summary(light.mod1.1)
+```
+```{r}
+# emmeans post hoc
+light.emm1.1 <- emmeans(light.mod1.1, list(pairwise~Light))
+summary(light.emm1.1)
+```
+```{r}
+# Summarize to plot
+light.sum1.1 <- summarySE(exp.data, measurevar = "CoralR", groupvars = "Light")
+
+#plot
+ggplot(data = light.sum1.1,
+       aes(x = Light,
+           y = CoralR,
+           color = Light)) +
+  geom_point()+
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("black","goldenrod")) +
+  theme_classic()
+
+## corals in the dark are more bleached than corals in the light treatments
+```
+
+## Food 
+```{r}
+# For food, we can use the full dataset
+food.mod1 <- lmer(CoralR ~ Food + (1|B.Tag), data = data)
+summary(food.mod1)
+```
+```{r}
+# emmeans post hoc
+food.emm1 <- emmeans(food.mod1, list(pairwise~Food))
+summary(food.emm1)
+```
+```{r}
+# Summarize to plot
+food.sum1 <- summarySE(data, measurevar = "CoralR", groupvars = "Food")
+
+#plot
+ggplot(data = food.sum1,
+       aes(x = Food,
+           y = CoralR,
+           color = Food)) +
+  geom_point()+
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("black","brown")) +
+  theme_classic()
+
+## corals that are starved are more bleached than corals that are fed 
+```
+
+## food but for experimental treatments only
+```{r}
+# For food, we can use the full dataset
+food.mod1.1 <- lmer(CoralR ~ Food + (1|B.Tag), data = exp.data)
+summary(food.mod1.1)
+```
+```{r}
+# emmeans post hoc
+food.emm1.1 <- emmeans(food.mod1.1, list(pairwise~Food))
+summary(food.emm1.1)
+```
+```{r}
+# Summarize to plot
+food.sum1.1 <- summarySE(exp.data, measurevar = "CoralR", groupvars = "Food")
+
+#plot
+ggplot(data = food.sum1.1,
+       aes(x = Food,
+           y = CoralR,
+           color = Food)) +
+  geom_point()+
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("black","brown")) +
+  theme_classic()
+
+## corals that are starved are more bleached than corals that are fed, just slightly less significant
+```
+
+## Phenotype 
+```{r}
+# For food, we can use the full dataset
+phen.mod1 <- lmer(CoralR ~ Sym.State + (1|B.Tag), data = data)
+summary(phen.mod1)
+```
+```{r}
+# emmeans post hoc
+phen.emm1 <- emmeans(phen.mod1, list(pairwise~Sym.State))
+summary(phen.emm1)
+```
+```{r}
+# Summarize to plot
+phen.sum1 <- summarySE(data, measurevar = "CoralR", groupvars = "Sym.State")
+
+#plot
+ggplot(data = phen.sum1,
+       aes(x = Sym.State,
+           y = CoralR,
+           color = Sym.State)) +
+  geom_point()+
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("tan","coral4")) +
+  theme_classic()
+
+## corals that are apo are more bleached than corals that are sym 
+```
+
+## Phenotype but for experimental treatments only
+```{r}
+# For food, we can use the full dataset
+phen.mod1.1 <- lmer(CoralR ~ Sym.State + (1|B.Tag), data = exp.data)
+summary(phen.mod1.1)
+```
+```{r}
+# emmeans post hoc
+phen.emm1.1 <- emmeans(phen.mod1.1, list(pairwise~Sym.State))
+summary(phen.emm1.1)
+```
+```{r}
+# Summarize to plot
+phen.sum1.1 <- summarySE(data, measurevar = "CoralR", groupvars = "Sym.State")
+
+#plot
+ggplot(data = phen.sum1.1,
+       aes(x = Sym.State,
+           y = CoralR,
+           color = Sym.State)) +
+  geom_point()+
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("tan","coral4")) +
+  theme_classic()
+
+## corals that are apo are more bleached than corals that are sym 
+```
+
+###########################################################################################################################
+#
+#                                  Individual stressors; Question 2: Does phenotype affect RBG 
+#                                       in temperature / plastic / food / light / stress?
+# 
+############################################################################################################################
+
+## Temperature
+```{r}
+# lmer model
+temp.mod2 <- lmer(CoralR ~ Sym.State * Temperature + (1|B.Tag), data = temp.dat)
+summary(temp.mod2)
+
+# emmeans post hoc
+temp.emm2 <- emmeans(temp.mod2, list(pairwise~Sym.State:Temperature))
+summary(temp.emm2)
+```
+```{r}
+# summarize to plot
+temp.sum2 <- summarySE(temp.dat, measurevar = "CoralR", groupvars = c("Temperature", "Sym.State"))
+
+#plot
+ggplot(data = temp.sum2,
+       aes(x = Temperature,
+           y = CoralR,
+           color = Sym.State)) +
+  geom_point()+
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("tan","coral4")) +
+  theme_classic()
+```
+
+## Plastic
+```{r}
+# lmer
+plastic.mod2 <- lmer(CoralR ~ Sym.State * Plastic + (1|B.Tag), data = data)
+summary(plastic.mod2)
+```
+```{r}
+# emmeans post hoc
+plastic.emm2 <- emmeans(plastic.mod2, list(pairwise~Sym.State:Plastic))
+summary(plastic.emm2)
+```
+```{r}
+# summarize to plot
+plastic.sum2 <- summarySE(data, measurevar = "CoralR", groupvars = c("Plastic", "Sym.State"))
+
+#plot
+ggplot(data = plastic.sum2,
+       aes(x = Plastic,
+           y = CoralR,
+           color = Sym.State)) +
+  geom_point()+
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("tan","coral4")) +
+  theme_classic()
+```
+
+## Plastic in experimental treatments
+```{r}
+# lmer
+plastic.mod2.2 <- lmer(CoralR ~ Sym.State * Plastic + (1|B.Tag), data = exp.data)
+summary(plastic.mod2.2)
+```
+```{r}
+# emmeans post hoc
+plastic.emm2.2 <- emmeans(plastic.mod2.2, list(pairwise~Sym.State:Plastic))
+summary(plastic.emm2.2)
+```
+```{r}
+# summarize to plot
+plastic.sum2.2 <- summarySE(exp.data, measurevar = "CoralR", groupvars = c("Plastic", "Sym.State"))
+
+#plot
+ggplot(data = plastic.sum2.2,
+       aes(x = Plastic,
+           y = CoralR,
+           color = Sym.State)) +
+  geom_point()+
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("tan","coral4")) +
+  theme_classic()
+```
+
+## Light
+```{r}
+# lmer
+light.mod2 <- lmer(CoralR ~ Sym.State * Light + (1|B.Tag), data = data)
+summary(light.mod2)
+```
+```{r}
+# emmeans post hoc
+light.emm2 <- emmeans(light.mod2, list(pairwise~Sym.State:Light))
+summary(light.emm2)
+```
+```{r}
+# summarize to plot
+light.sum2 <- summarySE(data, measurevar = "CoralR", groupvars = c("Light", "Sym.State"))
+
+#plot
+ggplot(data = light.sum2,
+       aes(x = Light,
+           y = CoralR,
+           color = Sym.State)) +
+  geom_point()+
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("tan","coral4")) +
+  theme_classic()
+```
+
+## Light in experimental treatments 
+```{r}
+# lmer
+light.mod2.2 <- lmer(CoralR ~ Sym.State * Light + (1|B.Tag), data = exp.data)
+summary(light.mod2.2)
+```
+```{r}
+# emmeans post hoc
+light.emm2.2 <- emmeans(light.mod2.2, list(pairwise~Sym.State:Light))
+summary(light.emm2.2)
+```
+```{r}
+# summarize to plot
+light.sum2.2 <- summarySE(exp.data, measurevar = "CoralR", groupvars = c("Light", "Sym.State"))
+
+#plot
+ggplot(data = light.sum2.2,
+       aes(x = Light,
+           y = CoralR,
+           color = Sym.State)) +
+  geom_point()+
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("tan","coral4")) +
+  theme_classic()
+```
+
+## Food
+```{r}
+# lmer
+food.mod2 <- lmer(CoralR ~ Sym.State * Food + (1|B.Tag), data = data)
+summary(food.mod2)
+```
+```{r}
+# emmeans post hoc
+food.emm2 <- emmeans(food.mod2, list(pairwise~Sym.State:Food))
+summary(food.emm2)
+```
+```{r}
+# summarize to plot
+food.sum2 <- summarySE(data, measurevar = "CoralR", groupvars = c("Food", "Sym.State"))
+
+#plot
+ggplot(data = food.sum2,
+       aes(x = Food,
+           y = CoralR,
+           color = Sym.State)) +
+  geom_point()+
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("tan","coral4")) +
+  theme_classic()
+```
+
+## Food in experimental treatments
+```{r}
+# lmer
+food.mod2.2 <- lmer(CoralR ~ Sym.State * Food + (1|B.Tag), data = exp.data)
+summary(food.mod2.2)
+```
+```{r}
+# emmeans post hoc
+food.emm2.2 <- emmeans(food.mod2.2, list(pairwise~Sym.State:Food))
+summary(food.emm2.2)
+```
+```{r}
+# summarize to plot
+food.sum2.2 <- summarySE(exp.data, measurevar = "CoralR", groupvars = c("Food", "Sym.State"))
+
+#plot
+ggplot(data = food.sum2.2,
+       aes(x = Food,
+           y = CoralR,
+           color = Sym.State)) +
+  geom_point()+
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("tan","coral4")) +
+  theme_classic()
+```
+
+
+###########################################################################################################################
+#
+#                       Individual stressors; Question 3: Does temperature / plastic / food / light / 
+#                                           affect coral color over time?
+# 
+############################################################################################################################
+
+## Temperature
+```{r}
+# lmer model
+temp.mod3 <- lmer(CoralR ~ Temperature * Time + (1|B.Tag), data = temp.dat)
+summary(temp.mod3)
+
+# emmeans post hoc
+temp.emm3 <- emmeans(temp.mod3, list(pairwise~Temperature:Time))
+summary(temp.emm3)
+```
+```{r}
+# summarize to plot
+temp.sum3 <- summarySE(temp.dat, measurevar = "CoralR", groupvars = c("Temperature", "Time"))
+
+#plot
+ggplot(data = temp.sum3,
+       aes(x = Time,
+           y = CoralR,
+           color = Temperature,
+           group = Temperature)) +
+  geom_point()+
+  geom_line() +
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("blue","red")) +
+  theme_classic()
+```
+
+## Plastic
+```{r}
+# lmer model
+plastic.mod3 <- lmer(CoralR ~ Plastic * Time + (1|B.Tag), data = data)
+summary(plastic.mod3)
+
+# emmeans post hoc
+plastic.emm3 <- emmeans(plastic.mod3, list(pairwise~Plastic:Time))
+summary(plastic.emm3)
+```
+```{r}
+# summarize to plot
+plastic.sum3 <- summarySE(data, measurevar = "CoralR", groupvars = c("Plastic", "Time"))
+
+#plot
+ggplot(data = plastic.sum3,
+       aes(x = Time,
+           y = CoralR,
+           color = Plastic,
+           group = Plastic)) +
+  geom_point()+
+  geom_line() +
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("black","darkgreen")) +
+  theme_classic()
+```
+
+## Plastic in experimental conditions
+```{r}
+# lmer model
+plastic.mod3.3 <- lmer(CoralR ~ Plastic * Time + (1|B.Tag), data = exp.data)
+summary(plastic.mod3.3)
+
+# emmeans post hoc
+plastic.emm3.3 <- emmeans(plastic.mod3.3, list(pairwise~Plastic:Time))
+summary(plastic.emm3.3)
+```
+```{r}
+# summarize to plot
+plastic.sum3.3 <- summarySE(exp.data, measurevar = "CoralR", groupvars = c("Plastic", "Time"))
+
+#plot
+ggplot(data = plastic.sum3.3,
+       aes(x = Time,
+           y = CoralR,
+           color = Plastic,
+           group = Plastic)) +
+  geom_point()+
+  geom_line() +
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("black","darkgreen")) +
+  theme_classic()
+```
+
+## Light
+```{r}
+# lmer model
+light.mod3 <- lmer(CoralR ~ Light * Time + (1|B.Tag), data = data)
+summary(light.mod3)
+
+# emmeans post hoc
+light.emm3 <- emmeans(light.mod3, list(pairwise~Light:Time))
+summary(light.emm3)
+```
+```{r}
+# summarize to plot
+light.sum3 <- summarySE(data, measurevar = "CoralR", groupvars = c("Light", "Time"))
+
+#plot
+ggplot(data = light.sum3,
+       aes(x = Time,
+           y = CoralR,
+           color = Light,
+           group = Light)) +
+  geom_point()+
+  geom_line() +
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("black","goldenrod")) +
+  theme_classic()
+```
+
+## Light in experimental treatments
+```{r}
+# lmer model
+light.mod3.3 <- lmer(CoralR ~ Light * Time + (1|B.Tag), data = exp.data)
+summary(light.mod3)
+
+# emmeans post hoc
+light.emm3.3 <- emmeans(light.mod3.3, list(pairwise~Light:Time))
+summary(light.emm3.3)
+```
+```{r}
+# summarize to plot
+light.sum3.3 <- summarySE(exp.data, measurevar = "CoralR", groupvars = c("Light", "Time"))
+
+#plot
+ggplot(data = light.sum3.3,
+       aes(x = Time,
+           y = CoralR,
+           color = Light,
+           group = Light)) +
+  geom_point()+
+  geom_line() +
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("black","goldenrod")) +
+  theme_classic()
+```
+
+## Food
+```{r}
+# lmer model
+food.mod3 <- lmer(CoralR ~ Food * Time + (1|B.Tag), data = data)
+summary(food.mod3)
+
+# emmeans post hoc
+food.emm3 <- emmeans(food.mod3, list(pairwise~Food:Time))
+summary(food.emm3)
+```
+```{r}
+# summarize to plot
+food.sum3 <- summarySE(data, measurevar = "CoralR", groupvars = c("Food", "Time"))
+
+#plot
+ggplot(data = food.sum3,
+       aes(x = Time,
+           y = CoralR,
+           color = Food,
+           group = Food)) +
+  geom_point()+
+  geom_line() +
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("black","brown")) +
+  theme_classic()
+```
+
+## Food in exprimental treatments
+```{r}
+# lmer model
+food.mod3.3 <- lmer(CoralR ~ Food * Time + (1|B.Tag), data = exp.data)
+summary(food.mod3.3)
+
+# emmeans post hoc
+food.emm3.3 <- emmeans(food.mod3.3, list(pairwise~Food:Time))
+summary(food.emm3.3)
+```
+```{r}
+# summarize to plot
+food.sum3.3 <- summarySE(exp.data, measurevar = "CoralR", groupvars = c("Food", "Time"))
+
+#plot
+ggplot(data = food.sum3.3,
+       aes(x = Time,
+           y = CoralR,
+           color = Food,
+           group = Food)) +
+  geom_point()+
+  geom_line() +
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("black","brown")) +
+  theme_classic()
+```
+
+## Phenotype
+```{r}
+# lmer model
+phen.mod3 <- lmer(CoralR ~ Sym.State * Time + (1|B.Tag), data = data)
+summary(phen.mod3)
+
+# emmeans post hoc
+phen.emm3 <- emmeans(phen.mod3, list(pairwise~Sym.State:Time))
+summary(phen.emm3)
+```
+```{r}
+# summarize to plot
+phen.sum3 <- summarySE(data, measurevar = "CoralR", groupvars = c("Sym.State", "Time"))
+
+#plot
+ggplot(data = phen.sum3,
+       aes(x = Time,
+           y = CoralR,
+           color = Sym.State,
+           group = Sym.State)) +
+  geom_point()+
+  geom_line() +
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("tan","coral4")) +
+  theme_classic()
+```
+
+## Phenotype in experimental conditions
+```{r}
+# lmer model
+phen.mod3.3 <- lmer(CoralR ~ Sym.State * Time + (1|B.Tag), data = exp.data)
+summary(phen.mod3.3)
+
+# emmeans post hoc
+phen.emm3.3 <- emmeans(phen.mod3.3, list(pairwise~Sym.State:Time))
+summary(phen.emm3.3)
+```
+```{r}
+# summarize to plot
+phen.sum3.3 <- summarySE(exp.data, measurevar = "CoralR", groupvars = c("Sym.State", "Time"))
+
+#plot
+ggplot(data = phen.sum3.3,
+       aes(x = Time,
+           y = CoralR,
+           color = Sym.State,
+           group = Sym.State)) +
+  geom_point()+
+  geom_line() +
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("tan","coral4")) +
+  theme_classic()
+```
+
+###########################################################################################################################
+#
+#                       Individual stressors; Question 4: Does phenotype affect coral color at 
+#                       different temperature / plastic / food / light / stress over time?
+# 
+############################################################################################################################
+
+## Temperature
+```{r}
+# lmer model
+temp.mod4 <- lmer(CoralR ~ Sym.State * Temperature * Time + (1|B.Tag), data = temp.dat)
+summary(temp.mod4)
+
+# emmeans post hoc
+temp.emm4 <- emmeans(temp.mod4, list(pairwise~Sym.State:Temperature:Time))
+summary(temp.emm4)
+```
+```{r}
+# summarize to plot
+temp.sum4 <- summarySE(temp.dat, measurevar = "CoralR", groupvars = c("Temperature", "Sym.State", "Time"))
+
+#plot
+rbg.temp.plot <-
+ggplot(data = temp.sum4,
+       aes(x = Time,
+           y = CoralR,
+           color = Sym.State,
+           group = Sym.State,
+           linetype = Sym.State)) +
+  
+  geom_point(size = 1.5)+
+  geom_line(size = 1.2) +
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1.2, lty = 1) +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c("black","black")) +
+  scale_linetype_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(5,1)) +
+  scale_x_discrete(name = "Day", limits = c("Post_Frag", "Post_Treat"),
+                   labels = c("Post-fragment", "Post-treatment")) +
+  scale_y_continuous(name = "", limits = c(0.3, 0.51), breaks = seq(0.3, 0.51, by = 0.05)) + # set y axis intervals
+
+  facet_grid(~Temperature) +
+  theme_classic(base_size=13) +
+  theme(legend.position = "top",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 14))
+rbg.temp.plot
+```
+```{r}
+# save plot
+ggsave(plot = rbg.temp.plot, 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/rbg.temp.plot.pdf", 
+       width = 8, height = 6, units = "in")
+```
+
+## Plastic
+```{r}
+# lmer model
+plastic.mod4 <- lmer(CoralR ~ Sym.State * Plastic * Time + (1|B.Tag), data = data)
+summary(plastic.mod4)
+
+# emmeans post hoc
+plastic.emm4 <- emmeans(plastic.mod4, list(pairwise~Sym.State:Plastic:Time))
+summary(plastic.emm4)
+```
+```{r}
+# summarize to plot
+plastic.sum4 <- summarySE(data, measurevar = "CoralR", groupvars = c("Plastic", "Sym.State", "Time"))
+
+#plot
+ggplot(data = plastic.sum4,
+       aes(x = Time,
+           y = CoralR,
+           color = Sym.State,
+           group = Sym.State)) +
+  geom_point()+
+  geom_line() +
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("tan","coral4")) +
+  facet_grid(~Plastic) +
+  theme_classic()
+```
+
+## Plastic in experimental treatments
+```{r}
+# lmer model
+plastic.mod4.4 <- lmer(CoralR ~ Sym.State * Plastic * Time + (1|B.Tag), data = exp.data)
+summary(plastic.mod4.4) 
+
+# emmeans post hoc
+plastic.emm4.4 <- emmeans(plastic.mod4.4, list(pairwise~Sym.State:Plastic:Time))
+summary(plastic.emm4.4)
+```
+```{r}
+# summarize to plot
+plastic.sum4.4 <- summarySE(exp.data, measurevar = "CoralR", groupvars = c("Plastic", "Sym.State", "Time"))
+
+#plot
+rbg.plastic.plot <-
+ggplot(data = plastic.sum4.4,
+       aes(x = Time,
+           y = CoralR,
+           color = Sym.State,
+           group = Sym.State,
+           linetype = Sym.State)) +
+  geom_point(size = 1.5)+
+  geom_line(size = 1.2) +
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1.2, lty = 1) +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c("black","black")) +
+  scale_linetype_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(5,1)) +
+  scale_x_discrete(name = "", limits = c("Pre_Treat", "Post_Treat"),
+                   labels = c("1", "22")) +
+  scale_y_continuous(name = "", limits = c(0.4, 0.55), breaks = seq(0.4, 0.55, by = 0.05)) + # set y axis intervals
+  
+  facet_grid(~Plastic) +
+  theme_classic(base_size=13) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+rbg.plastic.plot
+```
+```{r}
+# save plot
+ggsave(plot = rbg.plastic.plot, 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/rbg.plastic.plot.pdf", 
+       width = 6, height = 4, units = "in")
+
+```
+
+
+## Light
+```{r}
+# lmer model
+light.mod4 <- lmer(CoralR ~ Sym.State * Light * Time + (1|B.Tag), data = data)
+summary(light.mod4)
+
+# emmeans post hoc
+light.emm4 <- emmeans(light.mod4, list(pairwise~Sym.State:Light:Time))
+summary(light.emm4)
+```
+```{r}
+# summarize to plot
+light.sum4 <- summarySE(data, measurevar = "CoralR", groupvars = c("Light", "Sym.State", "Time"))
+
+#plot
+ggplot(data = light.sum4,
+       aes(x = Time,
+           y = CoralR,
+           color = Sym.State,
+           group = Sym.State)) +
+  geom_point()+
+  geom_line() +
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("tan","coral4")) +
+  facet_grid(~Light) +
+  theme_classic()
+```
+
+## Light in experimental treatments
+```{r}
+# lmer model
+light.mod4.4 <- lmer(CoralR ~ Sym.State * Light * Time + (1|B.Tag), data = exp.data)
+summary(light.mod4.4)
+
+# emmeans post hoc
+light.emm4.4 <- emmeans(light.mod4.4, list(pairwise~Sym.State:Light:Time))
+summary(light.emm4.4)
+```
+```{r}
+# summarize to plot
+light.sum4.4 <- summarySE(exp.data, measurevar = "CoralR", groupvars = c("Light", "Sym.State", "Time"))
+
+#plot
+rbg.light.plot <-
+ggplot(data = light.sum4.4,
+       aes(x = Time,
+           y = CoralR,
+           color = Sym.State,
+           group = Sym.State,
+           linetype = Sym.State)) +
+  geom_point(size = 1.5)+
+  geom_line(size = 1.2) +
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1.2, lty = 1) +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c("black","black")) +
+  scale_linetype_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(5,1)) +
+  scale_x_discrete(name = "", limits = c("Pre_Treat", "Post_Treat"),
+                   labels = c("1", "22")) +
+  scale_y_continuous(name = "", limits = c(0.39, 0.55), breaks = seq(0.4, 0.55, by = 0.05)) + # set y axis intervals
+
+  facet_grid(~Light) +
+  theme_classic(base_size=13) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+rbg.light.plot
+```
+```{r}
+# save plot
+ggsave(plot = rbg.light.plot, 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/rbg.light.plot.pdf", 
+       width = 6, height = 4, units = "in")
+```
+
+## Food
+```{r}
+# lmer model
+food.mod4 <- lmer(CoralR ~ Sym.State * Food * Time + (1|B.Tag), data = data)
+summary(food.mod4)
+
+# emmeans post hoc
+food.emm4 <- emmeans(food.mod4, list(pairwise~Sym.State:Food:Time))
+summary(food.emm4)
+```
+```{r}
+# summarize to plot
+food.sum4 <- summarySE(data, measurevar = "CoralR", groupvars = c("Food", "Sym.State", "Time"))
+
+#plot
+ggplot(data = food.sum4,
+       aes(x = Time,
+           y = CoralR,
+           color = Sym.State,
+           group = Sym.State)) +
+  geom_point()+
+  geom_line() +
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+  scale_color_manual(values=c("tan","coral4")) +
+  facet_grid(~Food) +
+  theme_classic()
+```
+
+## Food in experimental treatments
+```{r}
+# lmer model
+food.mod4.4 <- lmer(CoralR ~ Sym.State * Food * Time + (1|B.Tag), data = exp.data)
+summary(food.mod4.4)
+
+# emmeans post hoc
+food.emm4.4 <- emmeans(food.mod4.4, list(pairwise~Sym.State:Food:Time))
+summary(food.emm4.4)
+```
+```{r}
+# summarize to plot
+food.sum4.4 <- summarySE(exp.data, measurevar = "CoralR", groupvars = c("Food", "Sym.State", "Time"))
+
+#plot
+rbg.food.plot <-
+ggplot(data = food.sum4.4,
+       aes(x = Time,
+           y = CoralR,
+           color = Sym.State,
+           group = Sym.State,
+           linetype = Sym.State)) +
+  geom_point(size = 1.5)+
+  geom_line(size = 1.2) +
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1.2, lty = 1) +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c("black","black")) +
+  scale_linetype_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(5,1)) +
+  scale_x_discrete(name = "", limits = c("Pre_Treat", "Post_Treat"),
+                   labels = c("1", "22")) +
+  scale_y_continuous(name = "", limits = c(0.39, 0.55), breaks = seq(0.4, 0.55, by = 0.05)) + # set y axis intervals
+  
+  facet_grid(~Food) +
+  theme_classic(base_size=13) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+rbg.food.plot
+```
+```{r}
+# save plot
+ggsave(plot = rbg.food.plot, 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/rbg.food.plot.pdf", 
+       width = 6, height = 4, units = "in")
+```
+
+
+###########################################################################################################################
+#
+#               Mixed Effects linear modeling for the combined impacts of stressors on coral color
+#
+############################################################################################################################
+
+```{r}
+# Null model 
+
+m0 <- lmer(CoralR ~ 1 + (1|B.Tag), data = data)
+```
+```{r}
+# Full stressor model
+
+m1 <- lmer(CoralR ~ Temperature + Plastic + Food + Light + (1|B.Tag), data = data)
+summary(m1)
+```
+```{r}
+# Drop temperature
+
+m2 <- lmer(CoralR ~ Plastic + Food + Light + (1|B.Tag), data = data)
+summary(m2)
+```
+```{r}
+anova(m0, m1, m2) # interesting that dropping temperature from the model made it so significantly better
+```
+
+# Consider non-stressor factors
+```{r}
+m3 <- lmer(CoralR ~ Temperature + Plastic + Food + Light + Sym.State + Time + (1|B.Tag), data = data)
+summary(m3)
+```
+```{r}
+# drop temperature
+
+m4 <- lmer(CoralR ~ Plastic + Food + Light + Sym.State + Time + (1|B.Tag), data = data)
+summary(m4)
+```
+```{r}
+anova(m0, m1, m2, m3, m4)
+AIC(m0,m1,m2,m3,m4) # m4 best so far
+```
+
+# Let's run a model check
+```{r}
+library(performance)
+
+check_model(m4) #looks really nice actually, no warnings.
+```
+
+###########################################################################################################################
+#
+#                      Run a Logistic regression with RGB and FvFm data for Ambient Control fragments 
+#                                in order to predict if a coral will be apo or symbiotic
+#
+############################################################################################################################
+
+```{r}
+# Load in the FvFm data
+pam.data <- read.csv("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Full_Fv_Fm.data - Edited.FvFm.csv", header = TRUE) 
+
+# Filter out control fragments
+pam.ctrl.data <- filter(pam.data, Treatment == "control" )
+
+# select variables from pam.data to keep
+pam.ctrl.data <- pam.ctrl.data %>%
+  select(B.Tag, FvFm.AVG)
+
+# Rename column headers
+names(pam.ctrl.data)[names(pam.ctrl.data) == "FvFm.AVG"] <- "fvfm"
+```
+
+```{r}
+# Filter out ambient control fragments from RBG data at day 22 (thats the day fvfm was collected)
+rgb.ctrl.data <- filter(data, Treatment == "control", Time == "Post_Treat")
+
+# add fvfm to new rgb based on ID
+amb.ctrl.data <- left_join(pam.ctrl.data, rgb.ctrl.data, by = "B.Tag")
+
+# remove two NAs
+amb.ctrl.data <- amb.ctrl.data[complete.cases(amb.ctrl.data),]
+amb.ctrl.data$B.Tag <- as.factor(amb.ctrl.data$B.Tag)
+
+```
+
+# First let's plot the FvFm values 
+```{r}
+ggplot(data = amb.ctrl.data, 
+       aes(x = Treatment, 
+           y = fvfm, 
+           color=Sym.State)) +
+  geom_jitter(width=0.25, alpha=0.9) + 
+  scale_color_manual(values=c("tan","coral4")) +
+  theme_classic()
+
+# Sym fragments have higher FVFM compared to apo, makes sense 
+```
+
+# Now let's plot the R values
+```{r}
+ggplot(data = amb.ctrl.data, 
+       aes(x = Treatment, 
+           y = CoralR, 
+           color=Sym.State)) +
+  geom_jitter(width=0.25, alpha=0.9) + 
+  scale_color_manual(values=c("tan","coral4")) +
+  theme_classic()
+
+# Less of a division, but sym have lower CoralR intensity compared to apo
+```
+
+# Now plot them together 
+```{r}
+# Plot the FvFm and RGB values 
+ggplot(data = amb.ctrl.data, 
+       aes(x = CoralR, 
+           y = fvfm,
+           color=Sym.State)) +
+  geom_jitter(width=0.25, alpha=0.9) + 
+  scale_color_manual(values=c("tan","coral4")) +
+  labs(x = "Red Color Intensity", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = ) +
+  theme_classic()
+```
+
+## Now let's work on writing that logistic regression model to predict phenotype based on R color and fvfm 
+```{r}
+# we will use the glm function to fit the model with the family binomial
+ctrl.lr <- glm(Sym.State ~ CoralR + fvfm, data = amb.ctrl.data, family = binomial) # Since we are only looking at the ambient control polyps on a single day there are no random effects
+
+summary(ctrl.lr)
+anova(ctrl.lr, test="Chisq")
+```
+```{r}
+# plot with the decision boundary as determined by the logistic regression coefficients
+ctrl.int <- -coef(ctrl.lr)[1]/coef(ctrl.lr)[3] # for fvfm 
+ctrl.slope <- -coef(ctrl.lr)[2]/coef(ctrl.lr)[3] # for coral r
+```
+```{r}
+# plot
+ctrl.LR.plot <-
+ggplot(amb.ctrl.data, 
+       aes(x = CoralR,
+           y = fvfm)) + 
+  
+  geom_point(aes(shape=Sym.State), size = 3) +
+  
+  expand_limits(x=0,y=0) + # sets plot origin
+  scale_x_continuous(name = "Intensity in the red channel \n (0 = darkest, 1 = brightest)",
+                     limits = c(0,0.75), breaks = seq(0, 0.75, by = 0.1)) + # set x axis intervals
+  scale_y_continuous(name = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")),
+                     limits = c(0, 0.55), breaks = seq(0, 0.5, by = 0.1)) + # set y axis intervals
+
+  geom_abline(intercept = ctrl.int, slope = ctrl.slope, lty=2, size = 1.2) +
+  #stat_regline_equation(label.x = 0.6, label.y = 0.4, size = 4.5) + # this is not plotting the correct values. 
+    # ctrl. slope = 0.809
+    # ctrl.int = -0.0386
+
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic")) +
+  scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(1,19)) +
+  
+  theme_classic(base_size = 13) +
+  theme(legend.position = "top",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12)) 
+
+ctrl.LR.plot
+```
+```{r}
+# Save plot for publication
+ggsave(plot = ctrl.LR.plot, 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/ctrl.LR.plot.pdf", 
+       width = 8, height = 6, units = "in")
+
+```
+
+###########################################################################################################################
+#
+#                                            RGB / FvFm Logistic Regression: PDS
+#
+############################################################################################################################
+
+## Pre treatment
+```{r}
+# Filter from PAM data
+pam.pds.data <- filter(pam.data, Treatment == "PDS", Day == 1)
+
+# select variables from pam.data to keep
+pam.pds.data <- pam.pds.data %>%
+  select(B.Tag, FvFm.AVG)
+
+# Rename column headers
+names(pam.pds.data)[names(pam.pds.data) == "FvFm.AVG"] <- "fvfm"
+```
+```{r}
+# Filter pds from RGB data
+rgb.pds.data <- filter(data, Treatment == "PDS", Time == "Pre_Treat")
+
+# add fvfm to new rgb based on ID
+pds.data1 <- left_join(pam.pds.data, rgb.pds.data, by = "B.Tag")
+
+# remove two NAs
+pds.data1 <- pds.data1[complete.cases(pds.data1),]
+pds.data1$B.Tag <- as.factor(pds.data1$B.Tag)
+```
+```{r}
+# Write binomial model and plot the decision boundary 
+pds1.lr <- glm(Sym.State ~ CoralR + fvfm, data = pds.data1, family = binomial) 
+
+# plot with the decision boundary as determined by the logistic regression coefficients
+pds1.int <- -coef(pds1.lr)[1]/coef(pds1.lr)[3] # for fvfm 
+pds1.slope <- -coef(pds1.lr)[2]/coef(pds1.lr)[3] # for coral r
+```
+```{r}
+# Plot
+PDS.preLR.plot <-
+ggplot(pds.data1, 
+       aes(x = CoralR,
+           y = fvfm)) + 
+  
+  geom_point(aes(shape=Sym.State), size = 3) +
+  
+  expand_limits(x=0,y=0) + # sets plot origin
+  scale_x_continuous(name = "", limits = c(0,0.75), breaks = seq(0, 0.75, by = 0.1)) + # set x axis intervals
+  scale_y_continuous(name = "",limits = c(0, 0.55), breaks = seq(0, 0.5, by = 0.1)) + # set y axis intervals
+  
+  geom_abline(intercept = pds1.int, slope = pds1.slope, lty=2, size = 1.2) +
+  #stat_regline_equation(label.x = 0.4, label.y = 0.5, size = 4.5) +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic")) +
+  scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(1,19)) +
+  
+  theme_classic(base_size = 13) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12)) 
+
+PDS.preLR.plot
+
+# Save plot for publication
+ggsave(plot = PDS.preLR.plot, 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/PDS.preLR.plot.pdf", 
+       width = 8, height = 6, units = "in")
+```
+
+## Post treatment
+```{r}
+# Filter from PAM data
+pam.pds.data2 <- filter(pam.data, Treatment == "PDS", Day == 22)
+
+# select variables from pam.data to keep
+pam.pds.data2 <- pam.pds.data2 %>%
+  select(B.Tag, FvFm.AVG)
+
+# Rename column headers
+names(pam.pds.data2)[names(pam.pds.data2) == "FvFm.AVG"] <- "fvfm"
+```
+```{r}
+# Filter pds from RGB data
+rgb.pds.data2 <- filter(data, Treatment == "PDS", Time == "Post_Treat")
+
+# add fvfm to new rgb based on ID
+pds.data2 <- left_join(pam.pds.data2, rgb.pds.data2, by = "B.Tag")
+
+# remove two NAs
+pds.data2 <- pds.data2[complete.cases(pds.data2),]
+pds.data2$B.Tag <- as.factor(pds.data2$B.Tag)
+```
+```{r}
+# Write binomial model and plot the decision boundary 
+pds2.lr <- glm(Sym.State ~ CoralR + fvfm, data = pds.data2, family = binomial) 
+
+# plot with the decision boundary as determined by the logistic regression coefficients
+pds2.int <- -coef(pds2.lr)[1]/coef(pds2.lr)[3] # for fvfm 
+pds2.slope <- -coef(pds2.lr)[2]/coef(pds2.lr)[3] # for coral r
+```
+```{r}
+# plot
+PDS.postLR.plot <-
+ggplot(pds.data2, 
+       aes(x = CoralR,
+           y = fvfm)) + 
+  geom_point(aes(shape=Sym.State), size = 3) +
+  
+  expand_limits(x=0,y=0) + # sets plot origin
+  scale_x_continuous(name = "", limits = c(0,0.75), breaks = seq(0, 0.75, by = 0.1)) + # set x axis intervals
+  scale_y_continuous(name = "", limits = c(0, 0.55), breaks = seq(0, 0.5, by = 0.1)) + # set y axis intervals
+ 
+  geom_abline(intercept = pds2.int, slope = pds2.slope, lty=2, size = 1.2) +
+ # stat_regline_equation(label.x = 0.55, label.y = 0.5, size = 4.5) +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic")) +
+  scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(1,19)) +
+  
+  theme_classic(base_size = 13) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 18)) 
+
+PDS.postLR.plot
+
+# Save plot for publication
+ggsave(plot = PDS.postLR.plot, 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/PDS.postLR.plot.pdf", 
+       width = 8, height = 6, units = "in")
+
+```
+
+###########################################################################################################################
+#
+#                                            RGB / FvFm Logistic Regression: PLS
+#
+############################################################################################################################
+
+## Pre treatment
+```{r}
+# Filter from PAM data
+pam.pls.data <- filter(pam.data, Treatment == "PLS", Day == 1)
+
+# select variables from pam.data to keep
+pam.pls.data <- pam.pls.data %>%
+  select(B.Tag, FvFm.AVG)
+
+# Rename column headers
+names(pam.pls.data)[names(pam.pls.data) == "FvFm.AVG"] <- "fvfm"
+```
+```{r}
+# Filter pds from RGB data
+rgb.pls.data <- filter(data, Treatment == "PLS", Time == "Pre_Treat")
+
+# add fvfm to new rgb based on ID
+pls.data1 <- left_join(pam.pls.data, rgb.pls.data, by = "B.Tag")
+
+# remove two NAs
+pls.data1 <- pls.data1[complete.cases(pls.data1),]
+pls.data1$B.Tag <- as.factor(pls.data1$B.Tag)
+```
+```{r}
+# Write binomial model and plot the decision boundary 
+pls1.lr <- glm(Sym.State ~ CoralR + fvfm, data = pls.data1, family = binomial) 
+
+# plot with the decision boundary as determined by the logistic regression coefficients
+pls1.int <- -coef(pls1.lr)[1]/coef(pls1.lr)[3] # for fvfm 
+pls1.slope <- -coef(pls1.lr)[2]/coef(pls1.lr)[3] # for coral r
+```
+```{r}
+# plot
+PLS.preLR.plot <-
+ggplot(pls.data1, 
+       aes(x = CoralR,
+           y = fvfm)) + 
+  geom_point(aes(shape=Sym.State), size = 3) +
+  
+  expand_limits(x=0,y=0) + # sets plot origin
+  scale_x_continuous(name = "", limits = c(0,0.75), breaks = seq(0, 0.75, by = 0.1)) + # set x axis intervals
+  scale_y_continuous(name = "", limits = c(0, 0.55), breaks = seq(0, 0.5, by = 0.1)) + # set y axis intervals
+ 
+  geom_abline(intercept = pls1.int, slope = pls1.slope, lty=2, size = 1.2) +
+  #stat_regline_equation(label.x = 0.5, label.y = 0.5, size = 4.5) +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic")) +
+  scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(1,19)) +
+  
+  theme_classic(base_size = 13) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12)) 
+
+PLS.preLR.plot
+
+# Save plot for publication
+ggsave(plot = PLS.preLR.plot, 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/PLS.preLR.plot.pdf", 
+       width = 8, height = 6, units = "in")
+```
+
+## Post treatment
+```{r}
+# Filter from PAM data
+pam.pls.data2 <- filter(pam.data, Treatment == "PLS", Day == 22)
+
+# select variables from pam.data to keep
+pam.pls.data2 <- pam.pls.data2 %>%
+  select(B.Tag, FvFm.AVG)
+
+# Rename column headers
+names(pam.pls.data2)[names(pam.pls.data2) == "FvFm.AVG"] <- "fvfm"
+```
+```{r}
+# Filter pls from RGB data
+rgb.pls.data2 <- filter(data, Treatment == "PLS", Time == "Post_Treat")
+
+# add fvfm to new rgb based on ID
+pls.data2 <- left_join(pam.pls.data2, rgb.pls.data2, by = "B.Tag")
+
+# remove two NAs
+pls.data2 <- pls.data2[complete.cases(pls.data2),]
+pls.data2$B.Tag <- as.factor(pls.data2$B.Tag)
+```
+```{r}
+# Write binomial model and plot the decision boundary 
+pls2.lr <- glm(Sym.State ~ CoralR + fvfm, data = pls.data2, family = binomial) 
+
+# plot with the decision boundary as determined by the logistic regression coefficients
+pls2.int <- -coef(pls2.lr)[1]/coef(pls2.lr)[3] # for fvfm 
+pls2.slope <- -coef(pls2.lr)[2]/coef(pls2.lr)[3] # for coral r
+```
+
+```{r}
+# plot
+PLS.postLR.plot <-
+ggplot(pls.data2, 
+       aes(x = CoralR,
+           y = fvfm)) + 
+  geom_point(aes(shape=Sym.State), size = 3) +
+  
+  expand_limits(x=0,y=0) + # sets plot origin
+  scale_x_continuous(name = "", limits = c(0,0.75), breaks = seq(0, 0.75, by = 0.1)) + # set x axis intervals
+  scale_y_continuous(name = "", limits = c(0, 0.55), breaks = seq(0, 0.5, by = 0.1)) + # set y axis intervals
+ 
+  geom_abline(intercept = pls2.int, slope = pls2.slope, lty=2, size = 1.2) +
+ # stat_regline_equation(label.x = 0.5, label.y = 0.5, size = 4.5) +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic")) +
+  scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(1,19)) +
+  
+  theme_classic(base_size = 13) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12)) 
+
+PLS.postLR.plot
+
+# Save plot for publication
+ggsave(plot = PLS.postLR.plot, 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/PLS.postLR.plot.pdf", 
+       width = 8, height = 6, units = "in")
+```
+
+###########################################################################################################################
+#
+#                                            RGB / FvFm Logistic Regression: NDS
+#
+############################################################################################################################
+
+## Pre treatment
+```{r}
+# Filter from PAM data
+pam.nds.data <- filter(pam.data, Treatment == "NDS", Day == 1)
+
+# select variables from pam.data to keep
+pam.nds.data <- pam.nds.data %>%
+  select(B.Tag, FvFm.AVG)
+
+# Rename column headers
+names(pam.nds.data)[names(pam.nds.data) == "FvFm.AVG"] <- "fvfm"
+```
+```{r}
+# Filter pds from RGB data
+rgb.nds.data <- filter(data, Treatment == "NDS", Time == "Pre_Treat")
+
+# add fvfm to new rgb based on ID
+nds.data1 <- left_join(pam.nds.data, rgb.nds.data, by = "B.Tag")
+
+# remove two NAs
+nds.data1 <- nds.data1[complete.cases(nds.data1),]
+nds.data1$B.Tag <- as.factor(nds.data1$B.Tag)
+```
+```{r}
+# Write binomial model and plot the decision boundary 
+nds1.lr <- glm(Sym.State ~ CoralR + fvfm, data = nds.data1, family = binomial) 
+
+# plot with the decision boundary as determined by the logistic regression coefficients
+nds1.int <- -coef(nds1.lr)[1]/coef(nds1.lr)[3] # for fvfm 
+nds1.slope <- -coef(nds1.lr)[2]/coef(nds1.lr)[3] # for coral r
+```
+```{r}
+# plot
+NDS.preLR.plot <-
+ggplot(nds.data1, 
+       aes(x = CoralR,
+           y = fvfm)) + 
+  geom_point(aes(shape=Sym.State), size = 3) +
+  
+  expand_limits(x=0,y=0) + # sets plot origin
+  scale_x_continuous(name = "", limits = c(0,0.75), breaks = seq(0, 0.75, by = 0.1)) + # set x axis intervals
+  scale_y_continuous(name = "", limits = c(0, 0.55), breaks = seq(0, 0.5, by = 0.1)) + # set y axis intervals
+  
+  geom_abline(intercept = nds1.int, slope = nds1.slope, lty=2, size = 1.2) +
+  #stat_regline_equation(label.x = 0.5, label.y = 0.5, size = 4.5) +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic")) +
+  scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(1,19)) +
+  
+  theme_classic(base_size = 13) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12)) 
+
+NDS.preLR.plot
+
+# Save plot for publication
+ggsave(plot = NDS.preLR.plot, 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/NDS.preLR.plot.pdf", 
+       width = 8, height = 6, units = "in")
+
+```
+
+## Post treatment
+```{r}
+# Filter from PAM data
+pam.nds.data2 <- filter(pam.data, Treatment == "NDS", Day == 22)
+
+# select variables from pam.data to keep
+pam.nds.data2 <- pam.nds.data2 %>%
+  select(B.Tag, FvFm.AVG)
+
+# Rename column headers
+names(pam.nds.data2)[names(pam.nds.data2) == "FvFm.AVG"] <- "fvfm"
+```
+```{r}
+# Filter nds from RGB data
+rgb.nds.data2 <- filter(data, Treatment == "NDS", Time == "Post_Treat")
+
+# add fvfm to new rgb based on ID
+nds.data2 <- left_join(pam.nds.data2, rgb.nds.data2, by = "B.Tag")
+
+# remove two NAs
+nds.data2 <- nds.data2[complete.cases(nds.data2),]
+nds.data2$B.Tag <- as.factor(nds.data2$B.Tag)
+```
+```{r}
+# Write binomial model and plot the decision boundary 
+nds2.lr <- glm(Sym.State ~ CoralR + fvfm, data = nds.data2, family = binomial) 
+
+# plot with the decision boundary as determined by the logistic regression coefficients
+nds2.int <- -coef(nds2.lr)[1]/coef(nds2.lr)[3] # for fvfm 
+nds2.slope <- -coef(nds2.lr)[2]/coef(nds2.lr)[3] # for coral r
+```
+
+```{r}
+# Plot
+NDS.postLR.plot <- 
+ggplot(nds.data2, 
+       aes(x = CoralR,
+           y = fvfm)) + 
+  geom_point(aes(shape=Sym.State), size = 3) +
+  
+  expand_limits(x=0,y=0) + # sets plot origin
+  scale_x_continuous(name = "", limits = c(0,0.75), breaks = seq(0, 0.75, by = 0.1)) + # set x axis intervals
+  scale_y_continuous(name = "", limits = c(0, 0.55), breaks = seq(0, 0.5, by = 0.1)) + # set y axis intervals
+  
+  geom_abline(intercept = nds2.int, slope = nds2.slope, lty=2, size = 1.2) +
+  #stat_regline_equation(label.x = 0.5, label.y = 0.5, size = 4.5) +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic")) +
+  scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(1,19)) +
+  
+  theme_classic(base_size = 13) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+
+NDS.postLR.plot
+
+# Save plot for publication
+ggsave(plot = NDS.postLR.plot, 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/NDS.postLR.plot.pdf", 
+       width = 8, height = 6, units = "in")
+```
+
+###########################################################################################################################
+#
+#                                            RGB / FvFm Logistic Regression: NLS
+#
+############################################################################################################################
+
+## Pre treatment
+```{r}
+# Filter from PAM data
+pam.nls.data <- filter(pam.data, Treatment == "NLS", Day == 1)
+
+# select variables from pam.data to keep
+pam.nls.data <- pam.nls.data %>%
+  select(B.Tag, FvFm.AVG)
+
+# Rename column headers
+names(pam.nls.data)[names(pam.nls.data) == "FvFm.AVG"] <- "fvfm"
+```
+```{r}
+# Filter pds from RGB data
+rgb.nls.data <- filter(data, Treatment == "NLS", Time == "Pre_Treat")
+
+# add fvfm to new rgb based on ID
+nls.data1 <- left_join(pam.nls.data, rgb.nls.data, by = "B.Tag")
+
+# remove two NAs
+nls.data1 <- nls.data1[complete.cases(nls.data1),]
+nls.data1$B.Tag <- as.factor(nls.data1$B.Tag)
+```
+```{r}
+# Write binomial model and plot the decision boundary 
+nls1.lr <- glm(Sym.State ~ CoralR + fvfm, data = nls.data1, family = binomial) 
+
+# plot with the decision boundary as determined by the logistic regression coefficients
+nls1.int <- -coef(nls1.lr)[1]/coef(nls1.lr)[3] # for fvfm 
+nls1.slope <- -coef(nls1.lr)[2]/coef(nls1.lr)[3] # for coral r
+```
+```{r}
+# plot
+NLS.preLR.plot <- 
+ggplot(nls.data1, 
+       aes(x = CoralR,
+           y = fvfm)) + 
+  geom_point(aes(shape=Sym.State), size = 3) +
+ 
+   expand_limits(x=0,y=0) + # sets plot origin
+  scale_x_continuous(name = "", limits = c(0,0.75), breaks = seq(0, 0.75, by = 0.1)) + # set x axis intervals
+  scale_y_continuous(name = "", limits = c(0, 0.55), breaks = seq(0, 0.5, by = 0.1)) + # set y axis intervals
+  
+  geom_abline(intercept = nls1.int, slope = nls1.slope, lty=2 , size = 1.2) +
+  #stat_regline_equation(label.x = 0.5, label.y = 0.5, size = 4.5) +
+ 
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic")) +
+  scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(1,19)) +
+  
+  theme_classic(base_size = 13) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+
+NLS.preLR.plot
+
+# Save plot for publication
+ggsave(plot = NLS.preLR.plot, 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/NLS.preLR.plot.pdf", 
+       width = 8, height = 6, units = "in")
+```
+
+## Post treatment
+```{r}
+# Filter from PAM data
+pam.nls.data2 <- filter(pam.data, Treatment == "NLS", Day == 22)
+
+# select variables from pam.data to keep
+pam.nls.data2 <- pam.nls.data2 %>%
+  select(B.Tag, FvFm.AVG)
+
+# Rename column headers
+names(pam.nls.data2)[names(pam.nls.data2) == "FvFm.AVG"] <- "fvfm"
+```
+```{r}
+# Filter nls from RGB data
+rgb.nls.data2 <- filter(data, Treatment == "NLS", Time == "Post_Treat")
+
+# add fvfm to new rgb based on ID
+nls.data2 <- left_join(pam.nls.data2, rgb.nls.data2, by = "B.Tag")
+
+# remove two NAs
+nls.data2 <- nls.data2[complete.cases(nls.data2),]
+nls.data2$B.Tag <- as.factor(nls.data2$B.Tag)
+```
+```{r}
+# Write binomial model and plot the decision boundary 
+nls2.lr <- glm(Sym.State ~ CoralR + fvfm, data = nls.data2, family = binomial) 
+
+# plot with the decision boundary as determined by the logistic regression coefficients
+nls2.int <- -coef(nls2.lr)[1]/coef(nls2.lr)[3] # for fvfm 
+nls2.slope <- -coef(nls2.lr)[2]/coef(nls2.lr)[3] # for coral r
+```
+```{r}
+# plot
+NLS.postLR.plot <-
+ggplot(nls.data2, 
+       aes(x = CoralR,
+           y = fvfm)) + 
+  geom_point(aes(shape=Sym.State), size = 3) +
+  
+  expand_limits(x=0,y=0) + # sets plot origin
+  scale_x_continuous(name = "", limits = c(0,0.75), breaks = seq(0, 0.75, by = 0.1)) + # set x axis intervals
+  scale_y_continuous(name = "", limits = c(0, 0.55), breaks = seq(0, 0.5, by = 0.1)) + # set y axis intervals
+  
+  geom_abline(intercept = nls2.int, slope = nls2.slope, lty=2, size = 1.2) +
+  #stat_regline_equation(label.x = 0.5, label.y = 0.5, size = 4.5) +
+ 
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic")) +
+  scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(1,19)) +
+  
+  theme_classic(base_size = 13) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+
+NLS.postLR.plot
+
+# Save plot for publication
+ggsave(plot = NLS.postLR.plot, 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/NLS.postLR.plot.pdf", 
+       width = 8, height = 6, units = "in")
+```
+
+###########################################################################################################################
+#
+#                                            RGB / FvFm Logistic Regression: PDF
+#
+############################################################################################################################
+
+## Pre treatment
+```{r}
+# Filter from PAM data
+pam.pdf.data <- filter(pam.data, Treatment == "PDF", Day == 1)
+
+# select variables from pam.data to keep
+pam.pdf.data <- pam.pdf.data %>%
+  select(B.Tag, FvFm.AVG)
+
+# Rename column headers
+names(pam.pdf.data)[names(pam.pdf.data) == "FvFm.AVG"] <- "fvfm"
+```
+```{r}
+# Filter pds from RGB data
+rgb.pdf.data <- filter(data, Treatment == "PDF", Time == "Pre_Treat")
+
+# add fvfm to new rgb based on ID
+pdf.data1 <- left_join(pam.pdf.data, rgb.pdf.data, by = "B.Tag")
+
+# remove two NAs
+pdf.data1 <- pdf.data1[complete.cases(pdf.data1),]
+pdf.data1$B.Tag <- as.factor(pdf.data1$B.Tag)
+```
+```{r}
+# Write binomial model and plot the decision boundary 
+pdf1.lr <- glm(Sym.State ~ CoralR + fvfm, data = pdf.data1, family = binomial) 
+
+# plot with the decision boundary as determined by the logistic regression coefficients
+pdf1.int <- -coef(pdf1.lr)[1]/coef(pdf1.lr)[3] # for fvfm 
+pdf1.slope <- -coef(pdf1.lr)[2]/coef(pdf1.lr)[3] # for coral r
+```
+```{r}
+# plot 
+PDF.preLR.plot <-
+ggplot(pdf.data1, 
+       aes(x = CoralR,
+           y = fvfm)) + 
+  geom_point(aes(shape=Sym.State), size = 3) +
+  
+  expand_limits(x=0,y=0) + # sets plot origin
+  scale_x_continuous(name = "", limits = c(0,0.75), breaks = seq(0, 0.75, by = 0.1)) + # set x axis intervals
+  scale_y_continuous(name = "", limits = c(0, 0.55), breaks = seq(0, 0.5, by = 0.1)) + # set y axis intervals
+  
+  geom_abline(intercept = pdf1.int, slope = pdf1.slope, lty=2, size = 1.2) +
+  #stat_regline_equation(label.x = 0.5, label.y = 0.5, size = 4.5) +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic")) +
+  scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(1,19)) +
+  
+  theme_classic(base_size = 13) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+
+PDF.preLR.plot 
+
+# Save plot for publication
+ggsave(plot = PDF.preLR.plot, 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/PDF.preLR.plot.pdf", 
+       width = 8, height = 6, units = "in")
+```
+
+## Post treatment
+```{r}
+# Filter from PAM data
+pam.pdf.data2 <- filter(pam.data, Treatment == "PDF", Day == 22)
+
+# select variables from pam.data to keep
+pam.pdf.data2 <- pam.pdf.data2 %>%
+  select(B.Tag, FvFm.AVG)
+
+# Rename column headers
+names(pam.pdf.data2)[names(pam.pdf.data2) == "FvFm.AVG"] <- "fvfm"
+```
+```{r}
+# Filter pdf from RGB data
+rgb.pdf.data2 <- filter(data, Treatment == "PDF", Time == "Post_Treat")
+
+# add fvfm to new rgb based on ID
+pdf.data2 <- left_join(pam.pdf.data2, rgb.pdf.data2, by = "B.Tag")
+
+# remove two NAs
+pdf.data2 <- pdf.data2[complete.cases(pdf.data2),]
+pdf.data2$B.Tag <- as.factor(pdf.data2$B.Tag)
+```
+```{r}
+# Write binomial model and plot the decision boundary 
+pdf2.lr <- glm(Sym.State ~ CoralR + fvfm, data = pdf.data2, family = binomial) 
+
+# plot with the decision boundary as determined by the logistic regression coefficients
+pdf2.int <- -coef(pdf2.lr)[1]/coef(pdf2.lr)[3] # for fvfm 
+pdf2.slope <- -coef(pdf2.lr)[2]/coef(pdf2.lr)[3] # for coral r
+```
+```{r}
+# plot
+PDF.postLR.plot <-
+ggplot(pdf.data2, 
+       aes(x = CoralR,
+           y = fvfm)) + 
+  geom_point(aes(shape=Sym.State), size = 3) +
+  
+  expand_limits(x=0,y=0) + # sets plot origin
+  scale_x_continuous(name = "", limits = c(0,0.75), breaks = seq(0, 0.75, by = 0.1)) + # set x axis intervals
+  scale_y_continuous(name = "", limits = c(0, 0.55), breaks = seq(0, 0.5, by = 0.1)) + # set y axis intervals
+  
+  geom_abline(intercept = pdf2.int, slope = pdf2.slope, lty=2, size = 1.2) +
+  #stat_regline_equation(label.x = 0.1, label.y = 0.5, size = 4.5) +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic")) +
+  scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(1,19)) +
+  
+  theme_classic(base_size = 13) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+
+PDF.postLR.plot 
+
+# Save plot for publication
+ggsave(plot = PDF.postLR.plot, 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/PDF.postLR.plot.pdf", 
+       width = 8, height = 6, units = "in")
+```
+
+###########################################################################################################################
+#
+#                                            RGB / FvFm Logistic Regression: PLF
+#
+############################################################################################################################
+
+## Pre treatment
+```{r}
+# Filter from PAM data
+pam.plf.data <- filter(pam.data, Treatment == "PLF", Day == 1)
+
+# select variables from pam.data to keep
+pam.plf.data <- pam.plf.data %>%
+  select(B.Tag, FvFm.AVG)
+
+# Rename column headers
+names(pam.plf.data)[names(pam.plf.data) == "FvFm.AVG"] <- "fvfm"
+```
+```{r}
+# Filter pds from RGB data
+rgb.plf.data <- filter(data, Treatment == "PLF", Time == "Pre_Treat")
+
+# add fvfm to new rgb based on ID
+plf.data1 <- left_join(pam.plf.data, rgb.plf.data, by = "B.Tag")
+
+# remove two NAs
+plf.data1 <- plf.data1[complete.cases(plf.data1),]
+plf.data1$B.Tag <- as.factor(plf.data1$B.Tag)
+```
+```{r}
+# Write binomial model and plot the decision boundary 
+plf1.lr <- glm(Sym.State ~ CoralR + fvfm, data = plf.data1, family = binomial) 
+
+# plot with the decision boundary as determined by the logistic regression coefficients
+plf1.int <- -coef(plf1.lr)[1]/coef(plf1.lr)[3] # for fvfm 
+plf1.slope <- -coef(plf1.lr)[2]/coef(plf1.lr)[3] # for coral r
+```
+```{r}
+# plot
+PLF.preLR.plot <-
+ggplot(plf.data1, 
+       aes(x = CoralR,
+           y = fvfm)) + 
+  geom_point(aes(shape=Sym.State), size = 3) +
+  
+  expand_limits(x=0,y=0) + # sets plot origin
+  scale_x_continuous(name = "", limits = c(0,0.75), breaks = seq(0, 0.75, by = 0.1)) + # set x axis intervals
+  scale_y_continuous(name = "", limits = c(0, 0.55), breaks = seq(0, 0.5, by = 0.1)) + # set y axis intervals
+  
+  geom_abline(intercept = plf1.int, slope = plf1.slope, lty=2, size = 1.2) +
+  #stat_regline_equation(label.x = 0.5, label.y = 0.5, size = 4.5) +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic")) +
+  scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(1,19)) +
+  
+  theme_classic(base_size = 13) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+
+PLF.preLR.plot 
+
+# Save plot for publication
+ggsave(plot = PLF.preLR.plot, 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/PLF.preLR.plot.pdf", 
+       width = 8, height = 6, units = "in")
+```
+
+## Post treatment
+```{r}
+# Filter from PAM data
+pam.plf.data2 <- filter(pam.data, Treatment == "PLF", Day == 22)
+
+# select variables from pam.data to keep
+pam.plf.data2 <- pam.plf.data2 %>%
+  select(B.Tag, FvFm.AVG)
+
+# Rename column headers
+names(pam.plf.data2)[names(pam.plf.data2) == "FvFm.AVG"] <- "fvfm"
+```
+```{r}
+# Filter plf from RGB data
+rgb.plf.data2 <- filter(data, Treatment == "PLF", Time == "Post_Treat")
+
+# add fvfm to new rgb based on ID
+plf.data2 <- left_join(pam.plf.data2, rgb.plf.data2, by = "B.Tag")
+
+# remove two NAs
+plf.data2 <- plf.data2[complete.cases(plf.data2),]
+plf.data2$B.Tag <- as.factor(plf.data2$B.Tag)
+```
+```{r}
+# Write binomial model and plot the decision boundary 
+plf2.lr <- glm(Sym.State ~ CoralR + fvfm, data = plf.data2, family = binomial) 
+
+# plot with the decision boundary as determined by the logistic regression coefficients
+plf2.int <- -coef(plf2.lr)[1]/coef(plf2.lr)[3] # for fvfm 
+plf2.slope <- -coef(plf2.lr)[2]/coef(plf2.lr)[3] # for coral r
+```
+```{r}
+# Plot
+
+PLF.postLR.plot <-
+ggplot(plf.data2, 
+       aes(x = CoralR,
+           y = fvfm)) + 
+  geom_point(aes(shape=Sym.State), size = 3) +
+  
+  expand_limits(x=0,y=0) + # sets plot origin
+  scale_x_continuous(name = "", limits = c(0,0.75), breaks = seq(0, 0.75, by = 0.1)) + # set x axis intervals
+  scale_y_continuous(name = "", limits = c(0, 0.55), breaks = seq(0, 0.5, by = 0.1)) + # set y axis intervals
+
+  geom_abline(intercept = plf2.int, slope = plf2.slope, lty=2,size=1.2) +
+  #stat_regline_equation(label.x = 0.5, label.y = 0.5, size = 4.5) +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic")) +
+  scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(1,19)) +
+  
+  theme_classic(base_size = 13) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+
+PLF.postLR.plot 
+
+# Save plot for publication
+ggsave(plot = PLF.postLR.plot, 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/PLF.postLR.plot.pdf", 
+       width = 8, height = 6, units = "in")
+```
+
+###########################################################################################################################
+#
+#                                            RGB / FvFm Logistic Regression: NDF
+#
+############################################################################################################################
+
+## Pre treatment
+```{r}
+# Filter from PAM data
+pam.ndf.data <- filter(pam.data, Treatment == "NDF", Day == 1)
+
+# select variables from pam.data to keep
+pam.ndf.data <- pam.ndf.data %>%
+  select(B.Tag, FvFm.AVG)
+
+# Rename column headers
+names(pam.ndf.data)[names(pam.ndf.data) == "FvFm.AVG"] <- "fvfm"
+```
+```{r}
+# Filter pds from RGB data
+rgb.ndf.data <- filter(data, Treatment == "NDF", Time == "Pre_Treat")
+
+# add fvfm to new rgb based on ID
+ndf.data1 <- left_join(pam.ndf.data, rgb.ndf.data, by = "B.Tag")
+
+# remove two NAs
+ndf.data1 <- ndf.data1[complete.cases(ndf.data1),]
+ndf.data1$B.Tag <- as.factor(ndf.data1$B.Tag)
+```
+```{r}
+# Write binomial model and plot the decision boundary 
+ndf1.lr <- glm(Sym.State ~ CoralR + fvfm, data = ndf.data1, family = binomial) 
+
+# plot with the decision boundary as determined by the logistic regression coefficients
+ndf1.int <- -coef(ndf1.lr)[1]/coef(ndf1.lr)[3] # for fvfm 
+ndf1.slope <- -coef(ndf1.lr)[2]/coef(ndf1.lr)[3] # for coral r
+```
+
+```{r}
+# Plot
+NDF.preLR.plot<-
+ggplot(ndf.data1, 
+       aes(x = CoralR,
+           y = fvfm)) + 
+  geom_point(aes(shape=Sym.State), size = 3) +
+  
+  expand_limits(x=0,y=0) + # sets plot origin
+  scale_x_continuous(name = "", limits = c(0,0.75), breaks = seq(0, 0.75, by = 0.1)) + # set x axis intervals
+  scale_y_continuous(name = "", limits = c(0, 0.55), breaks = seq(0, 0.5, by = 0.1)) + # set y axis intervals
+
+  geom_abline(intercept = ndf1.int, slope = ndf1.slope, lty=2, size = 1.2) +
+  #stat_regline_equation(label.x = 0.5, label.y = 0.5, size = 4.5) +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic")) +
+  scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(1,19)) +
+  
+  theme_classic(base_size = 13) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+
+NDF.preLR.plot 
+
+# Save plot for publication
+ggsave(plot = NDF.preLR.plot, 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/NDF.preLR.plot.pdf", 
+       width = 8, height = 6, units = "in")
+```
+
+# No PAM data at day 22 for NDF
+
+###########################################################################################################################
+#
+#                                            RGB / FvFm Logistic Regression: NLF
+#
+############################################################################################################################
+
+## Pre treatment
+```{r}
+# Filter from PAM data
+pam.nlf.data <- filter(pam.data, Treatment == "NLF", Day == 1)
+
+# select variables from pam.data to keep
+pam.nlf.data <- pam.nlf.data %>%
+  select(B.Tag, FvFm.AVG)
+
+# Rename column headers
+names(pam.nlf.data)[names(pam.nlf.data) == "FvFm.AVG"] <- "fvfm"
+```
+```{r}
+# Filter pds from RGB data
+rgb.nlf.data <- filter(data, Treatment == "NLF", Time == "Pre_Treat")
+
+# add fvfm to new rgb based on ID
+nlf.data1 <- left_join(pam.nlf.data, rgb.nlf.data, by = "B.Tag")
+
+# remove two NAs
+nlf.data1 <- nlf.data1[complete.cases(nlf.data1),]
+nlf.data1$B.Tag <- as.factor(nlf.data1$B.Tag)
+```
+```{r}
+# Write binomial model and plot the decision boundary 
+nlf1.lr <- glm(Sym.State ~ CoralR + fvfm, data = nlf.data1, family = binomial) 
+
+# plot with the decision boundary as determined by the logistic regression coefficients
+nlf1.int <- -coef(nlf1.lr)[1]/coef(nlf1.lr)[3] # for fvfm 
+nlf1.slope <- -coef(nlf1.lr)[2]/coef(nlf1.lr)[3] # for coral r
+```
+
+```{r}
+# plot
+NLF.preLR.plot<-
+ggplot(nlf.data1, 
+       aes(x = CoralR,
+           y = fvfm)) + 
+  geom_point(aes(shape=Sym.State), size = 3) +
+
+  expand_limits(x=0,y=0) + # sets plot origin
+  scale_x_continuous(name = "", limits = c(0,0.75), breaks = seq(0, 0.75, by = 0.1)) + # set x axis intervals
+  scale_y_continuous(name = "", limits = c(0, 0.55), breaks = seq(0, 0.5, by = 0.1)) + # set y axis intervals
+  
+  geom_abline(intercept = nlf1.int, slope = nlf1.slope, lty=2, size=1.2) +
+  #stat_regline_equation(label.x = 0.55, label.y = 0.5, size = 4.5) +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic")) +
+  scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(1,19)) +
+  
+  theme_classic(base_size = 13) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+
+NLF.preLR.plot 
+
+# Save plot for publication
+ggsave(plot = NLF.preLR.plot, 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/NLF.preLR.plot.pdf", 
+       width = 8, height = 6, units = "in")
+```
+
+# No PAM data at day 22 for NLF
+
+
+## EXAMPLE CODE FOR LR PLOTS THAT DO NOT HAVE AXES, LEGENDS, AND COLOR STRIPPED FOR PANELLING/PUBLICATION
+```{r}
+# plot
+# lr.ex.plot <-
+#ggplot(nlf.data1, 
+#       aes(x = CoralR,
+#           y = fvfm,
+#           color=Sym.State)) + 
+#  geom_point(aes(shape=Sym.State), size = 3) +
+
+#  expand_limits(x=0,y=0) + # sets plot origin
+#  scale_x_continuous(name = "Intensity in the red channel \n (0 = darkest, 1 = brightest)",
+#                     limits = c(0,0.75), breaks = seq(0, 0.75, by = 0.1)) + # set x axis intervals
+#  scale_y_continuous(name = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")),
+#                     limits = c(0, 0.55), breaks = seq(0, 0.5, by = 0.1)) + # set y axis intervals
+#  
+#  geom_abline(intercept = nlf1.int, slope = nlf1.slope, lty=2, size=1.2) +
+#  
+#  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"), values = c("tan", "coral4")) +
+#  scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(19,19)) +
+  
+#  theme_classic(base_size = 13) +
+#  theme(legend.position = "top",
+#        legend.title = element_blank(),
+#        legend.text = element_text(size = 12))
+
+#lr.ex.plot
+
+```
+
+#### COOL CODE THAT I WROTE AND AM REALLY PROUD OF BUT DON'T NEED #####
+```{r}
+# Let's plot the summary data of the R color between phenotypes in each treatment to get a better idea of what they look like
+
+#Treatments <- c("control", "PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF") # string for treatments
+
+#for (s in 1:length(Treatments)) {
+ 
+# tmp.data <- filter(data, Treatment == Treatments[s])
+# tmp.sum1 <- summarySE(tmp.data, measurevar = "CoralR", groupvars = c("Time", "Sym.State"))
+
+#  png(paste(Treatments[s], "phenotype sum over time.png", sep = " "))
+ # print(  
+#    ggplot(data = tmp.sum1,
+#              aes(x = Time, 
+#                  y = CoralR, 
+#                  col = Sym.State,
+#                  group = Sym.State)) +
+#  geom_point() +
+#  geom_line() +
+#  ggtitle(paste(Treatments[s])) +
+#  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1) +
+#  scale_color_manual(values=c("tan", "coral4")) +
+##  theme_classic())
+#dev.off()  
+#}
+
+
+```
+
+
+###########################################################################################################################
+#
+#                                                 Format for merged metric datasheet
+#
+############################################################################################################################
+
+```{r}
+# format to wide
+wide.rgb = data %>%
+  select(B.Tag, Time, CoralR, ) %>%
+  spread(Time, CoralR)
+```
+```{r}
+# load in all.data.merged
+all.data.merged <- read.csv("~/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/All.data.merged.csv", header=TRUE)
+names(all.data.merged)
+```
+
+```{r}
+# edit names of wide.mass
+names(wide.rgb)[names(wide.rgb) == "B.Tag"] <- "BTag" 
+names(wide.rgb)[names(wide.rgb) == "Post_Frag"] <- "CoralR.day0" 
+names(wide.rgb)[names(wide.rgb) == "Pre_Treat"] <- "CoralR.day1" 
+names(wide.rgb)[names(wide.rgb) == "Post_Treat"] <-  "CoralR.day22" 
+```
+
+```{r}
+# add wide.mass to all.data.merged
+all.data.merged <- left_join(all.data.merged, wide.rgb, by = "BTag")
+
+all.data.merged <- all.data.merged %>%
+  select(-"X")
+```
+```{r}
+# save merged data as a csv
+path <- "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-"
+write.csv(all.data.merged, file.path(path, "All.data.merged.csv"))
+```
+

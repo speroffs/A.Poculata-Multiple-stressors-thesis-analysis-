@@ -1,0 +1,248 @@
+---
+title: "Merged Metrics"
+author: "Sarah Speroff"
+date: "3/1/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Experimental data details
+
+Colony:	Either A (for aposymbiotc) or S (for symbiotic) and in ascending order. Counts the number of colonies of each phenotype used														
+Fragment:	The # fragment that was excised from a given colony														
+BTag:	Identification code that differentiates every coral polyp from the rest, letter represents the color of the tag														
+Phenotype:	either aposymbiotic or symbiotic polyp as determined from the colony of origin														
+Treatment:	Treatment codes differentiate the unique combination of stressors that make up that experimental condition: Plastic or Noplastic, Light or Dark, Fed or Starved														
+Temperature:	Either ambient (19 degrees C) or elevated (30 degrees C)														
+Tank:	Tank location on X-Rack (row/column) or wetlab tray														
+Tile:	Unique acrylic disk that held 5 polpys per tank (all same phenotype)														
+DaysAlive:	The total number of days the fragment survived during the 22 day experiment														
+Censored:	Y/N: Did we lose that polyp to a reason outside of mortality? (ie. did it get lost, or crushed during removal for respiration?)														
+Mass.day0: Polpy dry(ish) mass in Grams (G) on the day that the polp was fragmented from the colony (post-frag)														
+Mass.day8:	Polpy dry(ish) mass in Grams on day 8														
+Mass.day15:	Polpy dry(ish) mass in Grams on day 15														
+Mass.day22:	Polpy dry(ish) mass in Grams on day 22														
+FvFm.day1:	Photosynthetic efficiency of coral symbiots measured using PAM on day of the experiment after ~30 minutes dark acclimated														
+FvFm.day8:	" " day 8														
+FvFm.day15:	" " day 15														
+FvFm.day22:	" " day 22														
+CoralR.day0:	Red color channel intensity corrected to background red standard using photographs as a non-destructive proxy for chlorophyll-a density. Collected on the day the polyp was fragmented from the colony (post-frag)														
+CoralR.day1:	" " on the first day of experimental treatments (pre-treat)														
+CoralR.day22:	" " on the last day of experimental treatments (post-treat)														
+Bacteria:	Bacterial challenge treatment: Either lysed E.coli cells (EC) or saltwater controls (SW)														
+MR.day8:	Metabolic rate (oxygen consumption) in umols O2 per minute per gram of polyp mass on day 8. Values are corrected to polyp mass and respirometer chamber volume	MR.day15:	MR day 15														
+MR.day22:	MR day 22														
+```
+
+###########################################################################################################################
+#
+#                                              Data Prep, and transformations
+#
+############################################################################################################################
+
+```{r}
+library(dplyr)
+library(tidyr)
+```
+
+```{r}
+# set working directory
+setwd("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-")
+```
+```{r}
+# Load dataset with merged metrics 
+data <- read.csv("All.data.merged.csv", header=TRUE)
+```
+```{r}
+# Change data types 
+data$Colony <- as.factor(data$Colony)
+data$BTag <- as.factor(data$BTag)
+data$Phenotype <- as.factor(data$Phenotype)
+data$Treatment <- as.factor(data$Treatment)
+data$Temperature <- as.factor(data$Temperature)
+data$Tank <- as.factor(data$Tank)
+data$Bacteria <- as.factor(data$Bacteria)
+data$DaysAlive <- as.numeric(data$DaysAlive)
+```
+
+# Let's transform our dataset from it's wide format to a long format
+```{r}
+# Polpy ID data
+meta.data <- data %>%
+  select(Colony:Censored, Bacteria)
+```
+```{r}
+# Mass data
+mass.long.data <- data %>%
+  select(BTag, MassG.day0:MassG.day22) %>%
+  rename(c(Day0 = MassG.day0, Day8 = MassG.day8, Day15 = MassG.day15, Day22 = MassG.day22)) %>%
+  pivot_longer(
+    cols = c("Day0", "Day8", "Day15", "Day22"),
+    names_to = "Day",
+    values_to = "Mass.G") 
+```
+```{r}
+# Photosynthetic Efficiency data
+fvfm.long.data <- data %>%
+  select(BTag, FvFm.day1:FvFm.day22) %>%
+  rename(c(Day1 = FvFm.day1, Day8 = FvFm.day8, Day15 = FvFm.day15, Day22 = FvFm.day22)) %>%
+  pivot_longer(
+    cols = c("Day1", "Day8", "Day15", "Day22"),
+    names_to = "Day",
+    values_to = "Fvfm") 
+```
+```{r}
+# Color data
+rgb.long.data <- data %>%
+  select(BTag, CoralR.day0:CoralR.day22) %>%
+  rename(c(Day0 = CoralR.day0, Day1 = CoralR.day1, Day22 = CoralR.day22)) %>%
+  pivot_longer(
+    cols = c("Day0", "Day1", "Day22"),
+    names_to = "Day",
+    values_to = "Rcolor") 
+```
+```{r}
+# Respiration data
+mr.long.data <- data %>%
+  select(BTag, MR.day8:MR.day22) %>%
+  rename(c(Day8 = MR.day8, Day15 = MR.day15, Day22 = MR.day22)) %>%
+  pivot_longer(
+    cols = c("Day8", "Day15", "Day22"),
+    names_to = "Day",
+    values_to = "MR") 
+```
+
+# Now that we have the long format for each of our variables, let's transform our Metabolic rate and Mass data to before we join them all back into one dataframe
+```{r}
+# We know that from our previous work with the respiration data that a log-transformation is needed, but let's take a look to make sure
+hist(mr.long.data$MR)
+
+mr.long.data$MR <-abs(mr.long.data$MR) # we'll start by taking the absolute value of our MR data to attribute a higher number to a faster rate
+mr.long.data$logMR <- log(mr.long.data$MR) # and now we can log-transform that value
+
+hist(mr.long.data$logMR) # a beautiful histogram! This is the data we want to bring back into our larger dataset
+```
+```{r}
+# Now let's look at our Mass data 
+hist(mass.long.data$Mass.G) # not the ideal skew
+
+# for the sake of continuity, we will convert the mass into milligrams like we did in our growth analysis
+mass.long.data$mass.mg <- mass.long.data$Mass.G*1000
+hist(mass.long.data$mass.mg) # does not change the skew, so let's log transform like we did last time
+
+mass.long.data$logmass.mg <- log(mass.long.data$mass.mg)
+hist(mass.long.data$logmass.mg) # much better, we'll work with this data
+```
+
+# Now, lets bring all of those long formatted datasets back together with our log-transformed mass and metabolic rate data
+```{r}
+all.data <- 
+  merge(
+    merge(
+      merge(
+        merge(
+          mass.long.data,
+        fvfm.long.data, all = TRUE),
+      rgb.long.data, all = TRUE),
+    mr.long.data, all = TRUE),
+  meta.data,all = TRUE)
+
+```
+```{r}
+# Save this long dataframe as a csv.file so we don't have to do this every time!
+path <- "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-"
+write.csv(all.data, file.path(path, "All.data.merged.long.format.for.R.csv"))
+```
+
+###########################################################################################################################
+#
+#                                                  Start here!
+#
+############################################################################################################################
+
+```{r}
+library(ggplot2)
+```
+
+```{r}
+# Let's load in that merged dataframe!
+merge.data <- read.csv("All.data.merged.long.format.for.R.csv", header=TRUE)
+```
+
+```{r}
+ggplot(merge.data,
+       aes(x = DaysAlive,
+           y = logmass.mg,
+           color = Treatment,
+           group = Treatment)) +
+         geom_point() +
+  geom_line() +
+  theme_classic()
+   
+```
+```{r}
+# Let's write a function to bin our survival data
+If an individual (BTag) in merge.data has a DaysAlive value < 8, put it in a new column (survbin) and call it 8
+if an individual in merge data has a days alive value between 8 and 15, put it in survbin and call it 15
+if an individual in merge data has a days alive value > 15, put it in surv bin and call it 22
+```
+```{r}
+# set up cut-off values 
+breaks <- c(0,8,15,22)
+# specify interval/bin labels
+tags <- c("0","1-7","8-14", "15-22")
+
+test <- merge.data %>% 
+  select(BTag, Treatment, DaysAlive) 
+survgroup <- as_tibble(test) %>% 
+  mutate(survbin = case_when(
+    DaysAlive <= 8 ~ tags[1],
+    DaysAlive > 8 & DaysAlive <= 15 ~ tags[2],
+    DaysAlive > 15 & DaysAlive <= 22 ~ tags[3],
+    ))
+
+survgroup$survbin <- factor(survgroup$survbin,
+                       levels = tags,
+                       ordered = FALSE)
+summary(survgroup$survbin)
+
+duplicated(survgroup)
+survgroup = survgroup %>% 
+  unique()
+survgroup
+```
+```{r}
+# plot the number of individuals in 
+ggplot(survgroup, mapping = aes(x=survbin, color = Treatment, fill = Treatment)) +
+  geom_bar() +
+  facet_wrap(vars(Treatment)) +
+  theme_classic()
+## SHOOT, they are located in the bins in which they died. I want them to be in the bins in which they lived
+```
+
+```{r}
+# HOW can i bin the data so that I can plot mr/mass/growth/etc and SURVIVAL over time and still retain the data points at their respective days?
+test2 <- merge.data %>% 
+  select(BTag, Treatment, DaysAlive, Day) 
+survgroup2 <- as_tibble(test2) %>% 
+  mutate(survbin = case_when(
+    Day = "Day0"~ tags[1],
+    DaysAlive < 8 ~ tags[2],
+    DaysAlive >= 8 & DaysAlive <= 14 ~ tags[3],
+    DaysAlive >= 15 & DaysAlive <= 22 ~ tags[4]
+    ))
+```
+
+
+
+
+
+
+
+
+
+

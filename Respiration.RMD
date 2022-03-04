@@ -1,0 +1,2852 @@
+---
+title: "Respiration"
+author: "Sarah Speroff"
+date: "1/31/2022"
+output: html_document
+---
+
+###################################################################################################################################
+#
+#                                                           Data Prep
+#
+###################################################################################################################################
+
+```{r, message=FALSE}
+# Libraries 
+library(ggplot2)
+library(Rmisc)
+library(dplyr)
+library(broom)
+library(tidyr)
+```
+
+```{r}
+# Working Directory 
+setwd("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration")
+
+# load the data 
+data <- read.csv("Respiration Data compiled - allrates.csv", header = TRUE)
+```
+```{r}
+# Rename column headers
+names(data)[names(data) == "mass.specific"] <- "rate"
+
+# absolute value rate for better visualization
+data$rate = abs(data$rate)
+```
+```{r}
+# Change column variable type 
+data$B.TAG=as.factor(data$B.TAG)
+data$Day = as.factor(data$Day)
+data$Sym.state = as.factor(data$Sym.state)
+data$Bacteria = as.factor(data$Bacteria)
+data$Plastic = as.factor(data$Plastic)
+data$Light = as.factor(data$Light)
+data$Food = as.factor(data$Food)
+data$Temperature = as.factor(data$Temperature)
+```
+```{r}
+# Re-level treatments 
+data$Treatment <- factor(data$Treatment, levels = c("Control", "PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF"))
+# Re-order days
+data$Day <- factor(data$Day, levels = c("8", "15", "22"))
+
+str(data) #final check
+```
+
+#################################
+# Preliminary Data Visualization
+
+```{r}
+# Visualize rates for each treatment over time 
+
+ggplot(data, aes(Day, rate, col = Treatment)) +
+  geom_jitter() +
+  facet_wrap(vars(Treatment)) +
+  geom_smooth(method=lm)
+
+```
+
+```{r}
+# Separate by Bacterial treatment 
+
+ggplot(data, aes(Day, rate, col = Treatment)) +
+  geom_jitter(alpha = 0.8) +
+  facet_grid(vars(Bacteria)) +
+  geom_smooth(method = lm)
+
+```
+
+```{r}
+# Separate by Temperature
+
+ggplot(data, aes(Day, rate, col = Temperature)) +
+  geom_jitter(alpha = 0.8) +
+  facet_grid(vars(Bacteria)) +
+  geom_smooth(method = lm)
+
+```
+
+```{r}
+# Separate by Plastic
+
+ggplot(data, aes(Day, rate, col = Plastic)) +
+  geom_jitter(alpha = 0.8) +
+  facet_grid(vars(Bacteria)) +
+  geom_smooth(method = lm)
+
+```
+
+```{r}
+# Separate by Light
+
+ggplot(data, aes(Day, rate, col = Light)) +
+  geom_jitter(alpha = 0.8) +
+  facet_grid(vars(Bacteria)) +
+  geom_smooth(method = lm)
+
+```
+
+```{r}
+# Separate by Food
+
+ggplot(data, aes(Day, rate, col = Food)) +
+  geom_jitter(alpha = 0.8) +
+  facet_grid(vars(Bacteria)) +
+  geom_smooth(method = lm)
+
+```
+
+```{r}
+# Separate by Phenotype
+
+ggplot(data, aes(Day, rate, col = Sym.state)) +
+  geom_jitter(alpha = 0.8) +
+  facet_grid(vars(Bacteria)) +
+  geom_smooth(method = lm)
+
+```
+
+```{r}
+# Summarize rate by treatment, Bacterial treatment, and Day
+treat.means <- summarySE(data, measurevar = "rate", groupvars = c("Treatment", "Day", "Bacteria"))
+
+# plot it All treatments over time by
+
+ggplot(data = treat.means, 
+              aes(x = Day, 
+                  y = rate, 
+                  col = Treatment, 
+                  group = Treatment)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(vars(Bacteria)) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+       caption = "data represent mean +/- SEM" ) +
+  scale_color_manual(values = c("#131513", "#E02D00", "#FF7E33", "#D6A70A", "#ECDD09", 
+             "#075F3C", "#7BB12F", "#35516E", "#3F88C5")) +
+  theme_classic()
+```
+
+###################################################################################################################################
+#
+#                                               Summary Statistics and comparisons by Treatment
+#
+###################################################################################################################################
+
+###################################################################################################################
+# Question 1: Do astrangia respond to e.coli in every treatment? What is the effect of bacteria on metabolic rate?
+
+```{r}
+# create grouping factor to run 9 linear models for each treatment at once
+by_treat <- group_by(data, Treatment)
+
+# Create a df with the parameter coefficients of the linear models  
+response.lm <- 
+  do(by_treat, 
+   tidy(                     
+     lm(rate~Bacteria, data= .)))
+response.lm
+
+## Almost, there is a significant differential response of corals to e. coli in 8/9 treatments where respiration is significantly faster in the e.coli treatment groups compared to the saltwater control groups except for NDF. Lack of a significant difference in NDF could be due to a decrease in sample size for e.coli data - 2 time points instead of 3
+```
+```{r}
+# Summarise to plot
+bac.sum <- summarySE(data, measurevar = "rate", groupvars = c("Treatment", "Bacteria"))
+bac.sum$Treatment <- factor(bac.sum$Treatment, levels = c("Control", "PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF"))
+
+# make sig df
+sig1 <- tribble(
+  ~Treatment, ~Bacteria, ~rate,
+  "NLF", "SW", 0.03) # < 0.05 *
+
+sig2 <- tribble(
+  ~Treatment, ~Bacteria, ~rate,
+  "Control", "SW", 0.03, # < 0.01 **
+  "PLS", "SW", 0.03) # < 0.01 **
+
+sig3 <- tribble(
+  ~Treatment, ~Bacteria, ~rate,
+  "PDS", "SW", 0.03, # < 0.001 ***
+  "NDS", "SW", 0.03, # < 0.001 ***
+  "NLS", "SW", 0.03, # < 0.001 ***
+  "PDF", "SW", 0.03, # < 0.001 ***
+  "PLF", "SW", 0.03) # < 0.001 ***
+
+ggplot(data = bac.sum, 
+       aes(x = Bacteria,
+           y = rate,
+           color = Bacteria)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+  facet_wrap(vars(Treatment)) +
+  scale_color_manual(values = c("black", "royalblue3")) +
+  labs(x = "", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "Data represent mean +/- SEM; Corals respond significantly more to bacterial exposure in \nall treatments except for NDF." )+
+  theme_classic() 
+  #geom_text(data = sig1, label = "*", size = 6, color = "black") +
+  #geom_text(data = sig2, label = "**", size = 6, color = "black") +
+  #geom_text(data = sig3, label = "***", size = 6, color = "black") 
+
+```
+
+############################################################################################################################
+# Question 2: Do astrangia respond to differently to e.coli over time in every treatment? What is the effect of time on rate?
+
+```{r}
+# Run 2 way anovas for the effect of bacterial treatment and time on respiration rate for every treatment 
+
+# PDS
+pds.data <- filter(data, Treatment == "PDS")
+pds_aov1 <- aov(rate ~ Day * Bacteria, data = pds.data)
+summary(pds_aov1) # yes, day is significant effect on rate
+
+# Run a tukey HSD post hoc test to determine at which time points the rate between saltwater and bacterial treatments are different
+pds_tukey1 <- tidy(TukeyHSD(pds_aov1, which = 'Day:Bacteria'))
+pds_tukey1 <- filter(pds_tukey1, adj.p.value <= 0.05) # filter out significant interactions
+pds_tukey1
+
+# Bacteria, Day, & Bacteria*Day effect rate, where the response at day 22 is significantly different between saltwater and e.coli
+```
+
+```{r}
+# PLS
+pls.data <- filter(data, Treatment == "PLS")
+pls_aov1 <- aov(rate ~ Day * Bacteria, data = pls.data)
+summary(pls_aov1)
+
+# Run a tukey HSD post hoc test to determine at which time points the rate between saltwater and bacterial treatments are different
+pls_tukey1 <- tidy(TukeyHSD(pls_aov1, which = 'Day:Bacteria'))
+pls_tukey1 <- filter(pls_tukey1, adj.p.value <= 0.05) # filter out significant interactions
+pls_tukey1
+
+# Bacteria but not day effects rate, but at day 15 there is a significant difference between the response to e.coli and saltwater. 
+```
+
+```{r}
+# NDS
+nds.data <- filter(data, Treatment == "NDS")
+nds_aov1 <- aov(rate ~ Day * Bacteria, data = nds.data)
+summary(nds_aov1)
+
+# Run a tukey HSD post hoc test to determine at which time points the rate between saltwater and bacterial treatments are different
+nds_tukey1 <- tidy(TukeyHSD(nds_aov1, which = 'Day:Bacteria'))
+nds_tukey1 <- filter(nds_tukey1, adj.p.value <= 0.05) # filter out significant interactions
+nds_tukey1
+
+# Bacteria, Day, & Bacteria*Day effect rate, and at 8 days there is a significant difference between the response to saltwater and e.coli
+```
+
+```{r}
+# NLS
+nls.data <- filter(data, Treatment == "NLS")
+nls_aov1 <- aov(rate ~ Day * Bacteria, data = nls.data)
+summary(nls_aov1)
+
+# Run a tukey HSD post hoc test to determine at which time points the rate between saltwater and bacterial treatments are different
+nls_tukey1 <- tidy(TukeyHSD(nls_aov1, which = 'Day:Bacteria'))
+nls_tukey1 <- filter(nls_tukey1, adj.p.value <= 0.05) # filter out significant interactions
+nls_tukey1
+
+# Bacteria, but not day affect the rate, however there is significant difference in the rate between saltwater and e.coli at day 15 and 22,
+```
+
+```{r}
+# PDF
+pdf.data <- filter(data, Treatment == "PDF")
+pdf_aov1 <- aov(rate ~ Day * Bacteria, data = pdf.data)
+summary(pdf_aov1)
+
+# Run a tukey HSD post hoc test to determine at which time points the rate between saltwater and bacterial treatments are different
+pdf_tukey1 <- tidy(TukeyHSD(pdf_aov1, which = 'Day:Bacteria'))
+pdf_tukey1 <- filter(pdf_tukey1, adj.p.value <= 0.05) # filter out significant interactions
+pdf_tukey1
+
+# Bacteria and Day affect rate; there is a significant difference between the response to saltwater and ecoli at day 8 
+```
+
+```{r}
+# PLF
+plf.data <- filter(data, Treatment == "PLF")
+plf_aov1 <- aov(rate ~ Day * Bacteria, data = plf.data)
+summary(plf_aov1)
+
+# Run a tukey HSD post hoc test to determine at which time points the rate between saltwater and bacterial treatments are different
+plf_tukey1 <- tidy(TukeyHSD(plf_aov1, which = 'Day:Bacteria'))
+plf_tukey1 <- filter(plf_tukey1, adj.p.value <= 0.05) # filter out significant interactions
+plf_tukey1
+
+# Bacteria but not day affected rate; there is a significant difference between the responses to saltwater and ecoli at day 8
+```
+
+```{r}
+# NDF
+ndf.data <- filter(data, Treatment == "NDF")
+ndf_aov1 <- aov(rate ~ Day * Bacteria, data = ndf.data)
+summary(ndf_aov1)
+
+# Run a tukey HSD post hoc test to determine at which time points the rate between saltwater and bacterial treatments are different
+ndf_tukey1 <- tidy(TukeyHSD(ndf_aov1, which = 'Day:Bacteria'))
+ndf_tukey1 <- filter(ndf_tukey1, adj.p.value <= 0.05) # filter out significant interactions
+ndf_tukey1
+
+# Bacteria but not day affected rate; no significant differences between bacterial treatments at any time point
+```
+
+```{r}
+# NLF
+nlf.data <- filter(data, Treatment == "NLF")
+nlf_aov1 <- aov(rate ~ Day * Bacteria, data = nlf.data)
+summary(nlf_aov1)
+
+# Run a tukey HSD post hoc test to determine at which time points the rate between saltwater and bacterial treatments are different
+nlf_tukey1 <- tidy(TukeyHSD(nlf_aov1, which = 'Day:Bacteria'))
+nlf_tukey1 <- filter(nlf_tukey1, adj.p.value <= 0.05) # filter out significant interactions
+nlf_tukey1
+
+# Bacteria, but not day affected the rate; no significant differences between bacterial treatments at any time point
+```
+
+```{r}
+# Plot differential response of corals to e.coli vs saltwater over time for each treatment
+# Make a df of the significant  interactions / where a * should be plotted
+sig <- tribble(
+  ~Day, ~Treatment, ~Bacteria, ~rate,
+  "22", "PDS", "EC", 0.06, # < 0.001 ***
+  "8", "NDS", "EC", 0.06 # < 0.001 ***
+  )
+sig2 <- tribble(
+  ~Day, ~Treatment, ~Bacteria, ~rate,
+  "8", "PDF", "EC", 0.06, # < 0.01 **
+  )
+
+ggplot(data = treat.means, 
+       aes(x = Day, 
+           y = rate, 
+           col = Bacteria, 
+           group = Bacteria)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), 
+                width=0.2, 
+                size = 1) +
+#  geom_text(data = sig, label = "***", size = 6, color = "black") +
+#  geom_text(data = sig2, label = "**", size = 6, color = "black") +
+
+  scale_color_manual(values = c("black", "royalblue3")) +
+  facet_wrap(vars(Treatment)) +
+  theme_bw() +
+  scale_y_continuous(limits = c(0, 0.08)) +
+  theme(legend.position = "right",
+        legend.title = element_text(size=12),
+        axis.title = element_text(size = 14),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "Data represent mean +/- SEM; Time significantly affected the rate in PDS, NDS, and PDF treatments" )
+```
+
+########################################################################################
+# Question 3: do astrangia phenotypes respond to differently to e.coli in every treatment?
+
+```{r}
+# Ambient Control
+ctrl.lm <- lm(rate~Sym.state*Bacteria, data=ctrl.data)
+summary(ctrl.lm) # Bacteria yes; phenotype yes
+
+# Determine which comparisons are different
+ctrl.aov <- aov(rate~Sym.state*Bacteria, data=ctrl.data)
+ctrl_tukey <- tidy(TukeyHSD(ctrl.aov, which = 'Sym.state:Bacteria'))
+ctrl_tukey <- filter(ctrl_tukey, adj.p.value <= 0.05) # filter out significant interactions
+ctrl_tukey
+```
+
+```{r}
+# PDS
+pds.lm <- lm(rate~Sym.state*Bacteria, data=pds.data)
+summary(pds.lm) # Bacteria yes; phenotype no
+```
+
+```{r}
+# PLS
+pls.lm <- lm(rate~Sym.state*Bacteria, data=pls.data)
+summary(pls.lm) # Bacteria yes; phenotype no
+```
+
+```{r}
+# NDS
+nds.lm <- lm(rate~Sym.state*Bacteria, data=nds.data)
+summary(nds.lm) # Bacteria yes; phenotype no
+```
+
+```{r}
+# NLS
+nls.lm <- lm(rate~Sym.state*Bacteria, data=nls.data)
+summary(nls.lm) # Bacteria yes; phenotype yes
+
+# Determine which comparisons are different
+nls.aov_2 <- aov(rate~Sym.state*Bacteria, data=nls.data)
+nls_tukey2 <- tidy(TukeyHSD(nls.aov_2, which = 'Sym.state:Bacteria'))
+nls_tukey2 <- filter(nls_tukey2, adj.p.value <= 0.05) # filter out significant interactions
+nls_tukey2
+```
+
+```{r}
+# PDF
+pdf.lm <- lm(rate~Sym.state*Bacteria, data=pdf.data)
+summary(pdf.lm) # Bacteria yes; phenotype no
+```
+
+```{r}
+# PLF
+plf.lm <- lm(rate~Sym.state*Bacteria, data=plf.data)
+summary(plf.lm) # Bacteria yes; phenotype no
+```
+
+```{r}
+# NDF
+ndf.lm <- lm(rate~Sym.state*Bacteria, data=ndf.data)
+summary(ndf.lm) # Bacteria yes; phenotype no
+```
+
+```{r}
+# NLF
+nlf.lm <- lm(rate~Sym.state*Bacteria, data=nlf.data)
+summary(nlf.lm) # Bacteria yes; phenotype no
+```
+
+```{r}
+# Summarize rate by Treatment, Bacterial condition, and phenotype
+phen.means <- summarySE(data, measurevar = "rate", groupvars = c("Treatment", "Bacteria", "Sym.state"))
+phen.means
+```
+
+```{r}
+# Plot the effect of phenotype on response to bacterial treatment for all stressors 
+ggplot(data = phen.means, 
+                     aes(x = Bacteria, 
+                         y = rate, 
+                         col = Sym.state, 
+                         group = Sym.state)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  facet_wrap(vars(Treatment)) +
+  labs(x = "\nBacterial Treatment", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+       caption = "data represent mean +/- SEM; NLS is the only experimental treatment where \nphenotype affects metabolic response (ANOVA; p=7.8e-8)" ) +
+  theme_classic() +
+  scale_color_manual(values = c("tan", "coral4")) 
+
+```
+
+###################################################################################################
+# Question 4: do astrangia phenotypes respond to differently to e.coli over time in every treatment?
+
+```{r}
+# Run 3 way anovas for the effect of bacterial treatment, phenotype, and time on respiration rate for every treatment 
+
+# PDS
+pds_aov2 <- aov(rate ~ Sym.state * Day * Bacteria, data = pds.data)
+summary(pds_aov2) # Bacteria, day, Bacteria:day significant
+
+# Run a tukey HSD post hoc test to determine at which time points the rate between saltwater and bacterial treatments are different
+pds_tukey2 <- tidy(TukeyHSD(pds_aov2, which = 'Sym.state:Day:Bacteria'))
+pds_tukey2 <- filter(pds_tukey2, adj.p.value <= 0.05) # filter out significant interactions
+pds_tukey2
+
+# No effect of phenotype over time on metabolic rate
+```
+
+```{r}
+# PLS
+pls_aov2 <- aov(rate ~ Sym.state * Day * Bacteria, data = pls.data)
+summary(pls_aov2)
+
+# Run a tukey HSD post hoc test to determine at which time points the rate between saltwater and bacterial treatments are different
+pls_tukey2 <- tidy(TukeyHSD(pls_aov2, which = 'Sym.state:Day:Bacteria'))
+pls_tukey2 <- filter(pls_tukey2, adj.p.value <= 0.05) # filter out significant interactions
+pls_tukey2
+
+# No effect of phenotype over time on metabolic rate
+```
+
+```{r}
+# NDS
+nds_aov2 <- aov(rate ~ Sym.state * Day * Bacteria, data = nds.data)
+summary(nds_aov2)
+
+# Run a tukey HSD post hoc test to determine at which time points the rate between saltwater and bacterial treatments are different
+nds_tukey2 <- tidy(TukeyHSD(nds_aov2, which = 'Sym.state:Day:Bacteria'))
+nds_tukey2 <- filter(nds_tukey2, adj.p.value <= 0.05) # filter out significant interactions
+nds_tukey2
+
+# No effect of phenotype over time on metabolic rate
+```
+
+```{r}
+# NLS
+nls_aov2 <- aov(rate ~ Sym.state * Day * Bacteria, data = nls.data)
+summary(nls_aov2)
+
+# Run a tukey HSD post hoc test to determine at which time points the rate between saltwater and bacterial treatments are different
+nls_tukey2 <- tidy(TukeyHSD(nls_aov2, which = 'Sym.state:Day:Bacteria'))
+nls_tukey2 <- filter(nls_tukey2, adj.p.value <= 0.05) # filter out significant interactions
+nls_tukey2
+
+# No effect of phenotype over time on metabolic rate
+```
+
+```{r}
+# PDF
+pdf_aov2 <- aov(rate ~ Sym.state * Day * Bacteria, data = pdf.data)
+summary(pdf_aov2)
+
+# Run a tukey HSD post hoc test to determine at which time points the rate between saltwater and bacterial treatments are different
+pdf_tukey2 <- tidy(TukeyHSD(pdf_aov2, which = 'Sym.state:Day:Bacteria'))
+pdf_tukey2 <- filter(pdf_tukey2, adj.p.value <= 0.05) # filter out significant interactions
+pdf_tukey2
+
+# No effect of phenotype over time on metabolic rate
+```
+
+```{r}
+# PLF
+plf_aov2 <- aov(rate ~ Sym.state * Day * Bacteria, data = plf.data)
+summary(plf_aov2)
+
+# Run a tukey HSD post hoc test to determine at which time points the rate between saltwater and bacterial treatments are different
+plf_tukey2 <- tidy(TukeyHSD(plf_aov2, which = 'Sym.state:Day:Bacteria'))
+plf_tukey2 <- filter(plf_tukey2, adj.p.value <= 0.05) # filter out significant interactions
+plf_tukey2
+
+# No effect of phenotype over time on metabolic rate
+```
+
+```{r}
+# NDF
+ndf_aov2 <- aov(rate ~ Sym.state * Day * Bacteria, data = ndf.data)
+summary(ndf_aov2)
+
+# Run a tukey HSD post hoc test to determine at which time points the rate between saltwater and bacterial treatments are different
+ndf_tukey2 <- tidy(TukeyHSD(ndf_aov2, which = 'Sym.state:Day:Bacteria'))
+ndf_tukey2 <- filter(ndf_tukey2, adj.p.value <= 0.05) # filter out significant interactions
+ndf_tukey2
+
+# No effect of phenotype over time on metabolic rate
+```
+
+```{r}
+# NLF
+nlf_aov2 <- aov(rate ~ Sym.state * Day * Bacteria, data = nlf.data)
+summary(nlf_aov2)
+
+# Run a tukey HSD post hoc test to determine at which time points the rate between saltwater and bacterial treatments are different
+nlf_tukey2 <- tidy(TukeyHSD(nlf_aov2, which = 'Sym.state:Day:Bacteria'))
+nlf_tukey2 <- filter(nlf_tukey2, adj.p.value <= 0.05) # filter out significant interactions
+nlf_tukey2
+
+# No effect of phenotype over time on metabolic rate
+```
+
+```{r}
+# Summarize rate by Chronic treatment, Bacterial treatment, Day & SYM.STATE
+time.phen.means <- summarySE(data, measurevar = "rate", groupvars = c("Treatment", "Day", "Bacteria", "Sym.state"))
+```
+```{r}
+# Plot SW/EC & SYM/APO for all treatments
+ggplot(data = time.phen.means, 
+                     aes(x = Day, 
+                         y = rate, 
+                         col = Sym.state, 
+                         group = interaction(Bacteria, Sym.state))) +
+  geom_line(aes(color = Sym.state, linetype = Bacteria)) +
+  geom_point() +
+  facet_wrap(vars(Treatment)) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+       caption = "data represent mean +/- SEM; Phenotype did not affect metabolic rate over time for any experimental treatment.")+
+  theme_classic() +
+  scale_color_manual(values = c("tan", "coral4")) 
+
+#### FIX DOUBLE LEGENDS ####
+
+```
+
+##############################
+# Visualize: Ambient Control 
+
+```{r}
+# Summarize by bacteria
+ctrl.sum1 <- summarySE(ctrl.data, measurevar = "rate", groupvars = c("Bacteria"))
+```
+```{r}
+# visualize 
+ggplot(data = ctrl.sum1,
+       aes(x = Bacteria,
+           y = rate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+    scale_color_manual(values = c("black", "darkblue")) +
+    ggtitle ("Ambient Control") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\nDay", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+```
+
+```{r}
+# Summarize by bacteria & phenotype
+ctrl.sum2 <- summarySE(ctrl.data, measurevar = "rate", groupvars = c("Bacteria", "Sym.state"))
+```
+```{r}
+# Plot by Bacteria & phenotype
+ggplot(data = ctrl.sum2,
+       aes(x = Bacteria,
+           y = rate,
+           col = Sym.state)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+
+  scale_color_manual(values = c("tan", "coral4")) +
+  ggtitle ("Ambient Control") +
+  theme(legend.position = "right",
+        legend.title = element_text(size=12),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM; * p < 0.05" ) +
+  theme_classic()
+
+# Sig comparisons: sym in ec vs sw; apo in sw to sym in ec
+```
+
+######################################
+# Visualize: Plastic / Dark / Starved 
+
+```{r}
+# Summarize by bacteria
+pds.sum1 <- summarySE(pds.data, measurevar = "rate", groupvars = c("Bacteria"))
+```
+```{r}
+# visualize 
+ggplot(data = pds.sum1,
+       aes(x = Bacteria,
+           y = rate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+    scale_color_manual(values = c("black", "darkblue")) +
+    ggtitle ("PDS") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\nDay", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+```
+
+```{r}
+# Summarize by bacteria and time
+pds.sum2 <- summarySE(pds.data, measurevar = "rate", groupvars = c("Bacteria", "Day"))
+# Order days
+pds.sum2$Day <- factor(pds.sum2$Day, levels = c("8", "15", "22"))
+```
+```{r}
+# visualize the difference in rate as a response to bacteria over time 
+ggplot(data = pds.sum2,
+       aes(x = Day,
+           y = rate,
+           col = Bacteria, 
+           group = Bacteria)) +
+
+    geom_point() +
+    geom_line() +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+    scale_color_manual(values = c("black", "darkblue")) +
+    ggtitle ("PDS") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\nDay", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+```
+
+```{r}
+# Summarize by bacteria and phenotype
+pds.sum3 <- summarySE(pds.data, measurevar = "rate", groupvars = c("Bacteria", "Sym.state"))
+```
+```{r}
+ggplot(data = pds.sum3,
+       aes(x = Bacteria,
+           y = rate,
+           col = Sym.state,
+           group = Sym.state)) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  geom_point() +
+  scale_color_manual(values = c("tan", "coral4")) +
+  ggtitle ("Plastic / Dark / Starved") +
+  theme(legend.position = "right",
+        legend.title = element_text(size=12),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  labs(x = "Bacteria", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM; no significant differences between phenotypes in each bacterial treatment") +
+  theme_classic()
+
+```
+
+```{r}
+# Summarize by bacteria and phenotype over time
+pds.sum4 <- summarySE(pds.data, measurevar = "rate", groupvars = c("Day", "Bacteria", "Sym.state"))
+# Re-order days
+pds.sum4$Day <- factor(pds.sum4$Day, levels = c("8", "15", "22"))
+```
+```{r}
+# made a df of the significant  interactions / where a * should be plotted
+#pds_sig <- tribble(
+#  ~Day, ~Sym.state, ~Bacteria, ~rate,
+#  "22", "apo", "SW", 0.055 # < 0.01 **
+#  )
+```
+```{r}
+# plot by phenotype, color by bacteria
+ggplot(data = pds.sum4,
+       aes(x = Day,
+           y = rate,
+           col = Sym.state,
+           group = Sym.state)) +
+  facet_grid(~Bacteria) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  geom_line() +
+  geom_point() +
+  scale_color_manual(values = c("tan", "coral4")) +
+  ggtitle ("Plastic / Dark / Starved") +
+ # geom_text(data = pds_sig, label = "**", size = 6, color = "black") +
+  theme(legend.position = "right",
+        legend.title = element_text(size=12),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM") +
+  theme_classic()
+```
+
+######################################## 
+# Visualize: Plastic / Light / Starved 
+
+```{r}
+# Summarize by Bacteria
+pls.sum1 <- summarySE(pls.data, measurevar = "rate", groupvars = c("Bacteria"))
+```
+```{r}
+# visualize 
+ggplot(data = pls.sum1,
+       aes(x = Bacteria,
+           y = rate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+    scale_color_manual(values = c("black", "darkblue")) +
+    ggtitle ("PDS") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\nDay", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+```
+
+```{r}
+# Summarize by bacteria and time
+pls.sum2 <- summarySE(pls.data, measurevar = "rate", groupvars = c("Bacteria", "Day"))
+# Re-order days
+pls.sum2$Day <- factor(pls.sum2$Day, levels = c("8", "15", "22"))
+```
+```{r}
+# visualize the difference in rate as a response to bacteria over time 
+ggplot(data = pls.sum2,
+       aes(x = Day,
+           y = rate,
+           col = Bacteria, 
+           group = Bacteria)) +
+
+    geom_point() +
+    geom_line() +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+    scale_color_manual(values = c("black", "darkblue")) +
+    ggtitle ("PLS") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\nDay", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+```
+
+```{r}
+# Summarize by bacteria and phenotype
+pls.sum3 <- summarySE(pls.data, measurevar = "rate", groupvars = c("Bacteria", "Sym.state"))
+```
+```{r}
+# Visualize
+ggplot(data = pls.sum3,
+       aes(x = Bacteria,
+           y = rate,
+           col = Sym.state,
+           group = Sym.state)) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  geom_point() +
+  scale_color_manual(values = c("tan", "coral4")) +
+  ggtitle ("Plastic / Light / Starved") +
+  theme(legend.position = "right",
+        legend.title = element_text(size=12),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  labs(x = "Bacteria", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM; no significant differences between phenotypes in each bacterial treatment") +
+  theme_classic()
+```
+
+```{r}
+# Summarize by bacteria and phenotype over time
+pls.sum4 <- summarySE(pls.data, measurevar = "rate", groupvars = c("Day", "Bacteria", "Sym.state"))
+# Re-order days
+pls.sum4$Day <- factor(pls.sum4$Day, levels = c("8", "15", "22"))
+```
+```{r}
+# made a df of the significant  interactions / where a * should be plotted
+#pds_sig <- tribble(
+#  ~Day, ~Sym.state, ~Bacteria, ~rate,
+#  "22", "apo", "SW", 0.055 # < 0.01 **
+#  )
+```
+```{r}
+# plot by phenotype, color by bacteria
+ggplot(data = pls.sum4,
+       aes(x = Day,
+           y = rate,
+           col = Sym.state,
+           group = Sym.state)) +
+  facet_grid(~Bacteria) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  geom_line() +
+  geom_point() +
+  scale_color_manual(values = c("tan", "coral4")) +
+  ggtitle ("No Plastic / Dark / Starved") +
+ # geom_text(data = pds_sig, label = "**", size = 6, color = "black") +
+  theme(legend.position = "right",
+        legend.title = element_text(size=12),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM") +
+  theme_classic()
+```
+
+#########################################
+# Visualize: No Plastic / Dark / Starved 
+
+```{r}
+# Summarize by bacteria
+nds.sum1 <- summarySE(nds.data, measurevar = "rate", groupvars = c("Bacteria"))
+```
+```{r}
+# visualize 
+ggplot(data = nds.sum1,
+       aes(x = Bacteria,
+           y = rate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+    scale_color_manual(values = c("black", "darkblue")) +
+    ggtitle ("NDS") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\nDay", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+```
+
+```{r}
+# Summarize by bacteria and time
+nds.sum2 <- summarySE(nds.data, measurevar = "rate", groupvars = c("Bacteria", "Day"))
+# Re-order days
+nds.sum2$Day <- factor(nds.sum2$Day, levels = c("8", "15", "22"))
+```
+```{r}
+# visualize the difference in rate as a response to bacteria over time 
+ggplot(data = nds.sum2,
+       aes(x = Day,
+           y = rate,
+           col = Bacteria, 
+           group = Bacteria)) +
+
+    geom_point() +
+    geom_line() +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+    scale_color_manual(values = c("black", "darkblue")) +
+    ggtitle ("NDS") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\nDay", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+```
+
+```{r}
+# Summarize by bacteria and phenotype
+nds.sum3 <- summarySE(nds.data, measurevar = "rate", groupvars = c("Bacteria", "Sym.state"))
+```
+```{r}
+# Visualize
+ggplot(data = nds.sum3,
+       aes(x = Bacteria,
+           y = rate,
+           col = Sym.state,
+           group = Sym.state)) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  geom_point() +
+  scale_color_manual(values = c("tan", "coral4")) +
+  ggtitle ("No Plastic / Dark / Starved") +
+  theme(legend.position = "right",
+        legend.title = element_text(size=12),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  labs(x = "Bacteria", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM; no significant differences between phenotypes in each bacterial treatment") +
+  theme_classic()
+```
+
+```{r}
+# Summarize by bacteria and phenotype over time
+nds.sum4 <- summarySE(nds.data, measurevar = "rate", groupvars = c("Day", "Bacteria", "Sym.state"))
+# Re-order days
+nds.sum4$Day <- factor(nds.sum4$Day, levels = c("8", "15", "22"))
+```
+```{r}
+# made a df of the significant  interactions / where a * should be plotted
+#pds_sig <- tribble(
+#  ~Day, ~Sym.state, ~Bacteria, ~rate,
+#  "22", "apo", "SW", 0.055 # < 0.01 **
+#  )
+```
+```{r}
+# plot by phenotype, color by bacteria
+ggplot(data = nds.sum4,
+       aes(x = Day,
+           y = rate,
+           col = Sym.state,
+           group = Sym.state)) +
+  facet_grid(~Bacteria) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  geom_line() +
+  geom_point() +
+  scale_color_manual(values = c("tan", "coral4")) +
+  ggtitle ("No Plastic / Dark / Starved") +
+ # geom_text(data = pds_sig, label = "**", size = 6, color = "black") +
+  theme(legend.position = "right",
+        legend.title = element_text(size=12),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM") +
+  theme_classic()
+```
+
+#########################################
+# Visualize: No Plastic / Light / Starved 
+
+```{r}
+# Summarize by bacteria
+nls.sum1 <- summarySE(nls.data, measurevar = "rate", groupvars = c("Bacteria"))
+```
+```{r}
+# visualize 
+ggplot(data = nls.sum1,
+       aes(x = Bacteria,
+           y = rate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+    scale_color_manual(values = c("black", "darkblue")) +
+    ggtitle ("NLS") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\nDay", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+```
+
+```{r}
+# Summarize by bacteria and time
+nls.sum2 <- summarySE(nls.data, measurevar = "rate", groupvars = c("Bacteria", "Day"))
+# Re-order days
+nls.sum2$Day <- factor(nls.sum2$Day, levels = c("8", "15", "22"))
+```
+```{r}
+# visualize the difference in rate as a response to bacteria over time 
+ggplot(data = nls.sum2,
+       aes(x = Day,
+           y = rate,
+           col = Bacteria, 
+           group = Bacteria)) +
+
+    geom_point() +
+    geom_line() +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+    scale_color_manual(values = c("black", "darkblue")) +
+    ggtitle ("NLS") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\nDay", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+```
+
+```{r}
+# Summarize by bacteria and phenotype
+nls.sum3 <- summarySE(nls.data, measurevar = "rate", groupvars = c("Bacteria", "Sym.state"))
+```
+```{r}
+# Visualize
+ggplot(data = nls.sum3,
+       aes(x = Bacteria,
+           y = rate,
+           col = Sym.state,
+           group = Sym.state)) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  geom_point() +
+  scale_color_manual(values = c("tan", "coral4")) +
+  ggtitle ("No Plastic / Light / Starved") +
+  theme(legend.position = "right",
+        legend.title = element_text(size=12),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  labs(x = "Bacteria", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM; no significant differences between phenotypes in each bacterial treatment") +
+  theme_classic()
+```
+
+```{r}
+# summarise
+nls.sum4 <- summarySE(nls.data, measurevar = "rate", groupvars = c("Day", "Bacteria", "Sym.state"))
+# Re-order days
+nls.sum4$Day <- factor(nls.sum4$Day, levels = c("8", "15", "22"))
+```
+```{r}
+ggplot(data = nls.sum4,
+       aes(x = Day,
+           y = rate,
+           col = Sym.state,
+           group = Sym.state)) +
+  facet_grid(~Bacteria) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  geom_line() +
+  geom_point() +
+  scale_color_manual(values = c("tan", "coral4")) +
+  ggtitle ("No Plastic / Light / Starved") +
+  theme(legend.position = "right",
+        legend.title = element_text(size=12),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM" ) +
+  theme_classic()
+```
+
+##################################
+# Visualize: Plastic / Dark / Fed 
+
+```{r}
+# Summarize by bacteria
+pdf.sum1 <- summarySE(pdf.data, measurevar = "rate", groupvars = c("Bacteria"))
+```
+```{r}
+# visualize 
+ggplot(data = pdf.sum1,
+       aes(x = Bacteria,
+           y = rate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+    scale_color_manual(values = c("black", "darkblue")) +
+    ggtitle ("PDF") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\nDay", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+```
+
+```{r}
+# Summarize by bacteria and time
+pdf.sum2 <- summarySE(pdf.data, measurevar = "rate", groupvars = c("Bacteria", "Day"))
+# Re-order days
+pdf.sum2$Day <- factor(pdf.sum2$Day, levels = c("8", "15", "22"))
+```
+```{r}
+# visualize the difference in rate as a response to bacteria over time 
+ggplot(data = pdf.sum2,
+       aes(x = Day,
+           y = rate,
+           col = Bacteria, 
+           group = Bacteria)) +
+
+    geom_point() +
+    geom_line() +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+    scale_color_manual(values = c("black", "darkblue")) +
+    ggtitle ("PDF") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\nDay", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+```
+
+```{r}
+# Summarize by bacteria and phenotype
+pdf.sum3 <- summarySE(pdf.data, measurevar = "rate", groupvars = c("Bacteria", "Sym.state"))
+```
+```{r}
+# Visualize
+ggplot(data = pdf.sum3,
+       aes(x = Bacteria,
+           y = rate,
+           col = Sym.state,
+           group = Sym.state)) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  geom_point() +
+  scale_color_manual(values = c("tan", "coral4")) +
+  ggtitle ("Plastic / Dark / Fed") +
+  theme(legend.position = "right",
+        legend.title = element_text(size=12),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  labs(x = "Bacteria", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM; no significant differences between phenotypes in each bacterial treatment") +
+  theme_classic()
+```
+
+```{r}
+# summarise
+pdf.sum4 <- summarySE(pdf.data, measurevar = "rate", groupvars = c("Day", "Bacteria", "Sym.state"))
+# Re-order days
+pdf.sum4$Day <- factor(pdf.sum4$Day, levels = c("8", "15", "22"))
+```
+```{r}
+ggplot(data = pdf.sum4,
+       aes(x = Day,
+           y = rate,
+           col = Sym.state,
+           group = Sym.state)) +
+  facet_grid(~Bacteria) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  geom_line() +
+  geom_point() +
+  scale_color_manual(values = c("tan", "coral4")) +
+  ggtitle ("Plastic / Dark / Fed") +
+  theme(legend.position = "right",
+        legend.title = element_text(size=12),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM" ) +
+  theme_classic()
+```
+
+###################################
+# Visualize: Plastic / Light / Fed 
+
+```{r}
+# Summarize by bacteria
+plf.sum1 <- summarySE(plf.data, measurevar = "rate", groupvars = c("Bacteria"))
+```
+```{r}
+# visualize 
+ggplot(data = plf.sum1,
+       aes(x = Bacteria,
+           y = rate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+    scale_color_manual(values = c("black", "darkblue")) +
+    ggtitle ("PLF") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\nDay", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+```
+
+```{r}
+# Summarize by bacteria and time
+plf.sum2 <- summarySE(plf.data, measurevar = "rate", groupvars = c("Bacteria", "Day"))
+# Re-order days
+plf.sum2$Day <- factor(plf.sum2$Day, levels = c("8", "15", "22"))
+```
+```{r}
+# visualize the difference in rate as a response to bacteria over time 
+ggplot(data = plf.sum2,
+       aes(x = Day,
+           y = rate,
+           col = Bacteria, 
+           group = Bacteria)) +
+
+    geom_point() +
+    geom_line() +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+    scale_color_manual(values = c("black", "darkblue")) +
+    ggtitle ("PLF") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\nDay", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+```
+
+```{r}
+# Summarize by bacteria and phenotype
+plf.sum3 <- summarySE(plf.data, measurevar = "rate", groupvars = c("Bacteria", "Sym.state"))
+```
+```{r}
+# Visualize
+ggplot(data = plf.sum3,
+       aes(x = Bacteria,
+           y = rate,
+           col = Sym.state,
+           group = Sym.state)) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  geom_point() +
+  scale_color_manual(values = c("tan", "coral4")) +
+  ggtitle ("Plastic / Light / Fed") +
+  theme(legend.position = "right",
+        legend.title = element_text(size=12),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  labs(x = "Bacteria", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM; no significant differences between phenotypes in each bacterial treatment") +
+  theme_classic()
+```
+
+```{r}
+# summarise
+plf.sum4 <- summarySE(plf.data, measurevar = "rate", groupvars = c("Day", "Bacteria", "Sym.state"))
+# Re-order days
+plf.sum4$Day <- factor(plf.sum4$Day, levels = c("8", "15", "22"))
+```
+```{r}
+# Plot
+ggplot(data = plf.sum4,
+       aes(x = Day,
+           y = rate,
+           col = Sym.state,
+           group = Sym.state)) +
+  facet_grid(~Bacteria) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  geom_line() +
+  geom_point() +
+  scale_color_manual(values = c("tan", "coral4")) +
+  ggtitle ("Plastic / Light / Fed") +
+  theme(legend.position = "right",
+        legend.title = element_text(size=12),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM" ) +
+  theme_classic()
+```
+
+#####################################
+# Visualize: No Plastic / Dark / Fed 
+
+```{r}
+# Summarize by bacteria
+ndf.sum1 <- summarySE(ndf.data, measurevar = "rate", groupvars = c("Bacteria"))
+```
+```{r}
+# visualize 
+ggplot(data = ndf.sum1,
+       aes(x = Bacteria,
+           y = rate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+    scale_color_manual(values = c("black", "darkblue")) +
+    ggtitle ("NDF") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\nDay", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+```
+
+```{r}
+# Summarize by bacteria and time
+ndf.sum2 <- summarySE(ndf.data, measurevar = "rate", groupvars = c("Bacteria", "Day"))
+# Re-order days
+ndf.sum2$Day <- factor(ndf.sum2$Day, levels = c("8", "15", "22"))
+```
+```{r}
+# visualize the difference in rate as a response to bacteria over time 
+ggplot(data = ndf.sum2,
+       aes(x = Day,
+           y = rate,
+           col = Bacteria, 
+           group = Bacteria)) +
+
+    geom_point() +
+    geom_line() +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+    scale_color_manual(values = c("black", "darkblue")) +
+    ggtitle ("NDF") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\nDay", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+```
+
+```{r}
+# Summarize by bacteria and phenotype
+ndf.sum3 <- summarySE(ndf.data, measurevar = "rate", groupvars = c("Bacteria", "Sym.state"))
+```
+```{r}
+# Visualize
+ggplot(data = ndf.sum3,
+       aes(x = Bacteria,
+           y = rate,
+           col = Sym.state,
+           group = Sym.state)) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  geom_point() +
+  scale_color_manual(values = c("tan", "coral4")) +
+  ggtitle ("No Plastic / Dark / Fed") +
+  theme(legend.position = "right",
+        legend.title = element_text(size=12),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  labs(x = "Bacteria", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM; no significant differences between phenotypes in each bacterial treatment") +
+  theme_classic()
+```
+
+```{r}
+# summarize
+ndf.sum4 <- summarySE(ndf.data, measurevar = "rate", groupvars = c("Day", "Bacteria", "Sym.state"))
+# Re-order days
+ndf.sum4$Day <- factor(ndf.sum4$Day, levels = c("8", "15", "22"))
+```
+```{r}
+# Plot
+ggplot(data = ndf.sum4,
+       aes(x = Day,
+           y = rate,
+           col = Sym.state,
+           group = Sym.state)) +
+  facet_grid(~Bacteria) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  geom_line() +
+  geom_point() +
+  scale_color_manual(values = c("tan", "coral4")) +
+  ggtitle ("No Plastic / Dark / Fed") +
+  theme(legend.position = "right",
+        legend.title = element_text(size=12),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM" ) +
+  theme_classic()
+
+```
+
+#######################################
+# Visualize: No Plastic / Light / Fed 
+
+```{r}
+# Summarize by bacteria
+nlf.sum1 <- summarySE(nlf.data, measurevar = "rate", groupvars = c("Bacteria"))
+```
+```{r}
+# visualize 
+ggplot(data = nlf.sum1,
+       aes(x = Bacteria,
+           y = rate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+    scale_color_manual(values = c("black", "darkblue")) +
+    ggtitle ("NLF") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\n", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+```
+
+```{r}
+# Summarize by bacteria and time
+nlf.sum2 <- summarySE(nlf.data, measurevar = "rate", groupvars = c("Bacteria", "Day"))
+# Re-order days
+nlf.sum2$Day <- factor(nlf.sum2$Day, levels = c("8", "15", "22"))
+```
+```{r}
+# visualize the difference in rate as a response to bacteria over time 
+ggplot(data = nlf.sum2,
+       aes(x = Day,
+           y = rate,
+           col = Bacteria, 
+           group = Bacteria)) +
+
+    geom_point() +
+    geom_line() +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+    scale_color_manual(values = c("black", "darkblue")) +
+    ggtitle ("NLF") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\nDay", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+```
+
+```{r}
+# Summarize by bacteria and phenotype
+nlf.sum3 <- summarySE(nlf.data, measurevar = "rate", groupvars = c("Bacteria", "Sym.state"))
+```
+```{r}
+# Visualize
+ggplot(data = nlf.sum3,
+       aes(x = Bacteria,
+           y = rate,
+           col = Sym.state,
+           group = Sym.state)) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  geom_point() +
+  scale_color_manual(values = c("tan", "coral4")) +
+  ggtitle ("No Plastic / Light / Fed") +
+  theme(legend.position = "right",
+        legend.title = element_text(size=12),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  labs(x = "Bacteria", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM; no significant differences between phenotypes in each bacterial treatment") +
+  theme_classic()
+```
+
+```{r}
+# Summarize
+nlf.sum4 <- summarySE(nlf.data, measurevar = "rate", groupvars = c("Day", "Bacteria", "Sym.state"))
+# Re-order days
+nlf.sum4$Day <- factor(nlf.sum4$Day, levels = c("8", "15", "22"))
+```
+```{r}
+#Plot
+ggplot(data = nlf.sum4,
+       aes(x = Day,
+           y = rate,
+           col = Sym.state,
+           group = Sym.state)) +
+  facet_grid(~Bacteria) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  geom_line() +
+  geom_point() +
+  scale_color_manual(values = c("tan", "coral4")) +
+  ggtitle ("No Plastic / Light / Fed") +
+  theme(legend.position = "right",
+        legend.title = element_text(size=12),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM" ) +
+  theme_classic()
+```
+
+###################################################################################################################################
+#
+#                                                   Summary Statistics and comparisons by Stressor
+#
+###################################################################################################################################
+
+###############
+#   PLASTIC
+
+# Question 1: does plastic treatment affect metabolic rate? 
+```{r}
+#
+plastic.lm1 <- lm(rate ~ Plastic, data = data)
+summary(plastic.lm1) # Nope!
+
+# Summarize by plastic
+plastic.sum1 <- summarySE(data, measurevar = "rate", groupvars = c("Plastic"))
+```
+```{r}
+# Visualize
+ggplot(data = plastic.sum1,
+       aes(x = Plastic,
+           y = rate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+    #scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Plastic") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\n", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+```
+
+# Question 2: Is there a differential response to e.coli based on plastic treatment 
+```{r}
+#
+plastic.lm2 <- lm(rate ~ Plastic * Bacteria, data = data)
+summary(plastic.lm2) # Nope!
+
+# Summarize by bacteria
+plastic.sum2 <- summarySE(data, measurevar = "rate", groupvars = c("Plastic","Bacteria"))
+```
+```{r}
+# Visualize
+ggplot(data = plastic.sum2,
+       aes(x = Bacteria,
+           y = rate, 
+           color = Plastic)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+    scale_color_manual(values = c("black", "darkgreen")) +
+    ggtitle ("Plastic") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\n", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+```
+
+# Question 3. Is there a differential response to e.coli over time based on plastic treatmet?
+
+```{r}
+#
+plastic.lm3 <- lm(rate ~ Plastic * Day * Bacteria, data = data)
+summary(plastic.lm3) # Nope, just bacteria matter (and day 15)
+```
+```{r}
+# Write an anova to determine significance for the following interactions:
+plastic_aov3 <- aov(rate ~ Bacteria * Day * Plastic, data = data)
+summary(plastic_aov3)
+```
+```{r}
+# Let's see where those interactions might be significant 
+plastic_tukey <- tidy(TukeyHSD(plastic_aov, 
+                              which = 'Bacteria:Plastic:Day'))
+plastic_tukey <- filter(plastic_tukey, adj.p.value <= 0.05)
+plastic_tukey # Nowhere!
+```
+```{r}
+# Summarize by bacteria and plastic over time to visualize
+plastic.sum3 <- summarySE(data, measurevar = "rate", groupvars = c("Plastic", "Day", "Bacteria"))
+```
+```{r}
+# Plot 
+ggplot(plastic.sum3, 
+       aes(x = Day, 
+           y = rate, 
+           col = Plastic, 
+           group = Plastic)) +
+  geom_line() +
+  geom_point() +
+  
+  facet_wrap(vars(Bacteria)) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM") +
+  scale_color_manual(values = c("black", "darkgreen")) +
+  theme_classic()
+```
+
+# Question 4. Is there a differential response to plastic by phenotype?
+```{r}
+#
+plastic.lm4 <- lm(rate ~ Sym.state * Plastic, data = data)
+summary(plastic.lm4) # Nope, just bacteria!
+```
+```{r}
+# Summarize to visualize
+plastic.sum4 <- summarySE(data, measurevar = "rate", groupvars = c("Plastic","Sym.state"))
+```
+```{r}
+# Visualize
+ggplot(data = plastic.sum4,
+       aes(x = Plastic,
+           y = rate, 
+           col = Sym.state)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+    scale_color_manual(values = c("tan", "coral4")) +
+    ggtitle ("Plastic") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\n", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+```
+
+# Question 5: Is there a differential metabolic response to e.coli by plastic & phenotype
+```{r}
+#
+plastic.lm5 <- lm(rate ~ Sym.state * Plastic * Bacteria, data = data)
+summary(plastic.lm5) # Nope, just bacteria!
+```
+```{r}
+# Summarize to visualize
+plastic.sum5 <- summarySE(data, measurevar = "rate", groupvars = c("Plastic","Sym.state","Bacteria"))
+```
+```{r}
+# Visualize
+ggplot(data = plastic.sum5,
+       aes(x = Plastic,
+           y = rate, 
+           col = Sym.state)) +
+    geom_point() +
+  
+    facet_grid(~Bacteria) +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+    scale_color_manual(values = c("tan", "coral4")) +
+    ggtitle ("Plastic") +
+    theme(legend.position = "right",
+          legend.title = element_text(size=12),
+          axis.title = element_text(size = 12),
+          legend.background = element_blank(),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text = element_text(size = 12)) +
+    labs(x = "\n", 
+         y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+         caption = "data represent mean +/- SEM" ) +
+    theme_classic()
+```
+
+# Question 6: Is there a differential metabolic response to e.coli by plastic & phenotype over time
+
+```{r}
+#
+plastic.lm6 <- lm(rate ~ Sym.state * Plastic * Bacteria * Day, data = data)
+summary(plastic.lm6) # Bacteria, yes. Day 15, yes. Phenotype @ day 15, yes. 
+```
+```{r}
+# Write an anova to determine significance for the following interactions:
+plastic_aov6 <- aov(rate ~ Sym.state * Plastic * Bacteria * Day, data = data)
+summary(plastic_aov6)
+```
+```{r}
+# Determine where the significant interactions are 
+plastic_tukey6 <- tidy(TukeyHSD(plastic_aov6, 
+                              which = 'Sym.state:Plastic:Day:Bacteria:'))
+plastic_tukey6 <- filter(plastic_tukey6, adj.p.value <= 0.05)
+plastic_tukey6
+```
+```{r}
+# Summarize to visualize
+plastic.sum6 <- summarySE(data, measurevar = "rate", groupvars = c("Plastic","Sym.state","Bacteria", "Day"))
+```
+```{r}
+# Visualize 
+ggplot(plastic.sum6, 
+                 aes(Day, 
+                     rate, 
+                     col = Sym.state, 
+                     group = Sym.state)) +
+  geom_line() +
+  geom_point() +
+  facet_grid(Plastic~Bacteria) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM; no significant differences between phenotype \n in each plastic/bacterial treatment group" ) +
+  scale_color_manual(values = c("tan", "coral4")) + 
+  theme_classic()
+```
+
+##### HERE ####
+
+# Do I have to use lmer models for every single regression that I want to run?!? - possible pseudoreplication issue with current lms
+
+```{r}
+# this is what my current lm structure looks like
+plastic.lm6 <- lm(rate ~ Sym.state * Plastic * Bacteria * Day, data = data)
+summary(plastic.lm6)
+# summary is showing highly significant p value
+```
+
+```{r}
+library(lme4)
+library(lmerTest)
+
+# this is what the same model structure would look like as an lmer, with B.Tag (the individual polyp that was measured up to 3 times) as a random effect
+plastic.lmer6 <- lmer(rate ~ Sym.state * Plastic * Bacteria * Day + (1|B.TAG), data = data)
+summary(plastic.lmer6)
+
+# What would a posthoc test look like for lmer models. For this case, how can I determine the days at which metabolic rate is significantly different taking plastic treatment and phenotype into account? 
+
+# emmeans ? 
+# code could look like: emmeans(model, list(pairwise ~ Group), adjust = "tukey")
+
+# lmerTest anova?
+# lmerTest::anova(model)
+
+# multiple comparisons using multcomp package?
+# library(multcomp)
+# summary(glht(model, linfct = mcp(Group = "Tukey")), test = adjusted("holm"))
+
+```
+## Advice from brian for < 15 factors: block of code, to excel, replace variable names, copy and repaste
+
+
+############
+#
+#   LIGHT
+#
+############
+
+```{r}
+# Summarize rate by LIGHT and day
+light.means <- summarySE(data, measurevar = "rate", groupvars = c("Light", "Day", "Bacteria"))
+light.means
+```
+```{r}
+# Plot 
+
+l.plot <- ggplot(light.means, aes(Day, rate, col = Light, group = Light)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(vars(Bacteria)) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+ labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM;" ) +
+  scale_color_manual(values = c("black", "goldenrod")) +
+  theme_classic()
+
+l.plot
+```
+
+```{r}
+# Write an anova to determine significance for the following interactions:
+light_aov <- aov(rate ~ Day * Light * Bacteria, data = data)
+summary(light_aov)
+```
+```{r}
+# call and tidy the tukey posthoc
+light_tukey <- tidy(TukeyHSD(light_aov, 
+                              which = 'Day:Light:Bacteria'))
+light_tukey <- filter(light_tukey, adj.p.value <= 0.05)
+light_tukey
+```
+
+```{r}
+# made a df of the significant light interactions
+light_sig_df <- tribble(
+  ~Day, ~ Light, ~Bacteria, ~rate,
+  "15", "Dark", "EC", 0.05, # < 0.001
+  "22", "Dark", "EC", 0.05, # < 0.001
+  )
+```
+
+```{r}
+# and re-plot with the significant terms
+ggplot(data = light.means, 
+       aes(x = Day, 
+           y = rate, 
+           col = Light, 
+           group = Light)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), 
+                width=0.2, 
+                size = 1) +
+  
+  scale_color_manual(values = c("black", "goldenrod")) +
+  facet_wrap(vars(Bacteria)) +
+  theme_classic() +
+  geom_text(data = light_sig_df, label = "***", size = 6, color = "black") +
+  #scale_y_continuous(limits = c(-0.045, 0)) +
+  theme(legend.position = "right",
+        legend.title = element_blank(),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM; *** p < 0.001" )
+
+```
+
+```{r}
+# made a df of the significant light interactions
+light_sig_df2 <- tribble(
+  ~Day, ~ Light, ~Bacteria, ~rate,
+  "8", "Light", "SW", 0.05, # < 0.05 *
+  )
+
+light_sig_df3 <- tribble(
+  ~Day, ~ Light, ~Bacteria, ~rate,
+  "8", "Dark", "SW", 0.05, # < 0.0001 ***
+  "15", "Light", "SW", 0.05 # < 0.0001 ***
+  )
+```
+
+```{r}
+# and re-plot with the significant terms
+ggplot(data = light.means, 
+       aes(x = Day, 
+           y = rate, 
+           col = Bacteria, 
+           group = Bacteria)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), 
+                width=0.2, 
+                size = 1) +
+  
+  scale_color_manual(values = c("black", "darkblue")) +
+  facet_wrap(vars(Light)) +
+  theme_classic() +
+  geom_text(data = light_sig_df2, label = "*", size = 6, color = "black") +
+  geom_text(data = light_sig_df3, label = "***", size = 6, color = "black") +
+  #scale_y_continuous(limits = c(-0.045, 0)) +
+  theme(legend.position = "right",
+        legend.title = element_blank(),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM; * p < 0.05; *** p < 0.001" )
+
+```
+
+```{r}
+# Summarize rate by LIGHT, DAY, and SYM STATE
+light.means2 <- summarySE(data, measurevar = "rate", groupvars = c("Light", "Day", "Bacteria", "Sym.state"))
+light.means2
+```
+
+```{r}
+# Write an anova to determine significance for the following interactions:
+light2_aov <- aov(rate ~ Day * Light * Sym.state * Bacteria , data = data)
+summary(light2_aov)
+```
+```{r}
+# call and tidy the tukey posthoc
+light2_tukey <- tidy(TukeyHSD(light2_aov, 
+                              which = 'Day:Light:Sym.state:Bacteria'))
+light2_tukey <- filter(light2_tukey, adj.p.value <= 0.05)
+light2_tukey
+```
+
+```{r}
+# Plot 
+
+l2.plot <- ggplot(light.means2, 
+                 aes(Day, 
+                     rate, 
+                     col = Sym.state, 
+                     group = Sym.state)) +
+  geom_line() +
+  geom_point() +
+  facet_grid(Light~Bacteria) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM; no significant differences between phenotype \n in each light/bacterial treatment group" ) +
+  scale_color_manual(values = c("tan", "coral4")) + 
+  theme_classic()
+
+l2.plot
+```
+
+############
+#
+#   FOOD
+#
+############
+
+```{r}
+# Summarize rate by FOOD and day
+food.means <- summarySE(data, measurevar = "rate", groupvars = c("Food", "Day", "Bacteria"))
+food.means
+```
+
+```{r}
+# Plot 
+
+f.plot <- ggplot(food.means, aes(Day, rate, col = Food, group = Food)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(vars(Bacteria)) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM") +
+  scale_color_manual(values = c("coral4", "darkslategray")) +
+  theme_classic()
+
+f.plot
+```
+
+```{r}
+# Write an anova to determine significance for the following interactions:
+food_aov <- aov(rate ~ Day * Food  * Bacteria , data = data)
+summary(food_aov)
+
+# call and tidy the tukey posthoc
+food_tukey <- tidy(TukeyHSD(food_aov, 
+                              which = 'Day:Food:Bacteria'))
+food_tukey <- filter(food_tukey, adj.p.value <= 0.05)
+```
+
+```{r}
+# made a df of the significant light interactions
+food_sig_df <- tribble(
+  ~Day, ~ Food, ~Bacteria, ~rate,
+  "8", "Fed", "SW", 0.05, # < 0.001 ***
+  "22", "Fed", "SW", 0.05, # < 0.001 ***
+  "15", "Starved", "SW", 0.05, # < 0.001 ***
+  "22", "Starved", "SW", 0.05, # < 0.001 ***
+  )
+
+food_sig_df2 <- tribble(
+  ~Day, ~ Food, ~Bacteria, ~rate,
+  "15", "Fed", "EC", 0.05, # < 0.05 *
+   "8", "Starved", "EC", 0.05, # < 0.05 *
+  )
+```
+
+```{r}
+# and re-plot with the significant terms
+ggplot(data = food.means, 
+       aes(x = Day, 
+           y = rate, 
+           col = Bacteria, 
+           group = Bacteria)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), 
+                width=0.2, 
+                size = 1) +
+  
+  scale_color_manual(values = c("black", "darkblue")) +
+  facet_wrap(vars(Food)) +
+  theme_classic() +
+  geom_text(data = food_sig_df, label = "***", size = 6, color = "black") +
+  geom_text(data = food_sig_df2, label = "*", size = 6, color = "black") +
+  #scale_y_continuous(limits = c(-0.045, 0)) +
+  theme(legend.position = "right",
+        legend.title = element_blank(),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM; * p < 0.05; *** p < 0.001" )
+
+```
+
+```{r}
+# Summarize rate by food, day, and sym state
+food.means2 <- summarySE(data, measurevar = "rate", groupvars = c("Food", "Day", "Bacteria", "Sym.state"))
+food.means2
+```
+
+```{r}
+# Write an anova to determine significance for the following interactions:
+food_aov2 <- aov(rate ~ Day * Food  * Bacteria * Sym.state , data = data)
+summary(food_aov2)
+
+# call and tidy the tukey posthoc
+food_tukey2 <- tidy(TukeyHSD(food_aov2,  
+                              which = 'Day:Food:Bacteria:Sym.state'))
+food_tukey2 <- filter(food_tukey2, adj.p.value <= 0.05)
+food_tukey2
+```
+
+```{r}
+# Plot 
+
+f2.plot <- ggplot(food.means2, 
+                 aes(Day, 
+                     rate, 
+                     col = Sym.state, 
+                     group = Sym.state)) +
+  geom_line() +
+  geom_point() +
+  facet_grid(Food~Bacteria) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM; no significant differences between phenotype \n in each food/bacterial treatment group" ) +
+  scale_color_manual(values = c("tan", "coral4")) + 
+  theme_classic()
+
+f2.plot
+```
+
+##################
+#
+#   TEMPERATURE
+#
+##################
+
+```{r}
+# Summarize rate by TEMPERATURE and day
+temp.means <- summarySE(data, measurevar = "rate", groupvars = c("Temperature", "Day", "Bacteria"))
+temp.means
+```
+
+```{r}
+# Plot 
+
+t.plot <- ggplot(temp.means, aes(Day, rate, col = Temperature, group = Temperature)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(vars(Bacteria)) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+ labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM;" ) +  
+  scale_color_manual(values = c("darkblue", "darkred")) +
+  theme_classic()
+
+t.plot
+```
+
+```{r}
+# Isolate temps
+elevated.dat <- filter(data, Temperature == "Elevated")
+
+# Write an anova to determine significance for the following interactions:
+elevated_aov <- aov(rate ~ Day * Bacteria , data = elevated.dat)
+summary(elevated_aov)
+
+# call and tidy the tukey posthoc
+elevated_tukey <- tidy(TukeyHSD(elevated_aov, which = 'Day:Bacteria'))
+elevated_tukey <- filter(elevated_tukey, adj.p.value <= 0.05)
+elevated_tukey
+```
+
+```{r}
+# made a df of the significant  interactions / where a * should be plotted
+elevated_df <- tribble(
+  ~ Day, ~ Temperature, ~ Bacteria, ~rate,
+  "8", "Elevated", "SW", 0.06, # p < 0.001 ***
+  "15", "Elevated", "SW", 0.06, # p < 0.001 ***
+  "22", "Elevated", "SW", 0.06, # p < 0.001 ***
+  )
+```
+
+```{r}
+# Isolate ambient
+ambient.dat <- filter(data, Temperature == "Ambient")
+
+# Write an anova to determine significance for the following interactions:
+ambient_aov <- aov(rate ~ Bacteria , data = ambient.dat)
+summary(ambient_aov)
+
+# call and tidy the tukey posthoc
+ambient_tukey <- tidy(TukeyHSD(ambient_aov, which = 'Bacteria'))
+ambient_tukey <- filter(ambient_tukey, adj.p.value <= 0.05)
+ambient_tukey
+```
+
+```{r}
+# made a df of the significant  interactions / where a * should be plotted
+ambient_df <- tribble(
+  ~ Day, ~ Temperature, ~ Bacteria, ~rate,
+  "22", "Ambient", "SW", 0.06, # p < 0.01 **
+  )
+```
+
+```{r}
+# Plot 
+
+t.plot2 <- ggplot(temp.means, 
+                  aes(Day, 
+                      rate, 
+                      col = Bacteria, 
+                      group = Bacteria)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(vars(Temperature)) +
+  geom_text(data = elevated_df, label = "***", size = 6, color = "black") +
+  geom_text(data = ambient_df, label = "**", size = 6, color = "black") +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM; ** p < 0.01; *** p < 0.001" ) +  
+  scale_color_manual(values = c("black", "darkblue")) +
+  theme_classic()
+
+t.plot2
+```
+
+```{r}
+# Summarize rate by TEMPERATURE and day
+temp.means2 <- summarySE(data, measurevar = "rate", groupvars = c("Temperature", "Day", "Bacteria", "Sym.state"))
+temp.means2
+```
+
+```{r}
+# Isolate temps
+# Write an anova to determine significance for the following interactions:
+elevated_aov2 <- aov(rate ~ Day * Bacteria * Sym.state , data = elevated.dat)
+summary(elevated_aov2)
+
+# call and tidy the tukey posthoc
+elevated_tukey2 <- tidy(TukeyHSD(elevated_aov, which = 'Day:Bacteria:Sym.state'))
+elevated_tukey2 <- filter(elevated_tukey2, adj.p.value <= 0.05)
+elevated_tukey2
+```
+
+```{r}
+# Isolate ambient
+
+# Write an anova to determine significance for the following interactions:
+ambient_aov2 <- aov(rate ~ Bacteria * Sym.state, data = ambient.dat)
+summary(ambient_aov2)
+
+# call and tidy the tukey posthoc
+ambient_tukey2 <- tidy(TukeyHSD(ambient_aov2, which = 'Bacteria:Sym.state'))
+ambient_tukey2 <- filter(ambient_tukey2, adj.p.value <= 0.05)
+ambient_tukey2
+```
+
+```{r}
+# Plot 
+
+t.plot3 <- ggplot(temp.means2, 
+                 aes(Day, 
+                     rate, 
+                     col = Sym.state, 
+                     group = Sym.state)) +
+  geom_line() +
+  geom_point() +
+  facet_grid(Temperature~Bacteria) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  labs(x = "\nDay", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")), 
+      caption = "data represent mean +/- SEM; no significant differences between phenotype \n in each temperature/bacterial treatment group" ) +
+  scale_color_manual(values = c("tan", "coral4")) + 
+  theme_classic()
+
+t.plot3
+```
+
+## HERE ##
+
+compare rate 
+```{r}
+# Isolate ambient and elevated temperatures at day 22
+time.dat <- filter(data, Day == "22")
+
+# Write an anova to determine significance for the following interactions:
+
+```
+
+###################################################################################################################################
+#
+#                                                 Mixed Effects Models on the impact of respiration rate
+#
+###################################################################################################################################
+
+## HERE ##
+
+```{r}
+library(lme4)
+library(lmerTest)
+```
+
+```{r}
+# Let's write a null model 
+
+m0 <- lmer(rate ~  1 + (1|B.TAG), data = data)
+summary(m0)
+
+# full stressor model 
+mfull <- lmer(rate ~ Plastic + Light + Food + Temperature + (1|B.TAG), data = data)
+summary(mfull)
+
+# drop food
+m1 <- lmer(rate ~ Plastic + Light + Temperature + (1|B.TAG), data = data)
+summary(m1)
+
+#drop plastic
+m2 <- lmer(rate ~ Light + Temperature + (1|B.TAG), data = data)
+summary(m2)
+
+AIC(mfull, m1, m2)
+anova(m1, m2, REML = FALSE) 
+
+# M2 is the best model so far - fewest terms, all significant. Lets check it:
+```
+# Check model
+```{r}
+library(performance)
+r2(m2) # marginal is variance explained by fixed factors # conditional is variance by whole model including random factors
+# light and temperature explain 3% of the variance? 
+# light, temperature, and polyp ID explain 34%?
+confint(m2)
+
+library(sjPlot)
+plot_model(m2, "eff") 
+plot_model(m2 , type="re")
+plot(m2)
+
+library(see)
+check_model(m2)
+check_collinearity(m2)
+check_outliers(m2)
+```
+```{r}
+library('performance')
+library('insight')
+library('sjstats')
+library('sjPlot')
+library('effects')
+library(ggplot2)
+
+# plot model estimate for light
+m <- lmer(rate ~ Light + Temperature + (1|B.TAG), data = data)
+l=plot_model(m, 'pred', ci.lvl = 0.95, terms="Light")
+
+l +
+  theme_classic() +
+xlab("Light")+
+  ylab("Rate O2 Consumption (umol*min-1*g-1)")+
+  ggtitle("")+
+  theme(axis.title.x = element_text(color="black", size=14, face="bold"),
+axis.title.y = element_text(color="black", size=14, face="bold"))+
+  theme(axis.text.x = element_text(size=14),
+          axis.text.y = element_text(size=14))
+
+# plot model estimate for temp
+t=plot_model(m, 'pred', ci.lvl = 0.95, terms="Temperature")
+
+t +
+  theme_classic() +
+xlab("Temperature")+
+  ylab("Rate O2 Consumption (umol*min-1*g-1)")+
+  ggtitle("")+
+  theme(axis.title.x = element_text(color="black", size=14, face="bold"),
+axis.title.y = element_text(color="black", size=14, face="bold"))+
+  theme(axis.text.x = element_text(size=14),
+          axis.text.y = element_text(size=14))
+
+#interaction plot
+library(ggeffects)
+a1<-lmer(rate~Light*Temperature+(1|B.TAG), data=data)
+summary(a1)
+head(data)
+
+dat <- ggemmeans(a1, terms = c("Temperature", "Light")) #
+
+pred <- ggplot(dat, aes(x,predicted, colour = group)) +
+  geom_point(position = position_dodge(.1)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), position = position_dodge(.1)) +
+  labs(x = "Temperature", y = "Rate O2 Consumption (umol*min-1*g-1)",
+       color = "Light") +
+  ggtitle("") +
+  theme_classic() +
+  theme(axis.title.x = element_text(color="black", size=12),
+axis.title.y = element_text(color="black", size=12))+
+  theme(axis.text.x = element_text(size=12),
+          axis.text.y = element_text(size=12))
+
+#library(RColorBrewer)
+#display.brewer.all(colorblindFriendly = TRUE)
+pred + scale_color_brewer(palette="Dark2")
+
+
+## At elevated temperatures - being in the dark dampens the metabolic response more than being in light conditions; if we are hypothesizing that a lesser response (ie shallower, closer to zero) is an indication that a coral polyp is physically less able to respond to the stressor - than being in dark conditions at elevated temperatures is the most damaging according to this model. 
+```
+
+```{r}
+# Let's now look at some models that include factors outside of our 4 stressors 
+m3 <- lmer(rate ~ Plastic + Light + Food + Temperature + Sym.state + Day + Bacteria + (1|B.TAG), data = data)
+summary(m3)
+
+m <- lmer(rate ~ Plastic + Light + Food + Temperature + Sym.state + Bacteria + (1|B.TAG) + (1|Day), data = data)
+summary(m)
+anova(m3, m) # verify that day should be a fixed effect as opposed to a random effect *
+
+m4 <- lmer(rate ~ Plastic + Light + Food + Temperature + Day + Bacteria + (1|B.TAG), data = data) #drop sym state
+summary(m4)
+
+m5 <- lmer(rate ~ Plastic + Light + Temperature + Day + Bacteria + (1|B.TAG), data = data) #drop food
+summary(m5)
+
+m6 <- lmer(rate ~ Light + Temperature + Day + Bacteria + (1|B.TAG), data = data) #drop plastic
+summary(m6)
+
+AIC(m3, m4, m5, m6)
+anova(m5, m6)
+
+# M6 best fit, lets check:
+```
+
+```{r}
+r2(m6) # marginal is variance explained by fixed factors # conditional is variance by whole model including random factors
+# light and temperature explain 16% of the variance? 
+# light, temperature, and polyp ID explain 34%?
+confint(m6)
+
+plot_model(m6, "eff") 
+plot_model(m6 , type="re")
+plot(m6)
+
+check_model(m6)
+check_collinearity(m6)
+check_outliers(m6)
+
+# Interaction plot
+a2<-lmer(rate~Light*Temperature*Day*Bacteria+(1|B.TAG), data=data)
+summary(a2)
+head(data)
+
+dat2 <- ggemmeans(a2, terms = c("Temperature", "Light", "Day", "Bacteria")) #
+
+pred <- ggplot(dat2, aes(facet,predicted, colour = group)) +
+  geom_point(aes(shape = x)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.3) +
+  labs(x = "Day", y = "Rate O2 Consumption (umol*min-1*g-1)",
+       color = "Light") +
+  facet_grid(~panel) +
+  ggtitle("") +
+  theme_classic() +
+  theme(axis.title.x = element_text(color="black", size=12),
+axis.title.y = element_text(color="black", size=12))+
+  theme(axis.text.x = element_text(size=12),
+          axis.text.y = element_text(size=12)) +
+  scale_color_manual(values=c("black", "goldenrod"))
+pred
+
+
+## M6 tells us that starting at 15 days exposure to darkness and elevated temperature, the metabolic rate of coral begins to decline compared to corals in the light/elevated conditions. At 22 days post exopsure to chronic stress, MR remains mostly the same
+```
+
+```{r}
+# Now let's include potential interactions between stressors that might be biologically relevant 
+
+m7 <- lmer(rate ~ Plastic + Light + Food + Temperature + Sym.state + Day + Bacteria +
+             Sym.state:Light + Sym.state:Day + Sym.state:Temperature + Temperature:Day + Sym.state:Temperature:Day +
+             (1|B.TAG), data = data)
+summary(m7)
+
+m8 <- lmer(rate ~ Plastic + Light + Food + Temperature + Sym.state + Day + Bacteria +
+             Sym.state:Light + Sym.state:Temperature + Temperature:Day + Sym.state:Temperature:Day +
+             (1|B.TAG), data = data) # drop sym state:day
+summary(m8)
+
+m9 <- lmer(rate ~ Plastic + Light + Food + Temperature + Sym.state + Day + Bacteria +
+             Sym.state:Light + Sym.state:Temperature + Temperature:Day + 
+             (1|B.TAG), data = data) # drop sym state:temp:day
+summary(m9)
+
+m10 <- lmer(rate ~ Plastic + Light + Food + Temperature + Sym.state + Day + Bacteria +
+             Sym.state:Temperature + Temperature:Day + 
+             (1|B.TAG), data = data) # drop light:sym.state
+summary(m10)
+
+m11 <- lmer(rate ~ Plastic + Light + Food  + Sym.state + Day + Bacteria +
+               Sym.state:Temperature + Temperature:Day + 
+               (1|B.TAG), data = data) # drop temp
+summary(m11)
+
+m12 <- lmer(rate ~ Plastic + Light  + Sym.state + Day + Bacteria +
+             Sym.state:Temperature + Temperature:Day + 
+             (1|B.TAG), data = data) # drop food
+
+summary(m12)
+
+m13 <- lmer(rate ~ Light  + Sym.state + Day + Bacteria +
+             Sym.state:Temperature  + 
+             (1|B.TAG), data = data) # drop plastic
+
+summary(m13)
+
+
+AIC(m7, m8, m9, m10, m11, m12, m13)
+anova(m12, m13)
+
+# M13, lets check:
+```
+
+```{r}
+r2(m13) # marginal is variance explained by fixed factors # conditional is variance by whole model including random factors
+# fixed, 17%
+# all 34 %
+confint(m13)
+
+plot_model(m13, type = "pred", terms = c("Sym.state", "Temperature")) 
+plot_model(m13 , type="re")
+
+check_model(m13)
+check_collinearity(m13) # BAD! this means that the impact of sym state is similar to temperature and that we should only include one in our model 
+
+```
+
+```{r}
+# let's fit a model closest to m13 (minus the interaction term) to determine which predictor variable makes our model fit the best
+m14 <- lmer(rate ~ Light + Sym.state + Day + Bacteria + (1|B.TAG), data = data) # with sym
+summary(m14)
+m15 <- lmer(rate~ Light + Temperature + Day + Bacteria + (1|B.TAG), data = data) # with temp
+summary(m15)
+
+anova(m14, m15) # suggests m15, with temperature, turns out to be the same model at m6
+
+check_model(m15)
+
+AIC(m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15)
+```
+
+```{r}
+## Let's work with model 6 
+
+library('performance')
+library('insight')
+library('sjstats')
+library('sjPlot')
+library('effects')
+library(ggplot2)
+
+
+# plot model estimate
+m <- lmer(rate~ Light + Temperature + Day + Bacteria + (1|B.TAG), data = data, REML = TRUE)
+
+# plot light
+l=plot_model(m, 'pred', ci.lvl = 0.95, terms="Light")
+l +
+  theme_classic() +
+xlab("Light")+
+  ylab("Rate O2 Consumption (umol*min-1*g-1)")+
+  ggtitle("")+
+  theme(axis.title.x = element_text(color="black", size=14, face="bold"),
+axis.title.y = element_text(color="black", size=14, face="bold"))+
+  theme(axis.text.x = element_text(size=14),
+          axis.text.y = element_text(size=14))
+
+# plot temperature
+t=plot_model(m, 'pred', ci.lvl = 0.95, terms="Temperature")
+t +
+  theme_classic() +
+xlab("Temperature")+
+  ylab("Rate O2 Consumption (umol*min-1*g-1)")+
+  ggtitle("")+
+  theme(axis.title.x = element_text(color="black", size=14, face="bold"),
+axis.title.y = element_text(color="black", size=14, face="bold"))+
+  theme(axis.text.x = element_text(size=14),
+          axis.text.y = element_text(size=14))
+
+# plot day
+d=plot_model(m, 'pred', ci.lvl = 0.95, terms="Day")
+d +
+  theme_classic() +
+xlab("Day")+
+  ylab("Rate O2 Consumption (umol*min-1*g-1)")+
+  ggtitle("")+
+  theme(axis.title.x = element_text(color="black", size=14, face="bold"),
+axis.title.y = element_text(color="black", size=14, face="bold"))+
+  theme(axis.text.x = element_text(size=14),
+          axis.text.y = element_text(size=14))
+
+# plot bacteria
+b=plot_model(m, 'pred', ci.lvl = 0.95, terms="Bacteria")
+b +
+  theme_classic() +
+xlab("Day")+
+  ylab("Rate O2 Consumption (umol*min-1*g-1)")+
+  ggtitle("")+
+  theme(axis.title.x = element_text(color="black", size=14, face="bold"),
+axis.title.y = element_text(color="black", size=14, face="bold"))+
+  theme(axis.text.x = element_text(size=14),
+          axis.text.y = element_text(size=14))
+
+
+#interaction plot
+library(ggeffects)
+
+# Interaction plot
+int<-lmer(rate~Light*Temperature*Day*Bacteria+(1|B.TAG), data=data)
+summary(int)
+
+dat2 <- ggemmeans(int, terms = c("Temperature", "Light", "Day", "Bacteria")) #
+
+pred <- ggplot(dat2, aes(facet,predicted, colour = group)) +
+  geom_point(aes(shape = x)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.3) +
+  labs(x = "Day", y = "Rate O2 Consumption (umol*min-1*g-1)",
+       color = "Light") +
+  facet_grid(~panel) +
+  ggtitle("") +
+  theme_classic() +
+  theme(axis.title.x = element_text(color="black", size=12),
+axis.title.y = element_text(color="black", size=12))+
+  theme(axis.text.x = element_text(size=12),
+          axis.text.y = element_text(size=12)) +
+  scale_color_manual(values=c("black", "goldenrod"))
+pred
+```
+
+## HERE 
+
+```{r}
+# Extract model outputs into a nice table 
+library(sjPlot)
+library(sjmisc)
+library(sjlabelled)
+library(lme4)
+
+sjt.lmer(m5, m6) 
+```
+
+
+
+###################################################################################################################################
+#
+#                                                     The impact of Genotype on response to E. Coli
+#
+###################################################################################################################################
+
+```{r}
+# Load metadata with colony genotype data 
+id.data <- read.csv("~/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Full_ ID Metadata - *Frag metadata (xrack&control).csv", header = TRUE)
+```
+
+```{r}
+# Add Colony values to 'data' dataframe by B.TAG
+
+# Select variables from original data to keep
+id.data2 <- id.data %>%
+  select(Colony, B.TAG) 
+
+# add variables to new df based on ID
+data2 <- left_join(id.data2, data, by = "B.TAG")
+
+# Remove NAs
+data2 <- data2[complete.cases(data2),]
+```
+
+```{r}
+# Summarize rate by TREATMENT, COLONY, and DAY
+col.rate <- summarySE(data2, measurevar = "rate", groupvars = c("Treatment", "Colony", "Bacteria"))
+col.rate
+
+#subset columns of interest
+col.rate <- subset(col.rate, select = c("Treatment", "Colony", "rate", "N", "Bacteria"))
+col.rate$rate <- round(col.rate$rate , 5) # round to 5 decimal places
+```
+
+```{r}
+# Select colors for pivot table based on degree of rate 
+library(RColorBrewer)
+display.brewer.pal(5, "RdYlGn")
+brewer.pal(5, "RdYlGn")
+
+summary(col.rate)
+
+# fastest rate, should be RED - most response
+# -0.274390;  #D7191C
+
+# 1st Q - orange
+# -0.023615; #FDAE61
+
+# middle rate - yellow
+# -0.011920; #FFFFBF
+
+# 3rd Q - light green 
+# -0.006905; #A6D96A
+
+# slowest rate - dark green 
+#-0.001530; #1A9641
+
+
+```
+
+```{r}
+library(pivottabler)
+pt <- PivotTable$new()
+pt$addData(col.rate)
+pt$addColumnDataGroups("Treatment")
+pt$addColumnDataGroups("Bacteria")
+pt$addRowDataGroups("Colony")
+pt$defineCalculation(calculationName="Rate", summariseExpression="sum(rate)")
+pt$evaluatePivot()
+
+# apply the background-color styling
+pt$mapStyling(cells=pt$allCells, styleProperty="background-color", 
+              valueType="color", mapType="continuous",
+              mappings=list(-0.274390,  "#D7191C", 
+                            -0.023615, "#FDAE61", 
+                            -0.011920, "#FFFFBF",
+                            -0.006905, "#A6D96A",
+                            -0.001520, "#1A9641"))
+pt$renderPivot()
+```
+```{r}
+library(openxlsx)
+wb <- createWorkbook(creator = Sys.getenv("USERNAME"))
+addWorksheet(wb, "Data")
+pt$writeToExcelWorksheet(wb=wb, wsName="Data", 
+                         topRowNumber=1, leftMostColumnNumber=1, 
+                         applyStyles=TRUE, mapStylesFromCSS=TRUE)
+saveWorkbook(wb, file="C:\\test.xlsx", overwrite = TRUE)
+```
+
+```{r}
+# Let's try it the other way around 
+pt2 <- PivotTable$new()
+pt2$addData(col.rate)
+pt2$addColumnDataGroups("Colony")
+pt2$addColumnDataGroups("Bacteria")
+pt2$addRowDataGroups("Treatment")
+pt2$defineCalculation(calculationName="Rate", summariseExpression="sum(rate)")
+pt2$evaluatePivot()
+
+# apply the background-color styling
+pt2$mapStyling(cells=pt2$allCells, styleProperty="background-color", 
+              valueType="color", mapType="continuous",
+              mappings=list(-0.274390, "#D7191C", 
+                            -0.023615, "#FDAE61", 
+                            -0.011920, "#FFFFBF",
+                            -0.006905, "#A6D96A",
+                            -0.001520, "#1A9641"))
+
+# apply the color styling
+pt2$mapStyling(cells=pt2$allCells, styleProperty="continuous", 
+              valueType="color", mapType="range",
+              mappings=list(-0.274390, "#D7191C", 
+                            -0.023615, "#FDAE61", 
+                            -0.011920, "#FFFFBF",
+                            -0.006905, "#A6D96A",
+                            -0.001520, "#1A9641"))
+pt2$renderPivot()
+```
+```{r}
+wb <- createWorkbook(creator = Sys.getenv("USERNAME"))
+addWorksheet(wb, "Heatmap")
+pt2$writeToExcelWorksheet(wb=wb, wsName="Heatmap", 
+                         topRowNumber=1, leftMostColumnNumber=1, 
+                         applyStyles=TRUE, mapStylesFromCSS=TRUE)
+saveWorkbook(wb, file="HeatmapLong.xlsx", overwrite = TRUE)
+```
+

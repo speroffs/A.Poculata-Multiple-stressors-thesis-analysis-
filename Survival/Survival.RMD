@@ -1,0 +1,1063 @@
+---
+title: "Survival.RMD"
+author: "Sarah Speroff"
+date: "11/18/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+knitr::opts_chunk$set(
+  fig.path = "images/")
+```
+
+###################################################################################################################################
+#
+#                                                         Data prep
+#
+###################################################################################################################################
+```{r library}
+library(survival)
+library(ggplot2)
+library(dplyr)
+library(ggfortify)
+library(survminer)
+library(RColorBrewer)
+library(ggthemes)
+```
+
+```{r wd}
+setwd("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Survival")
+```
+```{r load data}
+# Load data for GRAPHICAL PARAMETERS 
+graph.dat <- read.csv("Full_ daily mortality tracker - Censored.CoxPH.w.controls.csv", 
+                     header = TRUE) 
+
+# Load data for MODEL CREATION (1 death added to each treatment to prevent infinite coeff)
+surv.dat <- read.csv("2Full_ daily mortality tracker - Censored.CoxPH.w.controls.csv", 
+                     header = TRUE) 
+```
+```{r }
+# relevel to compare all to control 
+surv.dat$Treatment <- factor(surv.dat$Treatment, levels = c("amb.ctrl", "PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF"))
+
+graph.dat$Treatment <- factor(graph.dat$Treatment, levels = c("amb.ctrl", "PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF"))
+```
+```{r as factor}
+# as factor for df 1
+surv.dat$Plastic <- as.factor(surv.dat$Plastic)
+surv.dat$Light <- as.factor(surv.dat$Light)
+surv.dat$Food <- as.factor(surv.dat$Food)
+surv.dat$Treatment <- as.factor(surv.dat$Treatment)
+surv.dat$Sym.State <- as.factor(surv.dat$Sym.State)
+
+# for df 2
+graph.dat$Plastic <- as.factor(graph.dat$Plastic)
+graph.dat$Light <- as.factor(graph.dat$Light)
+graph.dat$Food <- as.factor(graph.dat$Food)
+graph.dat$Treatment <- as.factor(graph.dat$Treatment)
+graph.dat$Sym.State <- as.factor(graph.dat$Sym.State)
+```
+
+###################################################################################################################################
+#
+#                                                           Initial Data visualization 
+#
+###################################################################################################################################
+
+```{r surv object}
+# Create a survival model to assess mortality over time by treatment with modeling data
+treat.mod <- coxph(Surv(Time, Death) ~Treatment, data=surv.dat)
+
+# summarize the model 
+summary(treat.mod)
+```
+```{r}
+# Perform Log-rank test on our treat.mod
+treat_diff <- survdiff(Surv(Time, Death) ~ Treatment, data=surv.dat)
+treat_diff
+```
+
+```{r colors}
+# make color palette to plot survival function
+new.pal <- c("#131513", # control
+             "#F53100", # pds
+             "#FF8B47", # pls
+             "#C39809", # nds
+             "#F6CB3C", # nls
+             "#0B8454", # pdf
+             "#7BB12F", # plf
+             "#3F88C5", # ndf
+             "#A33461")# nlf
+```
+```{r}
+# write the same model using the graphing data, and plot that 
+treat <- survfit(Surv(Time, Death) ~Treatment, data=graph.dat)
+
+plot(treat, conf.int=FALSE, 
+     xlab = "Days", 
+     xlim = c(0,22),
+     ylab = "Proportion Alive",
+     ylim = c(0.6,1.0),
+     mark.time=T,
+     pch = 3,
+     las=1, lwd = 3,
+     col=new.pal)
+legend(0,0.85, legend=c("Amb Ctrl", "PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF"), 
+       lty=1, lwd=2, cex=0.8,col=new.pal)
+```
+
+```{r Km.surv.fig}
+# Same plot using the ggplot function
+Km.surv.fig <- ggsurvplot(treat, # survival function
+                conf.int = FALSE, # remove confidence intervals
+                pval = FALSE, # do not include p value on plot
+                surv.scale = "default", # or %
+                legend.labs = c("Control", "PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF"), # treatments
+                legend = c(0.1, 0.35), font.legend = 11, legend.title ="", # legend parameters 
+                xlab = "Day", xlim = c(0, 23), break.x.by = 2, font.x = 12, # x axis parameters
+                ylim = c(0.65,1), font.y= 12, # y axis parameters
+                censor.size = 6,
+                ggtheme = theme_classic2(),
+                title = "A.",
+                palette = c("#131513","#F53100", "#FF8B47","#C39809","#F6CB3C","#0B8454", "#7BB12F","#3F88C5","#A33461"))
+Km.surv.fig 
+```
+
+###################################################################################################################################
+#
+#                                                           Single variable Hazards
+#
+###################################################################################################################################
+
+
+###########
+# PLASTIC #   
+###########
+
+```{r plastic univ}
+# First we will compute *univariate* models for each predictor variable to see how the impact survival when looked at alone
+
+# Plastic
+plastic.mod <- coxph(Surv(Time, Death) ~ Plastic, data=surv.dat)
+```
+```{r}
+summary(plastic.mod)
+
+# HR plastic:no plastic (3.2244)
+# plastic increased the hazard by 222.4% 
+#   1-exp(coef)
+#   1-3.2244 = -2.2244 * 100 = 222.44
+# being in no plastic reduced the hazard by 69%
+#   1-exp(-coef)
+#   1-0.3101 = 0.69 * 100 = 69
+```
+```{r}
+# Perform Log-rank test on our plastic.mod
+plastic_diff <- survdiff(Surv(Time, Death) ~ Plastic, data=surv.dat)
+plastic_diff
+
+# X^2 = 19.7
+# df = 1
+# p = 9x10^-6
+```
+```{r km.plastic.fig}
+# rewrite the model with graphing data, and plot the kaplan meier curve for pastic
+plastic <- survfit(Surv(Time, Death) ~ Plastic, data = graph.dat)
+
+km.plastic.fig <- 
+  ggsurvplot(plastic, 
+          conf.int = FALSE, pval = FALSE, surv.scale = "default", # or %
+           legend.labs = c("No plastic", "Plastic"), legend.title = "", legend = c(0.15, 0.2), font.legend = 12,
+           xlab = "", xlim = c(0, 23),break.x.by = 2, font.x = 12,
+           ylab = "", ylim = c(0.75,1),font.y= 12,
+           font.tickslab = 12,
+           censor.size = 6,
+           ggtheme = theme_classic2(),
+           linetype = c(1,6),
+           palette = c("black","black"))
+           
+km.plastic.fig
+```
+
+########
+# FOOD #   
+########
+
+```{r}
+# Food
+food.mod <- coxph(Surv(Time, Death) ~ Food, data=surv.dat)
+```
+```{r food univ}
+summary(food.mod)
+
+# HR starved:fed <- (0.8864)
+# being starved reduced the hazard by 11.36%
+#   1-exp(coef)
+#   1-0.8864 = 0.1136 * 100 = 11.36
+# being fed increased the hazard by 12.8% 
+#   1-exp(-coef)
+#   1-1.128 = -0.128 * 100 = -12.8
+```
+```{r}
+# Perform Log-rank test on our foodf.mod
+food_diff <- survdiff(Surv(Time, Death) ~ Food, data=surv.dat)
+food_diff
+
+# X^2 = 0.2
+# df = 1
+# p = 0.7
+```
+```{r}
+# kaplan meier curve 
+food <- survfit(Surv(Time, Death) ~ Food, data = graph.dat)
+```
+```{r km.food.fig}
+# plot 
+km.food.fig <- 
+  ggsurvplot(food, 
+          conf.int = FALSE, pval = FALSE, surv.scale = "default", # or %
+           legend.labs = c("Fed", "Starved"), legend.title = "", legend = c(0.15, 0.2), font.legend = 12,
+           xlab = "", xlim = c(0, 23),break.x.by = 2, font.x = 12,
+           ylab = "", ylim = c(0.75,1),font.y= 14, 
+           font.tickslab = 12,
+           censor.size = 6,
+           ggtheme = theme_classic2(),
+           linetype = c(1,6),
+           palette = c("black","black"))
+           
+km.food.fig
+```
+
+########
+# FOOD: Fed vs Starved in No Plastic / Light treatment   
+########
+
+```{r}
+# Fed vs Starved: for **NoPlastic/Light**
+
+# filter out observations
+# New df with just Plastic/Dark/Fed variables 
+FS1.dat <- filter(surv.dat, Treatment == "NLF" | Treatment == "NLS")
+```
+
+```{r}
+# cox model for fs1
+fs1.coxm <- coxph(Surv(Time, Death) ~ Food, data=FS1.dat)
+```
+```{r}
+summary(fs1.coxm)
+```
+```{r}
+# Perform Log-rank test 
+fs1_diff <- survdiff(Surv(Time, Death) ~ Food, data=FS1.dat)
+fs1_diff
+```
+
+```{r}
+# surv fit to plot
+fs1 <- survfit(Surv(Time, Death) ~ Food, data = FS1.dat)
+```
+```{r}
+# plot 
+fs1.plot <- ggsurvplot(fs1, conf.int = FALSE, 
+           pval = FALSE, 
+           surv.scale = "default", # or %
+           legend.labs = c("Fed", "Starved"),
+           legend.title = "",
+           legend = c(0.15, 0.2),
+           font.legend = 10,
+           xlab = "Days",
+           xlim = c(0, 23),
+           break.x.by = 2,
+           font.x = 12,
+           ylim = c(0.6,1),
+           font.y= 12, 
+           censor.size = 5,
+           ggtheme = theme_classic2(),
+           palette = c("black", "brown"),
+           title = "No Plastic / Light")
+
+fs1.plot
+
+```
+
+########
+# FOOD: Fed vs Starved in Plastic / Dark treatment   
+########
+
+```{r}
+# Fed vs Starved: for **Plastic / Dark **
+
+# filter out observations
+# New df with just Plastic/Dark/Fed variables 
+FS2.dat <- filter(surv.dat, Treatment == "PDF" | Treatment == "PDS")
+```
+
+```{r}
+# cox model for fs2
+fs2.coxm <- coxph(Surv(Time, Death) ~ Food, data=FS2.dat)
+```
+```{r}
+summary(fs2.coxm)
+```
+```{r}
+# Perform Log-rank test 
+fs2_diff <- survdiff(Surv(Time, Death) ~ Food, data=FS2.dat)
+fs2_diff
+```
+
+```{r}
+# surv fit 
+fs2 <- survfit(Surv(Time, Death) ~ Food, data = FS2.dat)
+```
+```{r}
+# plot 
+fs2.plot <- ggsurvplot(fs2, conf.int = FALSE, 
+           pval = FALSE, 
+           surv.scale = "default", # or %
+           legend.labs = c("Fed", "Starved"),
+           legend.title = "",
+           legend = c(0.15, 0.2),
+           font.legend = 10,
+           xlab = "Days",
+           xlim = c(0, 23),
+           break.x.by = 2,
+           font.x = 12,
+           ylim = c(0.6,1),
+           font.y= 12, 
+           censor.size = 5,
+           ggtheme = theme_classic2(),
+           palette = c("black", "brown"),
+           title = "Plastic / Dark")
+
+fs2.plot
+
+```
+
+########
+# FOOD: Fed vs Starved in No Plastic / Dark treatment   
+########
+
+```{r}
+# Fed vs Starved: for ** No Plastic / Dark **
+
+# filter out observations
+# New df with just Plastic/Dark/Fed variables 
+FS3.dat <- filter(surv.dat, Treatment == "NDF" | Treatment == "NDS")
+```
+
+```{r}
+# cox model for fs3
+fs3.coxm <- coxph(Surv(Time, Death) ~ Food, data=FS3.dat)
+```
+```{r}
+summary(fs3.coxm)
+```
+```{r}
+# Perform Log-rank test 
+fs3_diff <- survdiff(Surv(Time, Death) ~ Food, data=FS3.dat)
+fs3_diff
+```
+
+```{r}
+# surv fit 
+fs3 <- survfit(Surv(Time, Death) ~ Food, data = FS3.dat)
+```
+```{r}
+# plot 
+fs3.plot <- ggsurvplot(fs3, conf.int = FALSE, 
+           pval = FALSE, 
+           surv.scale = "default", # or %
+           legend.labs = c("Fed", "Starved"),
+           legend.title = "",
+           legend = c(0.15, 0.2),
+           font.legend = 10,
+           xlab = "Days",
+           xlim = c(0, 23),
+           break.x.by = 2,
+           font.x = 12,
+           ylim = c(0.6,1),
+           font.y= 12, 
+           censor.size = 5,
+           ggtheme = theme_classic2(),
+           palette = c("black", "brown"),
+           title = "No Plastic / Dark")
+
+fs3.plot
+
+```
+
+########
+# FOOD: Fed vs Starved in Plastic / Light treatment   
+########
+
+```{r}
+# Fed vs Starved: for ** Plastic / Light **
+
+# filter out observations
+# New df with just Plastic/Dark/Fed variables 
+FS4.dat <- filter(surv.dat, Treatment == "PLF" | Treatment == "PLS")
+```
+
+```{r}
+# cox model for fs4
+fs4.coxm <- coxph(Surv(Time, Death) ~ Food, data=FS4.dat)
+```
+```{r}
+summary(fs4.coxm)
+```
+```{r}
+# Perform Log-rank test 
+fs4_diff <- survdiff(Surv(Time, Death) ~ Food, data=FS4.dat)
+fs4_diff
+```
+
+```{r}
+# surv fit 
+fs4 <- survfit(Surv(Time, Death) ~ Food, data = FS4.dat)
+```
+```{r}
+# plot 
+fs4.plot <- ggsurvplot(fs4, conf.int = FALSE, 
+           pval = FALSE, 
+           surv.scale = "default", # or %
+           legend.labs = c("Fed", "Starved"),
+           legend.title = "",
+           legend = c(0.15, 0.2),
+           font.legend = 10,
+           xlab = "Days",
+           xlim = c(0, 23),
+           break.x.by = 2,
+           font.x = 12,
+           ylim = c(0.6,1),
+           font.y= 12, 
+           censor.size = 5,
+           ggtheme = theme_classic2(),
+           palette = c("black", "brown"),
+           title = "Plastic / Light")
+
+fs4.plot
+
+```
+
+```{r}
+# can we combine fs1-fs4 onto a single plot, or can we facet them?
+```
+
+#########
+# Light #   
+#########
+
+```{r}
+# Light
+light.mod <- coxph(Surv(Time, Death) ~ Light, data=surv.dat)
+```
+```{r light univ}
+summary(light.mod)
+
+# HR light:dark <- (0.5073)
+# being in the light reduced the hazard by 49.27%
+#   1-exp(coef)
+#   1-0.5073 = 0.4927 * 100 = 49.27
+# being in the dark increased the hazard by 97.1%
+#   1-exp(-coef)
+#   1-1.971 = -0.971 * 100 = 97.1
+```
+```{r}
+# Perform Log-rank test on our light.mod
+light_diff <- survdiff(Surv(Time, Death) ~ Light, data=surv.dat)
+light_diff
+
+# X^2 = 6.4
+# df = 1
+# p = 0.01
+```
+
+```{r}
+# kaplan meier curve 
+light <- survfit(Surv(Time, Death) ~ Light, data = graph.dat)
+```
+```{r km.light.fig}
+# plot 
+km.light.fig <- 
+  ggsurvplot(light, 
+          conf.int = FALSE, pval = FALSE, surv.scale = "default", # or %
+           legend.labs = c("Dark", "Light"), legend.title = "", legend = c(0.15, 0.2), font.legend = 11,
+           xlab = "", xlim = c(0, 23),break.x.by = 2, font.x = 12,
+           ylab = "", ylim = c(0.75,1),font.y= 12,
+           font.tickslab = 12,
+           censor.size = 6,
+           ggtheme = theme_classic2(),
+           linetype = c(6,1),
+           palette = c("black","black"))
+           
+km.light.fig
+```
+
+#########
+# Light: Apo frags
+#########
+
+```{r}
+# Dark vs Light: for apo frags
+
+# filter out observations
+# New df with just apo frags
+apo.dat <- filter(surv.dat, Sym.State == "Apo")
+```
+
+```{r}
+# cox model for apo
+apo.coxm <- coxph(Surv(Time, Death) ~ Light, data=apo.dat)
+```
+```{r}
+summary(apo.coxm)
+```
+```{r}
+# Perform Log-rank test 
+apo_diff <- survdiff(Surv(Time, Death) ~ Light, data=apo.dat)
+apo_diff
+```
+
+```{r}
+# surv fit 
+afit <- survfit(Surv(Time, Death) ~ Light, data = apo.dat)
+```
+```{r}
+# plot 
+a.plot <- ggsurvplot(afit, conf.int = FALSE, 
+           pval = FALSE, 
+           surv.scale = "default", # or %
+           legend.labs = c("Dark", "Light"),
+           legend.title = "",
+           legend = c(0.15, 0.2),
+           font.legend = 10,
+           xlab = "Days",
+           xlim = c(0, 23),
+           break.x.by = 2,
+           font.x = 12,
+           ylim = c(0.6,1),
+           font.y= 12, 
+           censor.size = 5,
+           ggtheme = theme_classic2(),
+           palette = c("black", "goldenrod3"),
+           title = "Aposymbiotic")
+
+a.plot
+```
+
+#########
+# Light: Sym frags
+#########
+
+```{r}
+# Dark vs Light: for sym frags
+
+# filter out observations
+# New df with just apo
+sym.dat <- filter(surv.dat, Sym.State == "Sym")
+```
+
+```{r}
+# cox model for sym
+sym.coxm <- coxph(Surv(Time, Death) ~ Light, data=sym.dat)
+```
+```{r}
+summary(sym.coxm)
+```
+```{r}
+# Perform Log-rank test 
+sym_diff <- survdiff(Surv(Time, Death) ~ Light, data=sym.dat)
+sym_diff
+```
+
+```{r}
+# surv fit 
+sfit <- survfit(Surv(Time, Death) ~ Light, data = sym.dat)
+```
+```{r}
+# plot 
+s.plot <- ggsurvplot(sfit, conf.int = FALSE, 
+           pval = FALSE, 
+           surv.scale = "default", # or %
+           legend.labs = c("Dark", "Light"),
+           legend.title = "",
+           legend = c(0.15, 0.2),
+           font.legend = 10,
+           xlab = "Days",
+           xlim = c(0, 23),
+           break.x.by = 2,
+           font.x = 12,
+           ylim = c(0.6,1),
+           font.y= 12, 
+           censor.size = 5,
+           ggtheme = theme_classic2(),
+           palette = c("black", "goldenrod3"),
+           title = "Symbiotic")
+
+s.plot
+```
+
+###############
+# Temperature #   
+###############
+
+```{r}
+# Temperature
+temperature.mod <- coxph(Surv(Time, Death) ~ Temperature, data=surv.dat)
+```
+```{r}
+summary(temperature.mod)
+
+# HR elevated:ambient <- ????
+```
+```{r}
+# Perform Log-rank test on our temperature.mod
+temperature_diff <- survdiff(Surv(Time, Death) ~ Temperature, data=surv.dat)
+temperature_diff
+
+# X^2 = 31.3
+# df = 1
+# p = 2x10^-8
+```
+
+```{r}
+# kaplan meier curve 
+temperature <- survfit(Surv(Time, Death) ~ Temperature, data = graph.dat)
+```
+```{r km.temp.fig }
+# plot 
+km.temp.fig <- 
+  ggsurvplot(temperature, 
+          conf.int = FALSE, pval = FALSE, surv.scale = "default", # or %
+           legend.labs = c("Ambient (19 C)", "Elevated (30 C)"), legend.title = "", legend = c(0.15, 0.2), font.legend = 11,
+           xlab = "", xlim = c(0, 23),break.x.by = 2, font.x = 12,
+           ylab = "", ylim = c(0.75,1),font.y= 12, 
+           font.tickslab = 12,
+           censor.size = 6,
+           ggtheme = theme_classic2(),
+           linetype = c(1,6),
+           palette = c("black","black"))
+           
+km.temp.fig
+```
+
+###############
+# Temperature: ambient vs elevated controls 
+###############
+
+```{r}
+# Ambient vs elevated controls
+
+# filter out observations
+# New df with just apo
+tmp.dat <- filter(surv.dat, Treatment == "NLF" | Treatment == "amb.ctrl")
+```
+
+```{r}
+# cox model for temperature controls
+tmp.coxm <- coxph(Surv(Time, Death) ~ Temperature, data=tmp.dat)
+```
+```{r}
+summary(tmp.coxm)
+```
+```{r}
+# Perform Log-rank test 
+tmp_diff <- survdiff(Surv(Time, Death) ~ Temperature, data=tmp.dat)
+tmp_diff
+```
+
+```{r}
+# surv fit 
+tfit <- survfit(Surv(Time, Death) ~ Temperature, data = tmp.dat)
+```
+```{r}
+# plot 
+t.plot <- ggsurvplot(tfit, conf.int = FALSE, 
+           pval = FALSE, 
+           surv.scale = "default", # or %
+           legend.labs = c("Ambient (19 C)", "Elevated (30 C)"),
+           legend.title = "",
+           legend = c(0.15, 0.2),
+           font.legend = 10,
+           xlab = "Days",
+           xlim = c(0, 23),
+           break.x.by = 2,
+           font.x = 12,
+           ylim = c(0.6,1),
+           font.y= 12, 
+           censor.size = 5,
+           ggtheme = theme_classic2(),
+           palette = c("darkblue", "red"),
+           title = "Temperature Controls")
+
+t.plot
+```
+
+
+#############
+# Sym State #   
+#############
+
+```{r}
+# Sym.State
+symst.mod <- coxph(Surv(Time, Death) ~ Sym.State, data=surv.dat)
+```
+```{r sym.state univ}
+summary(symst.mod)
+
+# HR sym:apo <- 0.4293
+# being sym reduced the hazard by 57.07%
+#   1-exp(coef)
+#   1-0.4293 = 0.5707 * 100 = 57.07
+# being apo increased the hazard by 132.9% 
+#   1-exp(-coef)
+#   1-2.329 = -1.329 * 100 = 132.9
+```
+```{r}
+# Perform Log-rank test on our temperature.mod
+sym_diff <- survdiff(Surv(Time, Death) ~ Sym.State, data=surv.dat)
+sym_diff
+
+# X^2 = 8.8
+# df = 1
+# p = 0.003
+```
+
+```{r}
+# surv fit 
+symfit <- survfit(Surv(Time, Death) ~ Sym.State, data = graph.dat)
+```
+```{r}
+# plot 
+s.plot <- ggsurvplot(symfit, conf.int = FALSE, 
+           pval = FALSE, 
+           surv.scale = "default", # or %
+           legend.labs = c("Apo", "Sym"),
+           legend.title = "",
+           legend = c(0.15, 0.2),
+           font.legend = 10,
+           xlab = "Days",
+           xlim = c(0, 23),
+           break.x.by = 2,
+           font.x = 12,
+           ylim = c(0.8,1),
+           font.y= 12, 
+           censor.size = 5,
+           ggtheme = theme_classic2(),
+           palette = c("gray", "brown"),
+           title = "Sym State")
+
+s.plot
+```
+
+```{r}
+# lets see if we can do a better pairwise analysis for all treatments 
+library(emmeans)
+lsmeans(treat.mod, pairwise~Treatment)
+
+#doesnt look like any of the pairwise comparisons for the coxph model are significant?
+```
+
+```{r UNIVARIATE}
+# run multiple univariate analyses at once - does not take into account *interaction* between variables
+
+covariates <- c("Plastic", "Food",  "Light", "Temperature", "Sym.State")
+univ_formulas <- sapply(covariates,
+                        function(x) as.formula(paste('Surv(Time, Death)~', x)))
+                        
+univ_models <- lapply( univ_formulas, function(x){coxph(x, data = surv.dat)})
+
+# Extract data 
+univ_results <- lapply(univ_models,
+                       function(x){ 
+                          x <- summary(x)
+                          p.value<-signif(x$wald["pvalue"], digits=2)
+                          wald.test<-signif(x$wald["test"], digits=2)
+                          beta<-signif(x$coef[1], digits=2);#coefficient beta
+                          HR <-signif(x$coef[2], digits=2);#exp(beta)
+                          HR.confint.lower <- signif(x$conf.int[,"lower .95"], 2)
+                          HR.confint.upper <- signif(x$conf.int[,"upper .95"],2)
+                          HR <- paste0(HR, " (", 
+                                       HR.confint.lower, "-", HR.confint.upper, ")")
+                          res<-c(beta, HR, wald.test, p.value)
+                          names(res)<-c("beta", "HR (95% CI for HR)", "wald.test(z)", 
+                                        "p.value")
+                          return(res)
+                          return(exp(cbind(coef(x),confint(x))))
+                         })
+res <- t(as.data.frame(univ_results, check.names = FALSE))
+as.data.frame(res)
+```
+
+###################################################################################################################################
+#
+#                                                           Multivariate Statistical Analysis 
+#
+###################################################################################################################################
+
+```{r }
+# a full model that contains all of our parameters
+multiv.mod <- coxph(Surv(Time, Death) ~ Plastic + Light + Food + Temperature + Sym.State, 
+                    data = surv.dat)
+```
+```{r multivariate }
+summary(multiv.mod)
+```
+```{r}
+# Perform Log-rank test on our multiv.mod
+multiv_diff <- survdiff(Surv(Time, Death) ~ Plastic + Light + Food + Temperature + Sym.State, 
+                    data = surv.dat)
+multiv_diff
+```
+```{r}
+# Let's create a forest plots to show the output of our model
+ggforest(multiv.mod, data=surv.dat)
+```
+
+```{r}
+# now lets take a look how how our model changes if we remove phenotype, since sym state is not an environmental stressor
+m1 <- coxph(Surv(Time, Death) ~ Plastic + Light + Food + Temperature, data=surv.dat)
+summary(m1)
+```
+```{r}
+ggforest(m1, data=surv.dat)
+
+PLFT.fig <- ggforest(m1, data=surv.dat) # save as figure
+```
+
+```{r}
+# and now we can compare those two models using the likelihood ratio test 
+anova(multiv.mod, m1, test="LRT")
+# a high p value shows that we don't have evidence to say that the full model is better than the reduced model, 
+# while a low (and significant p value) tells us that our full model is not made better by dropping the variable and our reduced model is therefore significantly worse than our full model
+```
+
+```{r}
+# We see that temperature has a very high effect here, what does our data look like when we remove it?
+tmp.mod <- coxph(Surv(Time, Death) ~ Plastic + Light + Food, data = surv.dat)
+summary(tmp.mod)
+ggforest(tmp.mod, data=surv.dat)
+
+PLF.fig <- ggforest(tmp.mod, data=surv.dat) # save as figure
+```
+
+```{r}
+# And finally, we'll break it down by sym state, starting off with our Apo frags
+# write a model exactly like the full model, but using the apo.dat data frame
+apo.mod <- coxph(Surv(Time, Death) ~ Plastic + Light + Food + Temperature, data = apo.dat)
+summary(apo.mod)
+# and plot
+ggforest(apo.mod, data=apo.dat)
+```
+```{r}
+# now remove temperature (since it's so influential)
+apo.mod2 <- coxph(Surv(Time, Death) ~ Plastic + Light + Food , data = apo.dat)
+summary(apo.mod2)
+```
+```{r}
+ggforest(apo.mod2, data = apo.dat)
+```
+
+```{r}
+# And we will repeat those same steps for our sym fragments
+sym.mod <- coxph(Surv(Time, Death) ~ Plastic + Light + Food + Temperature, data = sym.dat)
+summary(sym.mod)
+
+ggforest(sym.mod, data=sym.dat)
+```
+```{r}
+# now remove temperature 
+sym.mod2 <- coxph(Surv(Time, Death) ~ Plastic + Light + Food , data = sym.dat)
+summary(sym.mod2)
+```
+```{r}
+ggforest(sym.mod2, data = sym.dat)
+```
+
+###################################################################################################################################
+#
+#                                                           Testing model assumptions 
+#
+###################################################################################################################################
+
+```{r}
+# We'll start out with our first full model that includes all of our stress parameters and sym state, multiv.mod
+
+# Let's test for proportional hazards 
+all.hazard <- cox.zph(multiv.mod)
+print(all.hazard)
+
+# If the p vale for this test is significant for any of the co-variates (ie the variable p value is less than 0.05) then the hazard associated with that variable is NOT PROPORTIONAL and violates the assumptions
+```
+```{r}
+# Let's plot the assumptions graph
+ggcoxzph(all.hazard)
+```
+
+```{r}
+# lets test our reduced model that has all of our stress parameters
+treat.hazard <- cox.zph(m1)
+print(treat.hazard) 
+
+# Yes! so even though removing sym.state from our cox model showed that it was worse (in the LRT anova) the p values are all insignificant and indicates that we pass the assumptions of the cox proportional hazards model. So, we should not include sym state in our model. 
+```
+```{r}
+# and plot
+ggcoxzph(treat.hazard)
+
+# If we see a pattern with the variable over time, that is an indication that the assumptions cannot be met
+```
+```{r}
+# and for our full model without temperature
+tmp.hazard <- cox.zph(tmp.mod)
+tmp.hazard
+```
+
+```{r}
+# Let's take a deeper look at our m1 model (all stress parameters without sym state)
+
+# estimated changes in the regression coefficients upon deleting each observation in turn
+ggcoxdiagnostics(m1, type = "dfbeta",
+                 linear.predictions = FALSE, ggtheme = theme_bw())
+```
+```{r}
+# estimated changes in the coefficients divided by their standard errors
+ggcoxdiagnostics(m1, type = "dfbetas",
+                 linear.predictions = FALSE, ggtheme = theme_bw())
+```
+```{r}
+#  check outliers by visualizing the deviance residuals. The deviance residual is a normalized transform of the martingale residual. These residuals should be roughtly symmetrically distributed about zero with a standard deviation of 1.
+ggcoxdiagnostics(m1, type = "deviance",
+                 linear.predictions = FALSE, ggtheme = theme_bw())
+# not very symmetrical around 0
+```
+
+```{r}
+# can we do the same for our single model parameters 
+plastic.hazard <- cox.zph(plastic.mod)
+plastic.hazard
+
+light.hazard <- cox.zph(light.mod)
+light.hazard
+
+food.hazard <- cox.zph(food.mod)
+food.hazard  
+
+temp.hazard <- cox.zph(temperature.mod)
+temp.hazard 
+
+symst.hazard <- cox.zph(symst.mod)
+symst.hazard ## only one that differs over time, not proportional!
+```
+
+```{r}
+# let's then assess our parameter estimates by sym state
+apo.hazard <- cox.zph(apo.mod)
+apo.hazard # all good
+ggcoxzph(apo.hazard)
+```
+```{r}
+apo2.hazard <- cox.zph(apo.mod2)
+apo2.hazard # all good
+ggcoxzph(apo2.hazard)
+```
+
+```{r}
+# sym
+sym.hazard <- cox.zph(sym.mod)
+sym.hazard #nice 
+ggcoxzph(sym.hazard)
+```
+```{r}
+sym2.hazard <- cox.zph(sym.mod2)
+sym2.hazard #nice 
+ggcoxzph(sym2.hazard)
+```
+
+```{r}
+treat.col <- palette(brewer.pal(n=9, name = "Set2"))
+
+# Let's visualize a model using ggplot 
+fit.1 <- survfit(Surv(Time, Death)~Sym.State, data=surv.dat)
+ggsurvplot(fit.1)
+ggsurvplot(fit.1, conf.int = TRUE, 
+           pval = TRUE, 
+           legend.labs = c("Apo", "Sym"),
+           legend.title = "Symbiotic State",
+           palette = c("black", "brown"))
+
+
+#ggsurvplot(survfit(all.mod), data=surv.dat, palette = treat.col, ggtheme = theme_minimal())
+
+
+# food & sym. state
+sig.fit <- survfit(Surv(Time, Death) ~ Sym.State+Food, data=surv.dat)
+p <- ggsurvplot_facet(sig.fit, surv.dat,
+                 facet.by= c("Plastic", "Light"),
+                 short.panel.labs = TRUE,
+                 palette = "aas",
+                 pval = TRUE, 
+                 pval.method = TRUE,
+                 legend.labs = c("Apo/Fed", "Apo/Starved", "Sym/Fed", "Sym/Starved"))
+p
+# p + lims(y=c(0.25,1.0))
+
+
+# facet plot with all 4 variables 
+fit <- survfit( Surv(Time, Death) ~ Plastic + Sym.State, data = surv.dat )
+ggsurvplot_facet(fit, surv.dat, 
+                facet.by = c("Food", "Light"),
+                palette = "aaas", 
+                pval = TRUE, pval.method = TRUE,
+                short.panel.labs = TRUE,
+                legend.labs = c("NoPlastic/Apo", "NoPlastic/Sym", "Plastic/Apo", "Plastic/Sym"))
+
+# facet plot not including sym state 
+fit2 <- survfit( Surv(Time, Death) ~ Plastic, data = surv.dat )
+ggsurvplot_facet(fit2, surv.dat, 
+                facet.by = c("Food", "Light"),
+                palette = "aaas", 
+                pval = TRUE, pval.method = TRUE,
+                short.panel.labs = TRUE,
+                legend.labs = c("No Plastic", "Plastic"))
+
+# facet plot not including sym state 
+fit3 <- survfit( Surv(Time, Death) ~ Light, data = surv.dat )
+ggsurvplot_facet(fit3, surv.dat, 
+                facet.by = c("Food", "Plastic"),
+                palette = "aaas", 
+                pval = TRUE, pval.method = TRUE,
+                short.panel.labs = TRUE)
+    
+
+# facet plot with all 4 variables 
+fit4 <- survfit( Surv(Time, Death) ~ Food + Sym.State, data = surv.dat )
+ggsurvplot_facet(fit4, surv.dat, 
+                facet.by = c("Plastic", "Light"),
+                palette = "aaas", 
+                pval = TRUE, pval.method = TRUE,
+                short.panel.labs = TRUE,
+                legend.labs = c("Fed/Apo", "Fed/Sym", "Starved/Apo", "Starved/Sym"))
+
+# facet plot sym state by plastic and light 
+fit5 <- survfit( Surv(Time, Death) ~ Food, data = surv.dat )
+ggsurvplot_facet(fit5, surv.dat, 
+                facet.by = c("Plastic", "Light"),
+                palette = "aaas", 
+                pval = TRUE, pval.method = TRUE,
+                short.panel.labs = TRUE)
+
+```
+
+
+
+
+
+
+
