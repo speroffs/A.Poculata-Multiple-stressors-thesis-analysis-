@@ -1,0 +1,1725 @@
+---
+title: "MM.PAM.RMD"
+author: "Sarah Speroff"
+date: "2/15/2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+###########################################################################################################################
+#
+#                                                           Data Prep
+#
+############################################################################################################################
+
+```{r setup, include=FALSE}
+# Libraries
+library(plyr)
+library(dplyr)
+library(lme4)
+library(lmerTest)
+library(performance)
+library(see)
+library(ggplot2)
+library(Rmisc)
+library(emmeans)
+library(e1071)
+
+
+#library(tidyr)
+#library(ggthemes)
+#library(RColorBrewer)
+#library(ggeffects)
+```
+
+```{r}
+setwd("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/")
+
+# load the data 
+#data <- read.csv("Full_Fv_Fm.data - FvFm.long.format.csv", header = TRUE)
+data <- read.csv("Full_Fv_Fm.data - Edited.FvFm.csv", header = TRUE) #edited dataframe without day 22 for NDF/NLF
+```
+```{r}
+# Rename column headers
+names(data)[names(data) == "FvFm.AVG"] <- "fvfm"
+
+# Lots of NAs where a coral died mid-experiment
+data <- data[complete.cases(data),]
+
+# relevel to compare all to control 
+data$Treatment <- factor(data$Treatment, levels = c("control", "PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF"))
+
+# change variables
+data$Sump <- as.factor(data$Sump)
+data$Colony <- as.factor(data$Colony)
+data$Treatment <- as.factor(data$Treatment)
+data$Temperature <- as.factor(data$Temperature)
+data$Plastic <- as.factor(data$Plastic)
+data$Light <- as.factor(data$Light)
+data$Food <- as.factor(data$Food)
+data$Tank <- as.factor(data$Tank)
+data$Tile <- as.factor(data$Tile)
+data$Sym.State <- as.factor(data$Sym.State)
+data$B.Tag <- as.factor(data$B.Tag)
+```
+
+###########################################################################################################################
+#
+#                                                   Normality testing and transformations 
+#
+############################################################################################################################
+
+```{r}
+# look at distribution of raw data
+hist(data$fvfm)
+skewness(data$fvfm) # fvfm data is moderately right-skewed ( > 0.05)
+
+# let's log transform to see if that helps
+data$Logfvfm = log(data$fvfm)
+hist(data$Logfvfm)
+skewness(data$Logfvfm) # now it is somewhat left skewed
+
+# lets square root transform 
+data$SQfvfm = sqrt(data$fvfm)
+hist(data$SQfvfm)
+skewness(data$SQfvfm) # is the lowest skew so far
+
+# let's try the last option, cube root, to see if that is best 
+data$cubefvfvm = (data$fvfm^1/3)
+hist(data$cubefvfvm)
+skewness(data$cubefvfvm) # definitely not the best value here
+```
+
+# Let's check out the square root transformed data compared to the untransformed data
+```{r}
+par(mfrow=c(2,2))
+hist(data$fvfm, main = "Fv/Fm Raw")
+qqnorm(data$fvfm, main="Fv/FM Raw")
+qqline(data$fvfm)
+hist(data$SQfvfm, main="Fv/Fm SQRT")
+qqnorm(data$SQfvfm, main="Fv/FM SQRT")
+qqline(data$SQfvfm)
+
+# even though square root transforming helped to normalize the distribution of my data, the theoretical quantiles do not appear to be improved much compared to the untransformed data. We'll move forward with the FvFm data as is without transformation.
+```
+
+###########################################################################################################################
+#
+#                     Question 1. Does photosynthetic efficiency change over time in every treatment / 
+#                       What is the effect of treatment over time on fvfm, regardless of phenotype?
+#
+###########################################################################################################################
+
+```{r}
+# Create a string of the experimental Treatment names without ambient control to run lmer 
+Exp.Treatments <- c("PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF")
+```
+```{r}
+# Run lmer mixed effects models on experimental stressors with Polyp ID as a random effect to account for repeat measures 
+
+for (t in 1:length(Exp.Treatments)) {
+  
+  tmp.data <- filter(data, Treatment == Exp.Treatments[t])
+  exp.treat.lmer1 <- lmer(fvfm ~ Day + (1|B.Tag), data = tmp.data) # write lmer with fixed and ID random effects
+  print(paste(Exp.Treatments[t],"Q1 LMER sum:", sep = " "))
+  print(summary(exp.treat.lmer1)) 
+  
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+    paste(Exp.Treatments[t],"Q1 LMER sum.txt", sep = " "), sep = ""))
+  print(summary(exp.treat.lmer1))
+  sink()
+  
+  # Posthoc ANOVA to compare model to the null
+  null <- lmer(fvfm ~ 1 + (1|B.Tag), data = tmp.data) # null model without effect 
+  
+  exp.treat.lmer1.aov <- anova(null, exp.treat.lmer1) # model comparison 
+  print(paste(Exp.Treatments[t],"Q1 ANOVA sum:", sep = " ")) # name the summary output 
+  print(exp.treat.lmer1.aov) 
+  
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+    paste(Exp.Treatments[t],"Q1 ANOVA sum.txt", sep = " "), sep = " ")) # save anova summary as txt
+  print(exp.treat.lmer1.aov)
+  sink()
+}
+
+```
+
+```{r}
+# Lets run an emmeans post hoc test on day as a factor to compare the difference in fvfm at each time point in each treatment 
+
+for (t in 1:length(Exp.Treatments)) {
+  
+  tmp.data <- filter(data, Treatment == Exp.Treatments[t])
+  tmp.data$Day <- as.factor(tmp.data$Day)
+  exp.treat.lmer1 <- lmer(fvfm ~ Day + (1|B.Tag), data = tmp.data) # Day as a factor
+  
+# Emmmeans posthoc test 
+  exp.treat.lmer1.means <- emmeans(exp.treat.lmer1, list(pairwise~'Day')) # run emmeans on lmer object 
+  print(paste(Exp.Treatments[t],"Q1 EMMEANS sum:", sep = " "))
+  print(summary(exp.treat.lmer1.means))
+  
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+    paste(Exp.Treatments[t],"Q1 EMMEANS sum.txt", sep = " "), sep = " "))
+  print(summary(exp.treat.lmer1.means))
+  sink()
+}
+
+```
+ 
+```{r}
+# Filter out control data to plot
+expt.data <- filter(data, Treatment != "control")
+# Summarize to plot
+day.means <- summarySE(expt.data, measurevar = "fvfm", groupvars = c("Treatment", "Day"))
+```
+```{r}
+# Plot
+
+alltreat.fvfm.plot <-
+  ggplot(day.means, 
+       aes(x = Day,
+           y = fvfm,
+           color = Treatment,
+           group = Treatment)) +
+  geom_point(size = 1.2)+
+  geom_line(size = 1.2) +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width = 0.5, size =1) +
+  scale_x_continuous(breaks=seq(1, 22, by = 7)) +
+  facet_wrap(~Treatment, ncol=3) +
+  scale_color_manual(name = "", values = rep("black", times = 9)) +
+ # scale_color_manual(name = "",values = c("#E02D00", "#FF7E33", 
+   #                                       "#D6A70A", "#ECDD09", "#075F3C", 
+    #                                       "#7BB12F", "#35516E", "#3F88C5")) +
+  labs(x = "Day", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")"))) +
+  theme_classic() +
+  theme_classic(base_size=13) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+
+alltreat.fvfm.plot
+```
+```{r}
+# Save plot for publication
+ggsave(plot = alltreat.fvfm.plot, 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/alltreat.fvfm.plot.pdf", 
+       width = 9, height = 6, units = "in")
+```
+
+```{r}
+# maybe not a facet plot?
+all.treat.fvfm.plot.2 <-
+ggplot(day.means,
+       aes(x = Day, 
+           y = fvfm,
+           color = Treatment,
+           group = Treatment)) +
+  geom_point(size = 2.5)+
+  geom_line(size = 1) +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width = 0.5, size =1) +
+  
+  scale_x_continuous(breaks=seq(1, 22, by = 7)) +
+  scale_y_continuous(limits=c(0.07, 0.36), breaks = seq(0.05,0.35, by = 0.05)) +
+  scale_color_manual(name = "",values = c("#E02D00", "#FF7E33", 
+                                          "#D6A70A", "#ECDD09", "#075F3C", 
+                                           "#7BB12F", "#35516E", "#3F88C5")) +
+  labs(x = "Day", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")"))) +
+  theme_classic() +
+  theme_classic(base_size=14) +
+  theme(legend.position = c(0.5,0.85),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12)) +
+  guides(color = guide_legend(direction = "horizontal"))
+                       
+all.treat.fvfm.plot.2
+```
+```{r}
+# Save plot for publication
+ggsave(plot = all.treat.fvfm.plot.2, 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/all.treat.fvfm.plot.2.pdf", 
+       width = 8, height = 6, units = "in")
+```
+
+###########################################################################################################################
+#
+#                      Question 2. Does photosynthetic efficiency vary by phenotype in every treatment /  
+#                              What is the effect of phenotype on photosynthetic efficiency?
+#
+###########################################################################################################################
+
+```{r}
+# Isolate ambient control group to run lm (1 obs per ID)
+ctrl.data <- filter(data , Treatment == "control")
+
+# Run lm 
+ctrl.lm2 <- lm(fvfm ~ Sym.State, data = ctrl.data)
+summary(ctrl.lm2)
+
+# run anova for a tukey test
+ctrl.aov2 <- aov(fvfm ~ Sym.State, data = ctrl.data)
+ctrl.tukey2 <- TukeyHSD(ctrl.aov2)
+ctrl.tukey2
+```
+
+```{r}
+# Run lmer mixed effects models on experimental treatments with Polyp ID as a random effect to account for repeat measures 
+
+for (t in 1:length(Exp.Treatments)) {
+  
+  tmp.data <- filter(data, Treatment == Exp.Treatments[t])
+  exp.treat.lmer2 <- lmer(fvfm ~ Sym.State + (1|B.Tag), data = tmp.data) # write lmer with fixed and ID random effects
+  print(paste(Exp.Treatments[t],"Q2 LMER sum:", sep = " ")) # name the summary output 
+  print(summary(exp.treat.lmer2)) # print the summary output
+  
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+    paste(Exp.Treatments[t],"Q2 LMER sum.txt", sep = " "), sep = " "))   
+  print(summary(exp.treat.lmer2)) # print summary output 
+  sink()
+  
+  # Posthoc ANOVA to compare model to the null
+  null <- lmer(fvfm ~ 1 + (1| B.Tag), data = tmp.data) # null model without effect 
+  Q1 <- lmer(fvfm ~ Day + (1|B.Tag), data = tmp.data) # q1 model
+  
+  exp.treat.lmer2.aov <- anova(null, Q1, exp.treat.lmer2) # model comparison
+  print(paste(Exp.Treatments[t],"Q2 ANOVA sum:", sep = " ")) # name the summary output 
+  print(exp.treat.lmer2.aov) 
+  
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+    paste(Exp.Treatments[t],"Q2 ANOVA sum.txt", sep = " "), sep = " ")) # save anova summary as txt
+  print(exp.treat.lmer2.aov)
+  sink()
+  
+  # Emmmeans posthoc test 
+  exp.treat.lmer2.means <- emmeans(exp.treat.lmer2, list(pairwise~'Sym.State')) # run emmeans on lmer object 
+  print(paste(Exp.Treatments[t],"Q2 EMMEANS sum:", sep = " ")) # print emmeans summary output 
+  print(summary(exp.treat.lmer2.means))
+  
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+    paste(Exp.Treatments[t],"Q2 EMMEANS sum.txt", sep = " "), sep = " ")) # save emmeans summary as txt
+  print(summary(exp.treat.lmer2.means))
+  sink()
+}
+```
+
+```{r}
+# Summarise to plot
+phen.means <- summarySE(data, measurevar = "fvfm", groupvars = c("Treatment", "Sym.State"))
+temp.phen.means <- summarySE(data, measurevar = "fvfm", groupvars = c("Temperature", "Sym.State"))
+```
+```{r}
+# Plot
+
+ggplot(phen.means, 
+       aes(x = Sym.State,
+           y = fvfm,
+           color = Sym.State)) +
+  geom_point()+
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1) +
+  facet_wrap(~Treatment) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  labs(x = "", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = 
+      "data rempresent mean +/- SEM. Phenotype significantly impacts FvFm in ambient control, PDS, 
+      NLS and PLF treatments (ANOVA on LMER, p < 0.05) " ) +
+  theme_classic() 
+
+```
+```{r}
+# a non facet plot
+
+ggplot(phen.means, 
+       aes(x = Sym.State,
+           y = fvfm,
+           color = Treatment)) +
+  geom_point(position = position_dodge(0.2)) +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.2, size = 1, position = position_dodge(0.2)) +
+  scale_color_manual(name = "",values = c("#131513", "#E02D00", "#FF7E33", 
+                                                   "#D6A70A", "#ECDD09", "#075F3C", 
+                                                   "#7BB12F", "#35516E", "#3F88C5")) +
+  scale_y_continuous(limits=c(0.1, 0.42), breaks = seq(0.1,0.4, by = 0.05)) +
+
+  labs(x = "Symbiotic Phenotype", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")"))) +
+  theme_classic() +
+  theme_classic(base_size=14) +
+  theme(legend.position = "right",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12)) 
+  #guides(color = guide_legend(direction = "horizontal"))
+  
+```
+
+###########################################################################################################################
+#
+#                 Question 3. Does photosynthetic efficiency vary by phenotype over time in every treatment / 
+#                   What is the effect of phenotype on photosynthetic efficiency over time in every treatment?
+#
+###########################################################################################################################
+
+```{r}
+# Run lmer mixed effects models on experimental treatments with Polyp ID as a random effect to account for repeat measures 
+
+for (t in 1:length(Exp.Treatments)) {
+  
+  tmp.data <- filter(data, Treatment == Exp.Treatments[t])
+  exp.treat.lmer3 <- lmer(fvfm ~ Sym.State * Day + (1|B.Tag), data = tmp.data) # write lmer with fixed and ID random effects
+  print(paste(Exp.Treatments[t],"Q3 LMER sum:", sep = " ")) # name the summary output 
+  print(summary(exp.treat.lmer3)) # print the summary output
+  
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+    paste(Exp.Treatments[t],"Q3 LMER sum.txt", sep = " "), sep = " "))   
+  print(summary(exp.treat.lmer3)) # print summary output 
+  sink()
+  
+  # Posthoc ANOVA to compare model to the null
+  null <- lmer(fvfm ~ 1 + (1| B.Tag), data = tmp.data) # null model without effect 
+  Q1 <- lmer(fvfm ~ Day + (1|B.Tag), data = tmp.data) # q1 model
+  Q2 <- lmer(fvfm ~ Sym.State + (1|B.Tag), data = tmp.data) # q2 model
+  
+  exp.treat.lmer3.aov <- anova(null, Q1, Q2, exp.treat.lmer3) # model comparison to the null 
+  print(paste(Exp.Treatments[t],"Q3 ANOVA sum:", sep = " ")) # name the summary output 
+  print(exp.treat.lmer3.aov) 
+  
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+    paste(Exp.Treatments[t],"Q3 ANOVA sum.txt", sep = " "), sep = " ")) # save anova summary as txt
+  print(exp.treat.lmer3.aov)
+  sink()
+ 
+}
+```
+
+```{r}
+# Lets run an emmeans post hoc test on day as a factor to compare the difference in fvfm by phenotype at each time point in each treatment 
+
+for (t in 1:length(Exp.Treatments)) {
+  
+  tmp.data <- filter(data, Treatment == Exp.Treatments[t])
+  tmp.data$Day <- as.factor(tmp.data$Day)
+  exp.treat.lmer3 <- lmer(fvfm ~ Sym.State * Day + (1|B.Tag), data = tmp.data) # write lmer with fixed and ID random effects
+  print(paste(Exp.Treatments[t],"Q3 LMER sum:", sep = " ")) # name the summary output 
+  print(summary(exp.treat.lmer3)) # print the summary output
+
+# Emmmeans posthoc test 
+  exp.treat.lmer3.means <- emmeans(exp.treat.lmer3, list(pairwise~'Day:Sym.State')) # run emmeans on lmer object 
+  print(paste(Exp.Treatments[t],"Q3 EMMEANS sum:", sep = " ")) # print emmeans summary output 
+  print(summary(exp.treat.lmer3.means))
+ 
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+    paste(Exp.Treatments[t],"Q3 EMMEANS sum.txt", sep = " "), sep = " "))
+  print(summary(exp.treat.lmer3.means))
+  sink()
+  
+}
+```
+
+```{r}
+# Summarise to plot
+phen.means2 <- summarySE(expt.data, measurevar = "fvfm", groupvars = c("Treatment", "Sym.State", "Day"))
+```
+```{r}
+# Plot
+phen.treat.fvfm.plot <-
+ggplot(phen.means2, 
+       aes(x = Day,
+           y = fvfm,
+           col = Sym.State,
+           group = Sym.State,
+           shape = Sym.State, 
+           linetype = Sym.State)) +
+  
+  geom_point(size = 1.2)+
+  geom_line(size = 0.5) +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width = 1, size = 0.5, lty=1) +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"),
+                     values=c("black", "black")) +
+  scale_linetype_manual(labels = c("Aposymbiotic", "Symbiotic"),
+                    values=c(5, 1)) +
+  scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"),
+                    values=c(2, 19)) +
+  
+  facet_wrap(~Treatment) +
+  scale_x_continuous(name = "Day", breaks=seq(1, 22, by = 7)) +
+  scale_y_continuous(name = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")))+
+  
+  theme_classic(base_size = 13) +
+  theme(legend.position = "top",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+  
+phen.treat.fvfm.plot
+```
+
+
+```{r}
+# save plot
+ggsave(plot = phen.treat.fvfm.plot,
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/phen.treat.fvfm.plot.pdf", 
+       width = 8, height = 6, units = "in")
+```
+
+
+```{r}
+# Take a look at the model comparisons once more to determine which models fits best for each treatment 
+
+for (t in 1:length(Exp.Treatments)) {
+  tmp.data <- filter(data, Treatment == Exp.Treatments[t])
+  
+  m0 <- lmer(fvfm ~ 1 + (1| B.Tag), data = tmp.data) # null  
+  Q1 <- lmer(fvfm ~ Day + (1|B.Tag), data = tmp.data) # q1 model
+  Q2 <- lmer(fvfm ~ Sym.State + (1|B.Tag), data = tmp.data) # q2 model
+  Q3 <- lmer(fvfm ~ Sym.State * Day + (1|B.Tag), data = tmp.data)
+  
+  aov <- anova(m0, Q1, Q2, Q3)# model comparison to the null 
+  print(paste(Exp.Treatments[t],"ANOVA", sep = " ")) # name the summary output 
+  print(aov)
+  
+}
+```
+
+###########################################################################################################################
+#
+#                              Question 1. Does plastic/light/food/temperature/phenotype effect fvfm / 
+#                                What is the effect of the stressor on photosynthetic efficiency ?
+#
+###########################################################################################################################
+
+```{r}
+# For Thermal stress comparisons, perform LM at day 22 for accurate analysis 
+
+# Isolate day 22 for thermal stress to run simple lm (ambient temp only 1 obs/ID)
+temp22.data <- filter(data, Day == "22")
+
+# Run lm 
+temp.lm1 <- lm(fvfm ~ Temperature, data = temp22.data)
+summary(temp.lm1)
+
+# Save aov output to ModelOutputs folder
+sink(
+  paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", # path
+        file = "Temperature Q1 LM sum.txt")) # name txt
+summary(temp.lm1) # what to print
+sink(file = NULL) 
+```
+
+```{r}
+# Create string of stressors 
+stressors <- c("Plastic", "Light", "Food", "Sym.State")
+```
+```{r}
+# Run lmer mixed effects models on experimental stressors with Polyp ID as a random effect to account for repeat measures 
+
+for (s in 1:length(stressors)) {
+
+  s.lmer1 <- lmer(as.formula(paste("fvfm~",paste(stressors[s]), "+ (1|B.Tag)")), data = expt.data) #use experimental treatments only
+  print(paste(stressors[s],"Q1 LMER sum:", sep = " "))
+  print(summary(s.lmer1)) 
+  
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+             paste(stressors[s],"Q1 LMER sum.txt", sep = " "), sep = ""))
+  print(summary(s.lmer1))
+  sink()
+  
+  # Posthoc ANOVA to compare model to the null
+  null <- lmer(fvfm ~ 1 + (1| B.Tag), data = expt.data) # null model without effects using experimental treatments only 
+  
+  s.lmer1.aov <- anova(null, s.lmer1) # model comparison 
+  print(paste(stressors[s],"Q1 ANOVA sum:", sep = " ")) # name the summary output 
+  print(s.lmer1.aov) 
+  
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+             paste(stressors[s],"Q1 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
+  print(s.lmer1.aov)
+  sink()
+  
+  # Emmmeans posthoc test 
+  s.lmer1.means <- emmeans(s.lmer1, as.formula(paste("list(pairwise)~",stressors[s])))
+  print(paste(stressors[s],"Q1 EMMEANS sum:", sep = " "))
+  print(summary(s.lmer1.means))
+  
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+             paste(stressors[s],"Q1 EMMEANS sum.txt", sep = " "), sep = ""))
+  print(summary(s.lmer1.means))
+  sink()
+}
+
+```
+
+```{r}
+# Summarize by plastic 
+plastic.sum1 <- summarySE(expt.data, measurevar="fvfm", groupvars="Plastic")
+```
+```{r}
+# Plot
+PN.fvfm.plot<-
+  ggplot(data = plastic.sum1,
+       aes(x = Plastic,
+           y = fvfm)) +
+  geom_point(size=1.2) +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
+  
+  labs(x = "", y = "") + # remove axes text for paneling plots
+  scale_x_discrete(limits = c("NoPlastic", "Plastic"),
+                   labels = c("No Plastic", "Plastic")) +
+  scale_y_continuous(limits = c(0.15, 0.3), breaks = seq(0.15, 0.3, by = 0.05)) +
+  
+  theme_classic() +
+  theme_classic(base_size=16) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+PN.fvfm.plot
+
+# Save plot 
+ggsave(plot = PN.fvfm.plot,
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/PN.fvfm.plot.pdf", 
+       width = 8, height = 6, units = "in")
+
+```
+
+```{r}
+# Summarize by light
+light.sum1 <- summarySE(expt.data, measurevar="fvfm", groupvars="Light")
+```
+```{r}
+# Plot
+LD.fvfm.plot <- 
+ggplot(data = light.sum1,
+       aes(x = Light,
+           y = fvfm)) +
+  geom_point(size=1.2) +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
+  
+  labs(x="",y="") +
+  scale_y_continuous(limits = c(0.15, 0.3), breaks = seq(0.15, 0.3, by = 0.05)) +
+  
+  theme_classic() +
+  theme_classic(base_size=16) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+
+LD.fvfm.plot
+
+# Save plot 
+ggsave(plot = LD.fvfm.plot,
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/LD.fvfm.plot.pdf", 
+       width = 8, height = 6, units = "in")
+
+```
+
+```{r}
+# Summarize by food
+food.sum1 <- summarySE(expt.data, measurevar="fvfm", groupvars="Food")
+```
+```{r}
+# Plot
+FS.fvfm.plot <- 
+ggplot(data = food.sum1,
+       aes(x = Food,
+           y = fvfm)) +
+  geom_point(size=1.2) +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
+  
+  labs(x="",y="") +
+  scale_y_continuous(limits = c(0.15, 0.3), breaks = seq(0.15, 0.3, by = 0.05)) +
+  
+  theme_classic() +
+  theme_classic(base_size=16) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+
+FS.fvfm.plot
+
+# Save plot 
+ggsave(plot = FS.fvfm.plot,
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/FS.fvfm.plot.pdf", 
+       width = 8, height = 6, units = "in")
+
+```
+
+```{r}
+# Summarize by phenotype
+phen.sum1 <- summarySE(expt.data, measurevar="fvfm", groupvars="Sym.State")
+```
+```{r}
+# Plot
+ggplot(data = phen.sum1,
+       aes(x = Sym.State,
+           y = fvfm)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  labs(x = "", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "" ) +
+  theme_classic() 
+```
+
+```{r}
+# Summarize by temperature
+temp.sum1 <- summarySE(temp22.data, measurevar="fvfm", groupvars="Temperature")
+```
+```{r}
+# Plot
+AE.fvfm.plot <- 
+ggplot(data = temp.sum1,
+       aes(x = Temperature,
+           y = fvfm)) +
+  geom_point(size=1.2) +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
+  
+  labs(x="",y="") +
+  scale_y_continuous(limits = c(0.15, 0.3), breaks = seq(0.15, 0.3, by = 0.05)) +
+  
+  theme_classic() +
+  theme_classic(base_size=16) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+
+AE.fvfm.plot
+
+# Save plot 
+ggsave(plot = AE.fvfm.plot,
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/AE.fvfm.plot.pdf", 
+       width = 8, height = 6, units = "in")
+
+```
+
+###########################################################################################################################
+#
+#                              Question 2. Does plastic/light/food/temperature/phenotype effect fvfm over time/ 
+#                                 What is the effect of the stressor on photosynthetic efficiency over time?
+#
+###########################################################################################################################
+
+# Let's look at the change in fvfm over time for the elevated temperatures only 
+```{r}
+# Filter out all elevated temperature data (experimental treatments)
+elev.dat <- filter(data, Temperature == "Elevated")
+
+# Run lm for bacteria over time at thermal stress
+temp.lmer2 <- lmer(fvfm ~ Day + (1|B.Tag), data = elev.dat)
+summary(temp.lmer2)
+
+# Save output to ModelOutputs folder
+sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", # path
+        file = "Temperature Q2 LMER sum.txt")) # name txt
+summary(temp.lmer2) # what to print
+sink(file = NULL) 
+
+# ANOVA model comparison
+null <- lmer(fvfm ~ 1 + (1| B.Tag), data = elev.dat) # null for this data set
+temp.lmer2.aov <- anova(null, temp.lmer2) #model comparison 
+temp.lmer2.aov
+
+# Save output to ModelOutputs folder
+sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", # path
+        file = "Temperature Q2 ANOVA sum.txt")) # name txt
+summary(temp.lmer2.aov) # what to print
+sink(file = NULL) 
+```
+```{r}
+# Let's treat day as a factor to compare the fvfm at different time points at elevated temperature 
+temp.lmer2.2 <- lmer(fvfm ~ as.factor(Day) + (1|B.Tag), data = elev.dat)
+
+# Emmeans posthoc
+temp.means2 <- emmeans(temp.lmer2.2, list(pairwise~"Day"))
+temp.means2 # view tukey output
+
+# Save Tukey to ModelOutputs folder
+sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", # path
+        file = "Temperature Q2 EMMEANS sum.txt")) # name txt
+(temp.means2) # what to print
+sink(file = NULL)
+```
+
+```{r}
+# Run lmer mixed effects models on experimental stressors with Polyp ID as a random effect to account for repeat measures 
+
+for (s in 1:length(stressors)) {
+
+  s.lmer2 <- lmer(as.formula(paste("fvfm~",paste(stressors[s]), "* Day + (1|B.Tag)")), data = expt.data) #use experimental treatments only
+  print(paste(stressors[s],"Q2 LMER sum:", sep = " "))
+  print(summary(s.lmer2)) 
+  
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+             paste(stressors[s],"Q2 LMER sum.txt", sep = " "), sep = ""))
+  print(summary(s.lmer2))
+  sink()
+  
+  # Posthoc ANOVA to compare model to the null
+  null <- lmer(fvfm ~ 1 + (1| B.Tag), data = expt.data) # null model without effects using experimental treatments only 
+  Q1 <- lmer(as.formula(paste("fvfm~",paste(stressors[s]), "+ (1|B.Tag)")), data = expt.data) # q1 without day
+  
+  s.lmer2.aov <- anova(null, Q1, s.lmer2) # model comparison 
+  print(paste(stressors[s],"Q2 ANOVA sum:", sep = " ")) # name the summary output 
+  print(s.lmer2.aov) 
+  
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+             paste(stressors[s],"Q2 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
+  print(s.lmer2.aov)
+  sink()
+  
+}
+```
+
+```{r}
+for (s in 1:length(stressors)) {
+  
+  s.lmer2.2 <- lmer(as.formula(paste("fvfm~",paste(stressors[s]), "* as.factor(Day) + (1|B.Tag)")), data = expt.data) #use experimental treatments only
+  
+  # Emmmeans posthoc test 
+  s.lmer2.means <- emmeans(s.lmer2.2, as.formula(paste("list(pairwise)~",stressors[s],":Day")))
+  print(paste(stressors[s],"Q2 EMMEANS sum:", sep = " "))
+  print(summary(s.lmer2.means))
+  
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+             paste(stressors[s],"Q2 EMMEANS sum.txt", sep = " "), sep = ""))
+  print(summary(s.lmer2.means))
+  sink()
+}
+```
+
+```{r}
+# Summarize by plastic 
+plastic.sum2 <- summarySE(expt.data, measurevar="fvfm", groupvars=c("Plastic","Day"))
+```
+```{r}
+# Plot
+NP.time.fvfm.plot <-
+ggplot(data = plastic.sum2,
+       aes(x = Day,
+           y = fvfm,
+           color=Plastic,
+           group=Plastic)) +
+  
+  geom_point(size=1.2) +
+  geom_line(aes(group=Plastic), size = 1.2, linetype = rep(seq(1,2,1), each=4)) +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
+  
+  scale_linetype_manual(labels = c("No plastic", "Plastic"), values = c(1,2)) +
+  scale_color_manual(labels = c("No plastic", "Plastic"), values = c("black","black")) +
+
+  scale_x_continuous(name = "", breaks=seq(1, 22, by = 7)) +
+  scale_y_continuous(name = "", limits = c(0.13, 0.3), breaks=seq(0.13, 0.3, by = 0.05)) +
+  
+  theme_classic(base_size=16) +
+  theme(legend.position = c(0.5 , 0.9),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12)) +
+  guides(color = guide_legend(direction = "horizontal")) 
+
+NP.time.fvfm.plot
+
+# Save plot 
+ggsave(plot = NP.time.fvfm.plot,
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/NP.time.fvfm.plot.pdf", 
+       width = 8, height = 6, units = "in")
+```
+
+```{r}
+# Summarize by light 
+light.sum2 <- summarySE(expt.data, measurevar="fvfm", groupvars=c("Light","Day"))
+```
+```{r}
+# Plot
+
+LD.time.fvfm.plot <- 
+ggplot(data = light.sum2,
+       aes(x = Day,
+           y = fvfm,
+           color = Light,
+           group = Light)) +
+  geom_point(size=1.2) +
+  geom_line(aes(group=Light), size = 1.2, linetype = rep(seq(2,1,-1), each=4)) +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
+  
+  scale_linetype_manual(labels = c("Dark", "Light"), values = c(1,2)) +
+  scale_color_manual(labels = c("Dark", "Light"), values = c("black","black")) +
+
+  scale_x_continuous(name = "", breaks=seq(1, 22, by = 7)) +
+  scale_y_continuous(name = "", limits = c(0.13, 0.3), breaks=seq(0.13, 0.3, by = 0.05)) +
+  
+  theme_classic(base_size=16) +
+  theme(legend.position = c(0.5 , 0.9),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12)) +
+  guides(color = guide_legend(direction = "horizontal")) 
+
+LD.time.fvfm.plot
+
+# Save plot 
+ggsave(plot = LD.time.fvfm.plot,
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/LD.time.fvfm.plot.pdf", 
+       width = 8, height = 6, units = "in")
+
+```
+
+```{r}
+# Summarize by food 
+food.sum2 <- summarySE(expt.data, measurevar="fvfm", groupvars=c("Food","Day"))
+```
+```{r}
+# Plot
+FS.time.fvfvm.plot <-
+ggplot(data = food.sum2,
+       aes(x = Day,
+           y = fvfm,
+           color = Food,
+           group = Food)) +
+  geom_point(size=1.2) +
+  geom_line(aes(group=Food), size = 1.2, linetype = rep(seq(1, 2, 1), each=4)) +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
+  
+  scale_linetype_manual(labels = c("Fed", "Starved"), values = c(1,2)) +
+  scale_color_manual(labels = c("Fed", "Starved"), values = c("black","black")) +
+
+  scale_x_continuous(name = "", breaks=seq(1, 22, by = 7)) +
+  scale_y_continuous(name = "", limits = c(0.13, 0.3), breaks=seq(0.13, 0.3, by = 0.05)) +
+  
+  theme_classic(base_size=16) +
+  theme(legend.position = c(0.5 , 0.9),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12)) +
+  guides(color = guide_legend(direction = "horizontal")) 
+FS.time.fvfvm.plot
+
+# Save plot 
+ggsave(plot = FS.time.fvfvm.plot,
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/FS.time.fvfvm.plot.pdf", 
+       width = 8, height = 6, units = "in")
+
+```
+
+```{r}
+# Summarize by phenotype 
+phen.sum2 <- summarySE(expt.data, measurevar="fvfm", groupvars=c("Sym.State","Day"))
+```
+```{r}
+# Plot
+ggplot(data = phen.sum2,
+       aes(x = Day,
+           y = fvfm,
+           color = Sym.State,
+           group = Sym.State)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  labs(x = "Day", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "" ) +
+  theme_classic() 
+```
+
+```{r}
+# Summarize by temperature
+temp.sum2 <- summarySE(elev.dat, measurevar="fvfm", groupvars=c("Day", "Temperature"))
+```
+```{r}
+# Plot
+E.time.fvfm.plot <-
+ggplot(data = temp.sum2,
+       aes(x = Day,
+           y = fvfm,
+           color=Temperature)) +
+  geom_point(size=1.2) +
+  geom_line(linetype=2, size =1.2) +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
+  
+  scale_color_manual(labels = "Elevated (30C)", values = "black") +
+  scale_x_continuous(name = "", breaks=seq(1, 22, by = 7)) +
+  scale_y_continuous(name = "", limits = c(0.13, 0.3), breaks=seq(0.13, 0.3, by = 0.05)) +
+
+  theme_classic(base_size=16) +
+  theme(legend.position = c(0.5 , 0.9),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12)) +
+  guides(color = guide_legend(direction = "horizontal"))
+
+E.time.fvfm.plot
+
+# Save plot 
+ggsave(plot = E.time.fvfm.plot,
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/E.time.fvfm.plot.pdf", 
+       width = 8, height = 6, units = "in")
+
+```
+
+###########################################################################################################################
+#
+#                              Question 3. Does phenotype affect fvfm in each treatment?
+#                   What is the effect of phenotype on photosynthetic efficiency in each stressor treatment?
+#
+###########################################################################################################################
+
+```{r}
+# Use temp22 data to assess phenotype in temperature treatments
+ctrl.lm3 <- lm(fvfm ~ Sym.State * Temperature, data = temp22.data)
+summary(ctrl.lm3)
+
+# Tukey post hoc 
+temp.aov3 <- aov(fvfm ~ Sym.State * Temperature, data = temp22.data) # for tukey test
+temp.tukey3 <- TukeyHSD(temp.aov3, which = 'Sym.State:Temperature')
+temp.tukey3 # view tukey output
+```
+
+```{r}
+# Make string of stressors that does not include phenotype
+stressors2 <- c("Plastic", "Light", "Food")
+```
+```{r}
+# Run lmer mixed effects models on experimental treatments with Polyp ID as a random effect to account for repeat measures 
+
+for (s in 1:length(stressors2)) {
+  
+  s.lmer3 <- lmer(as.formula(paste("fvfm ~ Sym.State*", paste(stressors2[s]), "+ (1|B.Tag)")), data = expt.data) 
+  print(paste(stressors2[s],"Q3 LMER sum:", sep = " ")) # name the summary output 
+  print(summary(s.lmer3)) # print the summary output
+  
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+    paste(stressors2[s],"Q3 LMER sum.txt", sep = " "), sep = " "))   
+  print(summary(s.lmer3)) # print summary output 
+  sink()
+  
+  # Posthoc ANOVA to compare model to the null
+  null <- lmer(fvfm ~ 1 + (1| B.Tag), data = expt.data) # null model without effect 
+  Q1 <- lmer(as.formula(paste("fvfm~",paste(stressors2[s]), "+ (1|B.Tag)")), data = expt.data) # q1 model
+  Q2 <- lmer(as.formula(paste("fvfm~",paste(stressors2[s]), "* Day + (1|B.Tag)")), data = expt.data) # q2 model
+  
+  s.lmer3.aov <- anova(null, Q1, Q2, s.lmer3) # model comparison
+  print(paste(stressors2[s],"Q3 ANOVA sum:", sep = " ")) # name the summary output 
+  print(s.lmer3.aov) 
+  
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+    paste(stressors2[s],"Q3 ANOVA sum.txt", sep = " "), sep = " ")) # save anova summary as txt
+  print(s.lmer3.aov)
+  sink()
+  
+  # Emmmeans posthoc test 
+  s.lmer3.means <- emmeans(s.lmer3, as.formula(paste("list(pairwise)~",stressors2[s],":Sym.State")))
+  print(paste(stressors2[s],"Q3 EMMEANS sum:", sep = " ")) # print emmeans summary output 
+  print(summary(s.lmer3.means))
+  
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+    paste(stressors2[s],"Q3 EMMEANS sum.txt", sep = " "), sep = " ")) # save emmeans summary as txt
+  print(summary(s.lmer3.means))
+  sink()
+}
+```
+
+```{r}
+# Summarize by plastic 
+plastic.sum3 <- summarySE(expt.data, measurevar="fvfm", groupvars=c("Plastic","Sym.State"))
+```
+```{r}
+# Plot
+ggplot(data = plastic.sum3,
+       aes(x = Plastic,
+           y = fvfm,
+           color = Sym.State)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  labs(x = "", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "" ) +
+  theme_classic() 
+```
+
+```{r}
+# Summarize by light 
+light.sum3 <- summarySE(expt.data, measurevar="fvfm", groupvars=c("Light","Sym.State"))
+```
+```{r}
+# Plot
+ggplot(data = light.sum3,
+       aes(x = Light,
+           y = fvfm,
+           color = Sym.State)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  labs(x = "", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "" ) +
+  theme_classic() 
+```
+
+```{r}
+# Summarize by food 
+food.sum3 <- summarySE(expt.data, measurevar="fvfm", groupvars=c("Food","Sym.State"))
+```
+```{r}
+# Plot
+ggplot(data = food.sum3,
+       aes(x = Food,
+           y = fvfm,
+           color = Sym.State)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  labs(x = "", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "" ) +
+  theme_classic() 
+```
+
+```{r}
+# Summarize by temperature 
+temp.sum3 <- summarySE(temp22.data, measurevar="fvfm", groupvars=c("Temperature","Sym.State"))
+```
+```{r}
+# Plot
+ggplot(data = temp.sum3,
+       aes(x = Temperature,
+           y = fvfm,
+           color = Sym.State)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  ggtitle("Temperature at day 22") +
+  labs(x = "", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "" ) +
+  theme_classic() 
+```
+
+###########################################################################################################################
+#
+#                       Question 4. Does phenotype affect fvfm in each treatment over time ?
+#            What is the effect of phenotype on photosynthetic efficiency in each stressor treatment over time?
+#
+###########################################################################################################################
+
+# Let's look at the change in fvfm over time for the elevated temperatures only 
+```{r}
+# Run lm for bacteria over time at thermal stress
+temp.lmer4 <- lmer(fvfm ~ Sym.State * Day + (1|B.Tag), data = elev.dat)
+summary(temp.lmer4)
+
+# Save output to ModelOutputs folder
+sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", # path
+        file = "Temperature Q4 LMER sum.txt")) # name txt
+summary(temp.lmer4) # what to print
+sink(file = NULL) 
+
+# ANOVA model comparison
+null <- lmer(fvfm ~ 1 + (1| B.Tag), data = elev.dat) # null for this data set
+Q2 <- lmer(fvfm ~ Day + (1|B.Tag), data = elev.dat) # q2 model 
+
+temp.lmer4.aov <- anova(null, Q2, temp.lmer4) #model comparison 
+temp.lmer4.aov
+
+# Save output to ModelOutputs folder
+sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", # path
+        file = "Temperature Q4 ANOVA sum.txt")) # name txt
+summary(temp.lmer4.aov) # what to print
+sink(file = NULL) 
+```
+
+```{r}
+# Let's treat day as a factor to compare the fvfm at different time points at elevated temperature 
+temp.lmer4 <- lmer(fvfm ~ Sym.State * as.factor(Day) + (1|B.Tag), data = elev.dat)
+
+# Emmeans posthoc
+temp.means4 <- emmeans(temp.lmer4, list(pairwise~"Sym.State:Day"))
+temp.means4 # view tukey output
+
+# Save Tukey to ModelOutputs folder
+sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", # path
+        file = "Temperature Q4 EMMEANS sum.txt")) # name txt
+(temp.means4) # what to print
+sink(file = NULL)
+```
+
+```{r}
+# Run lmer mixed effects models on experimental treatments with Polyp ID as a random effect to account for repeat measures 
+
+for (s in 1:length(stressors2)) {
+  
+  s.lmer4 <- lmer(as.formula(paste("fvfm ~ Sym.State *", paste(stressors2[s]), "* Day + (1|B.Tag)")), data = expt.data) 
+  print(paste(stressors2[s],"Q4 LMER sum:", sep = " ")) # name the summary output 
+  print(summary(s.lmer4)) # print the summary output
+  
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+    paste(stressors2[s],"Q4 LMER sum.txt", sep = " "), sep = " "))   
+  print(summary(s.lmer4)) # print summary output 
+  sink()
+  
+  # Posthoc ANOVA to compare model to the null
+  null <- lmer(fvfm ~ 1 + (1| B.Tag), data = expt.data) # null model without effect 
+  Q1 <- lmer(as.formula(paste("fvfm~",paste(stressors2[s]), "+ (1|B.Tag)")), data = expt.data) # q1 model
+  Q2 <- lmer(as.formula(paste("fvfm~",paste(stressors2[s]), "* Day + (1|B.Tag)")), data = expt.data) # q2 model
+  Q3 <- lmer(as.formula(paste("fvfm ~ Sym.State *", paste(stressors2[s]), "+ (1|B.Tag)")), data = expt.data) # q3 model
+
+  s.lmer4.aov <- anova(null, Q1, Q2, Q3, s.lmer4) # model comparison
+  print(paste(stressors2[s],"Q4 ANOVA sum:", sep = " ")) # name the summary output 
+  print(s.lmer4.aov) 
+  
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+    paste(stressors2[s],"Q4 ANOVA sum.txt", sep = " "), sep = " ")) # save anova summary as txt
+  print(s.lmer4.aov)
+  sink()
+  
+}
+```
+
+```{r}
+for (s in 1:length(stressors)) {
+  
+  s.lmer4 <- lmer(as.formula(paste("fvfm~Sym.State * ",paste(stressors[s]), "* as.factor(Day) + (1|B.Tag)")), data = expt.data) 
+  
+  # Emmmeans posthoc test 
+  s.lmer4.means <- emmeans(s.lmer4, as.formula(paste("list(pairwise)~",stressors2[s],":Sym.State:Day")))
+  print(paste(stressors2[s],"Q4 EMMEANS sum:", sep = " ")) # print emmeans summary output 
+  print(summary(s.lmer4.means))
+  
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+    paste(stressors2[s],"Q4 EMMEANS sum.txt", sep = " "), sep = " ")) # save emmeans summary as txt
+  print(summary(s.lmer4.means))
+  sink()
+  
+}
+```
+
+```{r}
+# Summarize by plastic 
+plastic.sum4 <- summarySE(expt.data, measurevar="fvfm", groupvars=c("Plastic","Day", "Sym.State"))
+```
+```{r}
+# Plot
+ggplot(data = plastic.sum4,
+       aes(x = Day,
+           y = fvfm,
+           color = Sym.State,
+           group = interaction(Sym.State,Plastic))) +
+  geom_point(aes(color = Sym.State)) +
+  geom_line(aes(color = Sym.State, linetype=Plastic)) +
+  #facet_grid(vars(Plastic)) +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  labs(x = "Day", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "" ) +
+  theme_classic() 
+```
+
+```{r}
+# Summarize by light 
+light.sum4 <- summarySE(expt.data, measurevar="fvfm", groupvars=c("Light","Day", "Sym.State"))
+```
+```{r}
+# Plot
+ggplot(data = light.sum4,
+       aes(x = Day,
+           y = fvfm,
+           color = Sym.State,
+           group = interaction(Sym.State,Light))) +
+  geom_point(aes(color = Sym.State)) +
+  geom_line(aes(color = Sym.State, linetype=Light)) +
+  #facet_grid(vars(Light)) +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  labs(x = "Day", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "" ) +
+  theme_classic() 
+```
+
+```{r}
+# Summarize by food 
+food.sum4 <- summarySE(expt.data, measurevar="fvfm", groupvars=c("Food", "Day", "Sym.State"))
+```
+```{r}
+# Plot
+ggplot(data = food.sum4,
+       aes(x = Day,
+           y = fvfm,
+           color = Sym.State,
+           group = interaction(Sym.State,Food))) +
+  geom_point(aes(color = Sym.State)) +
+  geom_line(aes(color = Sym.State, linetype=Food)) +
+  #facet_grid(vars(Food)) +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  labs(x = "Day", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "" ) +
+  theme_classic() 
+```
+
+```{r}
+# Summarize by temperature 
+temp.sum4 <- summarySE(elev.dat, measurevar="fvfm", groupvars=c("Day", "Sym.State"))
+```
+```{r}
+# Plot
+ggplot(data = temp.sum4,
+       aes(x = Day,
+           y = fvfm,
+           color = Sym.State,
+           group = Sym.State)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  ggtitle("Elevated Temperature") +
+  labs(x = "Day", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "" ) +
+  theme_classic() 
+```
+
+```{r}
+# Compare models 
+
+for (s in 1:length(stressors2)) {
+
+  m0 <- lmer(fvfm ~ 1 + (1| B.Tag), data = expt.data)
+  Q1 <- lmer(as.formula(paste("fvfm~",paste(stressors2[s]), "+ (1|B.Tag)")), data = expt.data)
+  Q2 <- lmer(as.formula(paste("fvfm~",paste(stressors2[s]), "+ Day + (1|B.Tag)")), data = expt.data) 
+  Q3 <- lmer(as.formula(paste("fvfm ~ Sym.State +", paste(stressors2[s]), "+ (1|B.Tag)")), data = expt.data) 
+  Q4<- lmer(as.formula(paste("fvfm ~ Sym.State +", paste(stressors2[s]), "+ Day + (1|B.Tag)")), data = expt.data) 
+
+  q4.aov <- anova(m0, Q1, Q2, Q3, Q4) 
+  print(paste(stressors2[s],"ANOVA", sep = " ")) 
+  print(q4.aov) 
+  
+}
+
+# model 2, which includes stressor and day, is the most significant across plastic, light, and food treatments despite the fact that plastic, and light do not significantly affect fvfm (model 1). How much of this is due to time instead of the stressor itself? 
+```
+
+###########################################################################################################################
+#
+#                              Question 5. How does time affect fvfm in each stressor?
+#
+###########################################################################################################################
+
+```{r}
+# Create a string of the names for plastic
+plastic.treat <- c("Plastic", "NoPlastic")
+```
+```{r}
+# Run an lmer on the effect of time in plastic and no plastic treatments
+
+for (p in 1:length(plastic.treat)) {
+  
+  tmp.data <- filter(data, Plastic == plastic.treat[p])
+  pl.lmer <- lmer(fvfm ~ Day + (1|B.Tag), data = tmp.data) 
+  print(paste(plastic.treat[p],"LMER", sep = " "))
+  print(summary(pl.lmer)) 
+  
+  # Posthoc ANOVA to compare model to the null
+  null <- lmer(fvfm ~ 1 + (1| B.Tag), data = tmp.data) # null model without effect 
+  
+  pl.aov <- anova(null, pl.lmer) # model comparison 
+  print(paste(plastic.treat[p],"ANOVA", sep = " ")) # name the summary output 
+  print(pl.aov) 
+  
+}
+
+```
+
+```{r}
+# Create a string of the names for light
+light.treat <- c("Light", "Dark")
+```
+```{r}
+# Run an lmer on the effect of time in plastic and no plastic treatments
+
+for (l in 1:length(light.treat)) {
+  
+  tmp.data <- filter(data, Light == light.treat[l])
+  l.lmer <- lmer(fvfm ~ Day + (1|B.Tag), data = tmp.data) 
+  print(paste(light.treat[l],"LMER", sep = " "))
+  print(summary(l.lmer)) 
+  
+  # Posthoc ANOVA to compare model to the null
+  null <- lmer(fvfm ~ 1 + (1| B.Tag), data = tmp.data) # null model without effect 
+  
+  l.aov <- anova(null, l.lmer) # model comparison 
+  print(paste(light.treat[l],"ANOVA", sep = " ")) # name the summary output 
+  print(l.aov) 
+  
+}
+
+```
+
+```{r}
+# Create a string of the names for food
+food.treat <- c("Fed", "Starved")
+```
+```{r}
+# Run an lmer on the effect of time in plastic and no plastic treatments
+
+for (f in 1:length(food.treat)) {
+  
+  tmp.data <- filter(data, Food == food.treat[f])
+  f.lmer <- lmer(fvfm ~ Day + (1|B.Tag), data = tmp.data) 
+  print(paste(food.treat[f],"LMER", sep = " "))
+  print(summary(f.lmer)) 
+  
+  # Posthoc ANOVA to compare model to the null
+  null <- lmer(fvfm ~ 1 + (1| B.Tag), data = tmp.data) # null model without effect 
+  
+  f.aov <- anova(null, f.lmer) # model comparison 
+  print(paste(food.treat[f],"ANOVA", sep = " ")) # name the summary output 
+  print(f.aov) 
+  
+}
+
+```
+
+```{r}
+# Create a string of the names for food
+phen.treat <- c("Apo", "Sym")
+```
+```{r}
+# Run an lmer on the effect of time in plastic and no plastic treatments
+
+for (ph in 1:length(phen.treat)) {
+  
+  tmp.data <- filter(data, Sym.State == phen.treat[ph])
+  ph.lmer <- lmer(fvfm ~ Day + (1|B.Tag), data = tmp.data) 
+  print(paste(phen.treat[ph],"LMER", sep = " "))
+  print(summary(ph.lmer)) 
+  
+  # Posthoc ANOVA to compare model to the null
+  null <- lmer(fvfm ~ 1 + (1| B.Tag), data = tmp.data) # null model without effect 
+  
+  ph.aov <- anova(null, ph.lmer) # model comparison 
+  print(paste(phen.treat[ph],"ANOVA", sep = " ")) # name the summary output 
+  print(ph.aov) 
+  
+}
+
+```
+
+###########################################################################################################################
+#
+#                                              Mixed Effects Linear Models
+#
+###########################################################################################################################
+
+```{r}
+# Let's start by writing our null model 
+
+m0 <- lmer(fvfm ~ 1 + (1|B.Tag), data = data)
+```
+
+# Start by examining the manupulated chronic stressors first 
+```{r}
+# Full stressor model 
+mfull <- lmer(fvfm ~ Plastic + Light + Food + Temperature + (1|B.Tag), data = data)
+summary(mfull)
+```
+```{r}
+# Drop light
+m1 <- lmer(fvfm ~ Plastic + Food + Temperature + (1|B.Tag), data = data)
+summary(m1)
+```
+```{r}
+# Drop plastic
+m2 <- lmer(fvfm ~ Food + Temperature + (1|B.Tag), data = data)
+summary(m2) # fewest terms, all significant
+```
+```{r}
+# Drop food 
+m3 <- lmer(fvfm ~ Temperature + (1|B.Tag), data = data)
+summary(m3) # fewest terms, all significant
+```
+```{r}
+AIC(mfull, m1, m2, m3)
+anova(m0, m2, m3) 
+
+# M3 is the best model so far - fewest terms, all significant
+```
+# Let's go back and add phenotype and time into the mix
+```{r}
+# We'll include temperature, so we'll go back to using our first null model m0
+
+# full model 
+phen1 <- lmer(fvfm ~ Plastic + Light + Food + Temperature + Sym.State +  Day +(1|B.Tag), data = data)
+summary(phen1)
+```
+```{r}
+# drop light
+phen2 <- lmer(fvfm ~ Plastic + Food + Temperature + Sym.State + Day + (1|B.Tag), data = data)
+summary(phen2)
+```
+```{r}
+# drop plastic
+phen3 <- lmer(fvfm ~ Food + Temperature + Sym.State + Day + (1|B.Tag), data = data)
+summary(phen3)
+```
+```{r}
+# drop food
+phen4 <- lmer(fvfm ~ Temperature + Sym.State + Day + (1|B.Tag), data = data)
+summary(phen4)
+```
+```{r}
+AIC(m0, phen1, phen2, phen3, phen4)
+anova(m0, phen3, phen4)
+
+# Phen4 best fit, when considering temperature 
+```
+# Now let's see if there are any interactions between variables
+```{r}
+# full model with sym state and temperature interaction
+# cannot include temperature * day interaction because data for ambient temperatures only exist on day 22 
+int.1 <- lmer(fvfm ~ Plastic + Light + Food + Temperature + Sym.State + Temperature*Sym.State + Sym.State*Day + (1|B.Tag), data = data)
+summary(int.1)
+```
+```{r}
+# drop light
+int.2 <- lmer(fvfm ~ Plastic + Food + Temperature + Sym.State + Temperature*Sym.State + Sym.State*Day + (1|B.Tag), data = data)
+summary(int.2)
+```
+```{r}
+# drop plastic
+int.3 <- lmer(fvfm ~ Food + Temperature + Sym.State + Temperature*Sym.State + Sym.State*Day +(1|B.Tag), data = data)
+summary(int.3)
+```
+```{r}
+AIC(m0, int.1, int.2, int.3)
+anova(m0, int.1, int.2, int.3)
+
+# Int.3 highly significant, lets run a quick model check on it
+```
+```{r}
+check_model(int.3) # oh no! there's some pretty high collinearity in this model, lets look
+check_collinearity(int.3) # seems to be between temp and sym state
+
+# Let's fit two models, one with each term, to determine if one fits the data better 
+m.sym <- lmer(fvfm ~ Food + Sym.State + Sym.State*Day + (1|B.Tag), data = data) # with sym
+m.temp <- lmer(fvfm ~ Food + Temperature + Sym.State*Day + (1|B.Tag), data = data) # with temp
+
+AIC(m.sym, m.temp) 
+anova(m.sym, m.temp) # looks like the temperature model fits significantly better than the phenotype model
+```
+```{r}
+# Let's check that model 
+check_model(m.temp) # seems okay 
+```
+
+
+##  Let's go back to the beginning see what it looks like when we disregard the thermal stress and just look at our experimental treatments
+```{r}
+exp0 <- lmer(fvfm ~ 1 + (1|B.Tag), data = expt.data)
+
+# full model 
+exp1 <- lmer(fvfm ~ Plastic + Light + Food + (1|B.Tag), data = expt.data)
+summary(exp1)
+```
+```{r}
+# Drop light 
+exp2 <- lmer(fvfm ~ Plastic + Food + (1|B.Tag), data = expt.data)
+summary(exp2)
+```
+```{r}
+# Drop plastic 
+exp3 <- lmer(fvfm ~ Food + (1|B.Tag), data = expt.data)
+summary(exp3)
+```
+```{r}
+AIC(exp0, exp1, exp2, exp3)
+anova(exp0, exp2, exp3)
+
+# Exp3 best fit while ignoring temperature
+```
+
+# We'll do the same as before, adding phenotype  and day but disregarding the thermal stress
+```{r}
+# We'll use our null model from before, exp0
+
+# full model 
+P.ex1 <- lmer(fvfm ~ Plastic + Light + Food + Sym.State + Day + (1|B.Tag), data = expt.data)
+summary(P.ex1)
+```
+```{r}
+# drop light 
+P.ex2 <- lmer(fvfm ~ Plastic + Food + Sym.State + Day + (1|B.Tag), data = expt.data)
+summary(P.ex2)
+```
+```{r}
+# drop plastic 
+P.ex3 <- lmer(fvfm ~ Food + Sym.State + Day + (1|B.Tag), data = expt.data)
+summary(P.ex3)
+```
+```{r}
+# Drop food
+P.ex4 <- lmer(fvfm ~ Sym.State + Day + (1|B.Tag), data = expt.data)
+summary(P.ex4)
+```
+```{r}
+# Drop sym.state
+P.ex5 <- lmer(fvfm ~ Day + (1|B.Tag), data = expt.data)
+summary(P.ex5)
+```
+```{r}
+AIC(exp0, P.ex1, P.ex2, P.ex3, P.ex4, P.ex5)
+anova(exp0, P.ex1, P.ex2, P.ex3, P.ex4, P.ex5)
+
+# P.ex5 bet fit against the null when disregarding temperature. Doesn't look like we have any potential interactions since Day is the only significant factor in the experimental treatments
+```
+```{r}
+# Let's check that model just to make sure it passes our assumptions
+check_model(P.ex5) # yeah it looks pretty great
+```
+
+# It seems like we have two scenarios: 1. When we ignore thermal stress, time seems to be the only factor that affects photosynthetic efficiency, but not in a linear fashion. When we look at fvfm over time in all of our treatments, there are increases over time, decreases over time, ups and downs over time, but no real trend in the directionality of it. And 2. When we include thermal stress, more factors contribute to the differences we see in photosynthetic efficiency; food, temperature, and the interaction between phenotype and time. 
+
+## So what does this mean about thermal stress? What is it doing to these things? 
+
+# Let's plot those model predictions
+```{r}
+# We'll start with the model that ignores thermal stress
+exp.model <- lmer(fvfm ~ Day + (1|B.Tag), data = expt.data)
+
+library(sjPlot)
+# plot day
+d=plot_model(exp.model, 'pred', ci.lvl = 0.95, terms="Day")
+
+d +
+  theme_classic() +
+labs(x = "Day", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "" ) +
+  ggtitle("")+
+  theme(axis.title.x = element_text(color="black", size=14, face="bold"),
+axis.title.y = element_text(color="black", size=14, face="bold"))+
+  theme(axis.text.x = element_text(size=14),
+          axis.text.y = element_text(size=14))
+
+```
+
+```{r}
+# And now our two models that do include thermal stress, starting with m.sym
+m.temp <- lmer(fvfm ~ Food + Temperature + Sym.State*Day + (1|B.Tag), data = data) # with temp
+
+# plot food
+f=plot_model(m.temp, 'pred', ci.lvl = 0.95, terms="Food")
+
+f +
+  theme_classic() +
+labs(x = "Food", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "" ) +
+  ggtitle("")+
+  theme(axis.title.x = element_text(color="black", size=14, face="bold"),
+axis.title.y = element_text(color="black", size=14, face="bold"))+
+  theme(axis.text.x = element_text(size=14),
+          axis.text.y = element_text(size=14))
+```
+```{r}
+# plot phenotype
+t=plot_model(m.temp, 'pred', ci.lvl = 0.95, terms="Temperature")
+
+t +
+  theme_classic() +
+labs(x = "Temperature", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "" ) +
+  ggtitle("")+
+  theme(axis.title.x = element_text(color="black", size=14, face="bold"),
+axis.title.y = element_text(color="black", size=14, face="bold"))+
+  theme(axis.text.x = element_text(size=14),
+          axis.text.y = element_text(size=14))
+```
+```{r}
+# Plot interactions  
+library(ggeffects)
+
+# Interaction plot model 
+m.temp <- lmer(fvfm ~ Food + Temperature + Sym.State*Day + (1|B.Tag), data = data) # with temp
+summary(m.temp)
+
+dat2 <- ggemmeans(m.temp, terms = c("Food", "Temperature", "Day", "Sym.State")) #
+
+names(dat2)[names(dat2) == "x"] <- "Food"
+names(dat2)[names(dat2) == "predicted"] <- "fvfm"
+names(dat2)[names(dat2) == "group"] <- "Temperature"
+names(dat2)[names(dat2) == "x"] <- "Food"
+names(dat2)[names(dat2) == "facet"] <- "Day"
+names(dat2)[names(dat2) == "panel"] <- "Sym.State"
+
+
+ggplot(dat2, 
+       aes(x = Day,
+           y = fvfm, 
+           colour = Sym.State,
+           group = Sym.State)) +
+  geom_point(aes(shape = Food)) +
+  geom_line() +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.3) +
+  labs(x = "Day", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "" ) +
+  facet_grid(Food~Temperature) +
+  ggtitle("") +
+  theme_classic() +
+  theme(axis.title.x = element_text(color="black", size=12),
+axis.title.y = element_text(color="black", size=12))+
+  theme(axis.text.x = element_text(size=12),
+          axis.text.y = element_text(size=12)) +
+  scale_color_manual(values=c("tan", "coral4"))
+```
+## HMM ^^ ##
+
+###########################################################################################################################
+#
+#                                                 Format for merged metric datasheet
+#
+############################################################################################################################
+
+```{r}
+wide.fvfm = data %>%
+  select(B.Tag, Day, fvfm, ) %>%
+  spread(Day, fvfm)
+```
+```{r}
+# load in all.data.merged
+all.data.merged <- read.csv("~/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/All.data.merged.csv", header=TRUE)
+names(all.data.merged)
+```
+
+```{r}
+# edit names of wide.mass
+names(wide.fvfm)[names(wide.fvfm) == "B.Tag"] <- "BTag" 
+names(wide.fvfm)[names(wide.fvfm) == "1"] <- "FvFm.day1" 
+names(wide.fvfm)[names(wide.fvfm) == "8"] <- "FvFm.day8" 
+names(wide.fvfm)[names(wide.fvfm) == "15"] <-  "FvFm.day15" 
+names(wide.fvfm)[names(wide.fvfm) == "22"] <-  "FvFm.day22" 
+
+```
+
+```{r}
+# add wide.mass to all.data.merged
+all.data.merged <- left_join(all.data.merged, wide.fvfm, by = "BTag")
+
+all.data.merged <- all.data.merged %>%
+  select(-"X")
+```
+```{r}
+# save merged data as a csv
+path <- "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-"
+write.csv(all.data.merged, file.path(path, "All.data.merged.csv"))
+```
+
+
+
+
+
+
+
+
+

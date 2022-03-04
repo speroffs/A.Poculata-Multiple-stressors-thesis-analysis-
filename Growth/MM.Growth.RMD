@@ -1,0 +1,906 @@
+---
+title: "MM.Growth.RMD"
+author: "Sarah Speroff"
+date: "2/17/2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+###########################################################################################################################
+#
+#                                                           Data Prep
+#
+############################################################################################################################
+
+```{r, message=FALSE}
+# Libraries
+library(Rmisc)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(broom)
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(emmeans)
+library(Rmisc)
+library(e1071)
+```
+
+```{r}
+setwd("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth")
+```
+```{r}
+#Load data
+mass.dat <- read.csv("Full_ ID Metadata - *Frag metadata (xrack&control).csv", header = TRUE)
+
+# Subset relevant data
+data <- subset(mass.dat, select = c("B.TAG", "Sym.State","Treat.ID", "Temperature", "Plastic", "Light", "Food",
+                                    "Initial.Mass..g.", "Final.Mass..g.", "Days.In.Treatment"))
+
+# change column names 
+names(data)[names(data) == "Initial.Mass..g."] <- "Initial" 
+names(data)[names(data) == "Final.Mass..g."] <- "Final" 
+names(data)[names(data) == "Days.In.Treatment"] <- "Time" 
+names(data)[names(data) == "Treat.ID"] <- "Treatment" 
+
+# relevel to compare all to control 
+data$Treatment <- factor(data$Treatment, levels = c("control", "PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF"))
+
+# filter out NAs 
+data <- data[complete.cases(data),]
+```
+
+###########################################################################################################################
+#
+#                             Calculate average change in mass over time for all polyps
+#
+############################################################################################################################
+
+# Data collected in grams, converted to MG and noramlized to time spent in treatment
+```{r}
+# In new column called Change
+data$Change = ((data$Final - data$Initial))*1000/data$Time 
+data$Change <- round(data$Change, 3) # round to 3 decimal places
+```
+
+# Normality testing on final-initial mass over time:
+```{r}
+# Let's check the distribution of that growth rate data 
+par(mfrow=c(1,2))
+hist(data$Change)
+qqnorm(data$Change)
+qqline(data$Change)
+```
+```{r}
+# check the median-mean skew
+skewness(data$Change) # a high skew value
+```
+```{r}
+# let's log transform to see if that helps
+data$Logchange = log(data$Change)
+
+par(mfrow=c(1,2))
+hist(data$Logchange) # helps our distribution but It produces lots of NaNs...
+
+skewness(data$Logchange)
+```
+```{r}
+# lets square root transform 
+data$SQchange = sqrt(data$Change)
+hist(data$SQchange)
+skewness(data$SQchange) # no skew value, but skill wonky
+```
+```{r}
+# let's try the last option, cube root, to see if that is best 
+data$cubechange = (data$Change^1/3)
+hist(data$cubechange)
+skewness(data$cubechange) # the same position we started with. 
+```
+# Since we are not running tests or models on this data and are using it to get an idea of which treatment grew or lost the most mass over the duration of the experiment, we will use the raw data as it is. When it comes time to using the "decay" data to determine the effect of treatments and stressors on the rate of change we will reassess the transformations then.
+
+# But for now, let's go back and look at the rate of overall change in each treatment:
+```{r}
+# Summarize the change in mass by treatment 
+mean.sum1 <- summarySE(data, measurevar="Change", groupvars="Treatment") 
+temp.sum <- summarySE(data, measurevar="Change", groupvars="Temperature") # what's the difference between ambient and elevated temperature conditions?
+
+```
+```{r}
+#and plot
+change.mass.plot <- 
+ggplot(data = mean.sum1, 
+       aes(x = Treatment, 
+           y = Change, 
+           col = Treatment)) +
+  
+  geom_segment(aes(yend=0,xend=Treatment,size = 2)) +
+  geom_hline(yintercept = 0) +
+  geom_hline(yintercept = -0.7649045,col="black",lty=2) +
+  
+  scale_y_continuous(name = "Change Mass (mg*day"^"-1"~")", 
+                     breaks=seq(0, -3, by = -0.5)) +
+  scale_x_discrete(limits = c("control", "PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF"),
+                   labels = c("Control", "PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF")) +
+  scale_color_manual(values = c("#131513","#F53100", "#FF8B47","#C39809","#F6CB3C","#0B8454",
+                                "#7BB12F","#3F88C5","#A33461")) +
+  
+  theme_classic(base_size=13) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+
+change.mass.plot
+```
+```{r}
+# save plot
+ggsave(plot = change.mass.plot,
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Plots/change.mass.plot.pdf", width = 8, height = 6, units = "in")
+```
+
+```{r}
+# Summarize the change in mass by treatment and sym state
+mean.sum2 <- summarySE(data, measurevar="Change", groupvars=c("Treatment","Sym.State")) 
+```
+```{r}
+# Plot it 
+ggplot(data = mean.sum2, 
+       aes(x = Treatment, 
+           y = Change, 
+           col = Sym.State,)) +
+  geom_point(size=1.2) +
+  geom_segment(aes(yend=0, xend=Treatment), size=1.2) +
+
+  geom_hline(yintercept = 0, col="black", lty=1) + 
+  geom_hline(yintercept = -0.83430380, col="tan", lty=2) +
+  geom_hline(yintercept = -0.69474359, col="coral4", lty=2) +
+  
+  labs(y = "Change in Mass (mg*day"^"-1"~")", y = "Treatment") +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"),
+                     values = c("tan","coral4")) +
+  scale_x_discrete(limits = c("control", "PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF"),
+                   labels = c("Control", "PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF")) +
+  
+  theme_classic(base_size=13) +
+  theme(legend.position = "top",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+```
+
+###################################################################################################################################
+# 
+#                                   Calculate change in mass with all time points included 
+#
+###################################################################################################################################
+
+```{r}
+# load data
+decaydat <- read.csv("growth - growthtime.csv")
+
+# change column names 
+names(decaydat)[names(decaydat) == "Treat.ID"] <- "Treatment" 
+
+# change type 
+decaydat$Day <- as.numeric(decaydat$Day)
+
+# relevel
+decaydat$Treatment <- factor(decaydat$Treatment, levels = c("Control", "PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF"))
+
+# remove NAs
+decaydat <- decaydat[complete.cases(decaydat),]
+
+# Convert to mg
+decaydat$Massmg <- decaydat$Mass*1000
+```
+
+################################################################
+#
+#   Normality testing and transformations of calculated mass                                            
+#
+################################################################
+
+```{r}
+# Histogram and Quantiles for raw data 
+par(mfrow=c(1,2))
+hist(decaydat$Massmg, main="Mass(mg)")
+qqnorm(decaydat$Massmg, main="Mass (mg)")
+qqline(decaydat$Massmg) # not a great fit, seems more like an exponential fit
+skewness(decaydat$Massmg) #  positive skew! need some type of transformation
+```
+
+```{r}
+# Log-transform
+decaydat$Logmassmg = log(decaydat$Massmg) #new column with the log mass in grams
+
+par(mfrow=c(1,2))
+hist(decaydat$Logmassmg, main="Log Mass (mg)")
+qqnorm(decaydat$Logmassmg, main="Log Mass (mg)")
+qqline(decaydat$Logmassmg) # a much better histogram and quantiles! 
+skewness(decaydat$Logmassmg) # now less than moderately left skewed, much better.
+
+```
+
+```{r}
+# lets square root transform 
+decaydat$SQmass = sqrt(decaydat$Mass)
+
+par(mfrow=c(1,2))
+hist(decaydat$SQmass, main="SQ Mass (mg)")
+qqnorm(decaydat$SQmass, main="SQ Mass (mg)")
+qqline(decaydat$SQmass) 
+skewness(decaydat$SQmass) # better than non-transformed, but more skewed than logmass
+```
+
+```{r}
+# let's try the last option, cube root, to see if that is best 
+decaydat$cubemass = (decaydat$Mass^1/3)
+
+par(mfrow=c(1,2))
+hist(decaydat$cubemass, main="Mass^1/3 (mg)")
+qqnorm(decaydat$cubemass, main="Mass^1/3 (mg)")
+qqline(decaydat$cubemass) 
+skewness(decaydat$cubemass) # nope
+```
+
+# We'll continue from here working with the Log transformed data:
+```{r}
+# summarize the mass at each interval by treatment 
+decay_means <- summarySE(decaydat, measurevar = "Logmassmg", groupvars = c("Treatment", "Day"))
+```
+```{r}
+# plot 
+ggplot(data = decay_means, 
+       aes(x = Day, 
+           y = Logmassmg,
+           color = Treatment)) +
+  geom_point() +
+  geom_line() +
+  facet_wrap(vars(Treatment)) +
+  geom_errorbar(aes(ymax = Logmassmg+se, ymin = Logmassmg-se), width = 0.1) +
+  ylab("Log Mass (mg)")+
+  xlab("Day") +
+  scale_color_manual(name = "", values = c("#131513", "#E02D00", "#FF7E33", 
+                                                   "#D6A70A", "#ECDD09", "#075F3C", 
+                                                   "#7BB12F", "#35516E", "#3F88C5")) +
+  scale_x_continuous(breaks=seq(1, 22, by = 7)) + # change x axis intervals 
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1)) +
+  theme_classic()
+
+```
+
+```{r}
+# summarize the mass at each interval by treatment 
+decay_means2 <- summarySE(decaydat, measurevar = "Logmassmg", groupvars = c("Treatment", "Day", "Sym.State"))
+```
+```{r}
+# plot 
+ggplot(data = decay_means2, 
+       aes(x = Day, 
+           y = Logmassmg, 
+           color = Sym.State,
+           group=Sym.State)) +
+  geom_point() +
+  geom_line() +
+  facet_wrap(vars(Treatment)) +
+  geom_errorbar(aes(ymax = Logmassmg+se, ymin = Logmassmg-se), width = .1) +
+  ylab("Log Mass (mg)")+
+  xlab("Day") +
+  scale_color_manual(name = "Phenotype",
+                     labels = c("Apo", "Sym"),
+                     values = c("tan","coral4")) +
+  scale_x_continuous(breaks=seq(1, 22, by = 7)) + # change x axis intervals 
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1)) +
+  theme_classic()
+
+```
+
+# Since we are most interested in the change of weight over time, let's look at the rate of change over time, or the slope
+```{r}
+# plot growth of overall polyps
+
+ggplot(data = decay_means, 
+       aes(x = Day, 
+           y = Logmassmg,)) +
+  geom_point(size=1.2) +
+  
+  geom_smooth(method="lm", se = FALSE, size=1.2, col="black") +
+  geom_errorbar(aes(ymax = Logmassmg+se, ymin = Logmassmg-se),width =1, size=1.2) +
+  
+  labs(x="Day", y = "Log Mass (mg)") +
+  scale_x_continuous(breaks=seq(1, 22, by = 7)) + # change x axis intervals
+  facet_wrap(vars(Treatment)) +
+
+  theme_classic(base_size = 13) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+
+
+```
+
+```{r}
+# plot growth of both phenotypes
+ggplot(data = decay_means2, 
+       aes(x = Day, 
+           y = Logmassmg,
+           color = Sym.State)) +
+  geom_point(size=1.2) +
+  
+  geom_smooth(method="lm", se = FALSE, size=1.2) +
+  geom_errorbar(aes(ymax = Logmassmg+se, ymin = Logmassmg-se),width =1, size=1.2) +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"),
+                     values = c("tan","coral4")) +
+  
+  labs(x="Day", y = "Log Mass (mg)") +
+  scale_x_continuous(breaks=seq(1, 22, by = 7)) + # change x axis intervals
+  facet_wrap(vars(Treatment)) +
+
+  theme_classic(base_size = 13) +
+  theme(legend.position = "top",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+
+```
+
+###########################################################################################################################
+#
+#                            Calculate growth rate for each individual polyp using log transformed data 
+#
+############################################################################################################################
+
+```{r}
+# Run simple LM for the change in log(mass) over time by each individual 
+
+# create grouping factor
+by_ID <- group_by(decaydat, B.TAG)
+```
+```{r}
+# Create a df with the parameter coefficients of every treatment Linear model 
+ID.slope <- 
+  do(by_ID, 
+   tidy(                     
+     lm(Logmassmg~Day, data= .)))
+ID.slope
+
+# keep the intercept term 
+ID.slope <- filter(ID.slope, term == "Day")
+#rename the estimate 
+names(ID.slope)[names(ID.slope) == "estimate"] <- "Slope"
+```
+```{r}
+# Add treatment and sym.state values to ID.test dataframe by BTag
+
+# Select variables from original data to keep
+decaydat2 <- decaydat %>%
+  select(Colony, Sym.State, B.TAG, Treatment, Plastic, Temperature, Food, Light) 
+
+# add variables to new df based on ID
+ID.slope <- left_join(decaydat2, ID.slope, by = "B.TAG")
+
+# Remove NAs
+ID.slope %>%
+  drop_na(Slope)
+```
+```{r}
+# Inspect ID.slope D
+ID.slope$Colony <- as.factor(ID.slope$Colony)
+ID.slope$Sym.State <- as.factor(ID.slope$Sym.State)
+ID.slope$Plastic <- as.factor(ID.slope$Plastic)
+ID.slope$Temperature <- as.factor(ID.slope$Temperature)
+ID.slope$Food <- as.factor(ID.slope$Food)
+ID.slope$Light <- as.factor(ID.slope$Light)
+ID.slope$B.TAG <- as.factor(ID.slope$B.TAG)
+
+#remove duplicates (should be 1 value per ID)
+duplicated(ID.slope)
+ID.slope = ID.slope %>% 
+  unique() # should be 480
+
+# Remove NAs
+ID.slope <- ID.slope %>%
+  drop_na(Slope) # should be 451 individuals 
+```
+
+###########################################################################################################################
+#
+#                                    Question: Does treatment affect growth rate?
+#
+############################################################################################################################
+
+```{r}
+# Run a liner effects mixed model to determine if the treatment affects the growth rate of polyps while taking coral colony into account
+treat.lmer <- lmer(Slope~Treatment + (1|Colony), data = ID.slope)
+summary(treat.lmer)
+```
+```{r}
+# Run an anova to compare this model to a null model 
+null <- lmer(Slope ~ 1 + (1|Colony), data = ID.slope)
+anova(null, treat.lmer) 
+```
+```{r}
+# Let's compare the growth rates of corals between the treatments
+treat.emmeans <- emmeans(treat.lmer, pairwise ~ Treatment)
+summary(treat.emmeans)
+```
+
+```{r}
+# Summarise
+treat.means <- summarySE(ID.slope, measurevar = "Slope", groupvars = "Treatment")
+```
+```{r}
+# plot
+all.treat.log.growth.plot <- 
+ggplot(data = treat.means,
+       aes(x = Treatment, 
+           y = Slope,
+           color = Treatment)) +
+  geom_point(size=1.5) +
+  geom_errorbar(aes(ymax = Slope+se, ymin = Slope-se), width = 0.2, size=1.2) +
+  
+  geom_hline(yintercept = -0.003744175, col="black", lty=2) + 
+  geom_hline(yintercept = 0, col="black", lty=1) +
+  
+  scale_y_continuous(name = "Average growth rate [log(mg*day"^"-1"~")]", limits = c(-0.016, 0), breaks = seq(-0.016, 0, by = 0.004)) + # set y axis intervals
+
+  labs(x = "Treatment") +
+  scale_color_manual(name = "", values = c("#131513","#F53100", "#FF8B47","#C39809","#F6CB3C","#0B8454","#7BB12F","#3F88C5","#A33461")) +
+  
+  theme_classic(base_size=14) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+all.treat.log.growth.plot
+```
+```{r}
+# save plot
+ggsave(plot = all.treat.log.growth.plot,
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Plots/all.treat.log.growth.plot.pdf", width = 8, height = 6, units = "in")
+
+```
+
+###########################################################################################################################
+#
+#                                    Question: Does temperature affect growth rate?
+#
+############################################################################################################################
+
+```{r}
+# Run a liner effects mixed model to determine if the treatment affects the growth rate of polyps while taking coral colony into account
+temp.lmer <- lmer(Slope~Temperature + (1|Colony), data = ID.slope)
+summary(temp.lmer)
+```
+```{r}
+# Run an anova to compare this model to a null model 
+
+null <- lmer(Slope ~ 1 + (1|Colony), data = ID.slope)
+anova(null, temp.lmer) 
+```
+```{r}
+# Let's compare the growth rates of corals between the treatments
+temp.means <- emmeans(temp.lmer, pairwise ~ Temperature)
+summary(temp.means)
+```
+
+```{r}
+# sum
+temp.sum <- summarySE(ID.slope, measurevar = "Slope", groupvars = "Temperature")
+# plot it 
+
+growth.temp.plot <-
+ggplot(data = temp.sum,
+       aes(x = Temperature,
+           y = Slope)) +
+  
+  geom_point(size=2) +
+  geom_errorbar(aes(ymax = Slope+se, ymin = Slope-se), width = .1, size=1.2) +
+  
+  scale_x_discrete(name = "", # remove labels for paneling 
+                   limits = c("AMBIENT", "ELEVATED"),
+                   labels = c("Ambient", "Elevated")) +
+  scale_y_continuous(name = "", 
+                     limits = c(-0.01, -0.003),
+                     breaks = seq(-0.01, -0.003, by = 0.001)) +
+  
+  theme_classic(base_size = 16) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+
+growth.temp.plot
+```
+```{r}
+# Save plot
+ggsave(plot = growth.temp.plot,
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Plots/growth.temp.plot.pdf", width = 8, height = 6, units = "in")
+```
+
+###########################################################################################################################
+#
+#                                    Question: Does Plastic affect growth rate?
+#
+############################################################################################################################
+
+```{r}
+# Run a liner effects mixed model to determine if the treatment affects the growth rate of polyps while taking coral colony into account
+
+plastic.lmer <- lmer(Slope~Plastic + (1|Colony), data = ID.slope)
+summary(plastic.lmer)
+```
+```{r}
+# Run an anova to compare this model to a null model 
+null <- lmer(Slope ~ 1 + (1|Colony), data = ID.slope)
+anova(null, plastic.lmer) 
+```
+```{r}
+# Let's compare the growth rates of corals between the treatments
+plastic.means <- emmeans(plastic.lmer, pairwise ~ Plastic)
+summary(plastic.means)
+```
+
+```{r}
+# sum
+plastic.sum <- summarySE(ID.slope, measurevar = "Slope", groupvars = "Plastic")
+
+# plot it 
+growth.plastic.plot <- 
+ggplot(data = plastic.sum,
+       aes(x = Plastic,
+           y = Slope)) +
+  geom_point(size=2) +
+  geom_errorbar(aes(ymax = Slope+se, ymin = Slope-se), width = .1, size=1.2) +
+  
+  scale_x_discrete(name = "", # remove labels for paneling 
+                   limits = c("NOPLASTIC", "PLASTIC"),
+                   labels = c("No Plastic", "Plastic")) +
+  scale_y_continuous(name = "", 
+                     limits = c(-0.01, -0.003),
+                     breaks = seq(-0.01, -0.003, by = 0.001)) +
+
+  
+  theme_classic(base_size = 16) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+```
+```{r}
+# Save plot
+ggsave(plot = growth.plastic.plot,
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Plots/growth.plastic.plot.pdf", width = 8, height = 6, units = "in")
+```
+
+###########################################################################################################################
+#
+#                                    Question: Does Light affect growth rate?
+#
+############################################################################################################################
+
+```{r}
+# Run a liner effects mixed model to determine if the treatment affects the growth rate of polyps while taking coral colony into account
+
+light.lmer <- lmer(Slope~Light + (1|Colony), data = ID.slope)
+summary(light.lmer)
+```
+```{r}
+# Run an anova to compare this model to a null model 
+
+null <- lmer(Slope ~ 1 + (1|Colony), data = ID.slope)
+anova(null, light.lmer) 
+```
+```{r}
+# Let's compare the growth rates of corals between the treatments
+light.means <- emmeans(light.lmer, pairwise ~ Light)
+summary(light.means)
+```
+
+```{r}
+# sum
+light.sum <- summarySE(ID.slope, measurevar = "Slope", groupvars = "Light")
+
+# plot it 
+growth.light.plot <- 
+ggplot(data = light.sum,
+       aes(x = Light,
+           y = Slope)) +
+  geom_point(size=2) +
+  geom_errorbar(aes(ymax = Slope+se, ymin = Slope-se), width = .1, size=1.2) +
+  
+  scale_x_discrete(name = "", # remove labels for paneling 
+                   limits = c("DARK", "LIGHT"),
+                   labels = c("Dark ", "Light")) +
+  scale_y_continuous(name = "", 
+                     limits = c(-0.01, -0.003),
+                     breaks = seq(-0.01, -0.003, by = 0.001)) +
+
+  theme_classic(base_size = 16) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+```
+```{r}
+# Save plot
+ggsave(plot = growth.light.plot,
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Plots/growth.light.plot.pdf", width = 8, height = 6, units = "in")
+
+```
+
+###########################################################################################################################
+#
+#                                    Question: Does Food affect growth rate?
+#
+############################################################################################################################
+
+```{r}
+# Run a liner effects mixed model to determine if the treatment affects the growth rate of polyps while taking coral colony into account
+
+food.lmer <- lmer(Slope~Food + (1|Colony), data = ID.slope)
+summary(food.lmer)
+```
+```{r}
+# Run an anova to compare this model to a null model 
+
+null <- lmer(Slope ~ 1 + (1|Colony), data = ID.slope)
+anova(null, food.lmer) 
+```
+```{r}
+# Let's compare the growth rates of corals between the treatments
+food.means <- emmeans(food.lmer, pairwise ~ Food)
+summary(food.means)
+```
+
+```{r}
+# sum
+food.sum <- summarySE(ID.slope, measurevar = "Slope", groupvars = "Food")
+
+# plot it 
+growth.food.plot <-
+ggplot(data = food.sum,
+       aes(x = Food,
+           y = Slope)) +
+  geom_point(size=2) +
+  geom_errorbar(aes(ymax = Slope+se, ymin = Slope-se), width = .1, size=1.2) +
+  
+  scale_x_discrete(name = "", # remove labels for paneling 
+                   limits = c("FED", "STARVED"),
+                   labels = c("Fed ", "Starved")) +
+  scale_y_continuous(name = "", 
+                     limits = c(-0.01, -0.003),
+                     breaks = seq(-0.01, -0.003, by = 0.001)) +
+
+  theme_classic(base_size = 16) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+```
+```{r}
+# Save plot
+ggsave(plot = growth.food.plot,
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Plots/growth.food.plot.pdf", width = 8, height = 6, units = "in")
+
+```
+
+###########################################################################################################################
+#
+#                                    Question: Does Phenotype affect growth rate?
+#
+############################################################################################################################
+
+```{r}
+# Run a liner effects mixed model to determine if the treatment affects the growth rate of polyps while taking coral colony into account
+
+phen.lmer <- lmer(Slope~Sym.State + (1|Colony), data = ID.slope)
+summary(phen.lmer)
+```
+```{r}
+# Run an anova to compare this model to a null model 
+
+null <- lmer(Slope ~ 1 + (1|Colony), data = ID.slope)
+anova(null, phen.lmer) 
+```
+```{r}
+# Let's compare the growth rates of corals between the treatments
+phen.means <- emmeans(phen.lmer, pairwise ~ Sym.State)
+summary(phen.means)
+```
+
+```{r}
+# sum
+phen.sum <- summarySE(ID.slope, measurevar = "Slope", groupvars = "Sym.State")
+# plot it 
+ggplot(data = phen.sum,
+       aes(x = Sym.State,
+           y = Slope, 
+           color = Sym.State)) +
+  geom_point() +
+  geom_errorbar(aes(ymax = Slope+se, ymin = Slope-se), width = .1) +
+  scale_color_manual(values = c("tan","coral4")) +
+  labs(y = "Growth rate log(mg*day"^"-1"~")", 
+       x = "") +
+  theme_classic()
+```
+
+###########################################################################################################################
+#
+#                                                     Mixed effects models:
+#
+############################################################################################################################
+
+```{r}
+# Null model 
+m0 <- lmer(Slope ~ 1 + (1|Colony), data=ID.slope)
+summary(m0)
+```
+
+# Start with our 4 stressors
+```{r}
+# Full model
+m1 <- lmer(Slope ~ Temperature + Plastic + Light + Food + (1|Colony), data = ID.slope)
+summary(m1)
+```
+```{r}
+# Drop plastic
+m2 <- lmer(Slope ~ Temperature + Light + Food + (1|Colony), data = ID.slope)
+summary(m2) # all significant
+
+anova(m0, m1, m2) # m2
+```
+
+# Consider phenotype
+```{r}
+m3 <- lmer(Slope ~ Temperature + Plastic + Light + Food + Sym.State + (1|Colony), data = ID.slope)
+summary(m3)
+```
+```{r}
+# drop plastic
+m4 <- lmer(Slope ~ Temperature + Light + Food + Sym.State + (1|Colony), data = ID.slope)
+summary(m4) # sym not significant, if we drop we're at the same model as m2
+```
+
+# Let's see if there are any interactions between these significant factors 
+```{r}
+m5 <- lmer(Slope ~ Temperature + Light + Food + Light*Food + (1|Colony), data = ID.slope)
+summary(m5)
+```
+```{r}
+anova(m0, m1, m2, m3, m4, m5)
+```
+
+# Let's check our m2 model for model assumptions
+```{r}
+library(performance)
+check_model(m2) # actually looks alright
+```
+
+# Let's plot our model estimates
+```{r}
+library(insight)
+library(sjstats)
+library(sjPlot)
+library(effects)
+```
+```{r}
+m <- lmer(Slope ~ Temperature + Light + Food + (1|Colony), data = ID.slope)
+```
+```{r}
+# plot light
+l=plot_model(m, 'pred', ci.lvl = 0.95, terms="Light")
+
+l +
+  theme_classic() +
+xlab("Light")+
+  ylab("Growth rate log(mass) (mg*day^-1)")+
+  ggtitle("")+
+  theme(axis.title.x = element_text(color="black", size=14, face="bold"),
+axis.title.y = element_text(color="black", size=14, face="bold"))+
+  theme(axis.text.x = element_text(size=14),
+          axis.text.y = element_text(size=14))
+```
+```{r}
+# plot temperature
+t=plot_model(m, 'pred', ci.lvl = 0.95, terms="Temperature")
+
+t +
+  theme_classic() +
+xlab("Temperature")+
+  ylab("Growth rate log(mass) (mg*day^-1)")+
+  ggtitle("")+
+  theme(axis.title.x = element_text(color="black", size=14, face="bold"),
+axis.title.y = element_text(color="black", size=14, face="bold"))+
+  theme(axis.text.x = element_text(size=14),
+          axis.text.y = element_text(size=14))
+```
+```{r}
+# plot food
+f=plot_model(m, 'pred', ci.lvl = 0.95, terms="Food")
+
+f +
+  theme_classic() +
+xlab("Food")+
+  ylab("Growth rate log(mass) (mg*day^-1)")+
+  ggtitle("")+
+  theme(axis.title.x = element_text(color="black", size=14, face="bold"),
+axis.title.y = element_text(color="black", size=14, face="bold"))+
+  theme(axis.text.x = element_text(size=14),
+          axis.text.y = element_text(size=14))
+```
+
+```{r}
+# Plot interactions  
+library(ggeffects)
+
+# Interaction plot model 
+int.m<-lmer(Slope ~ Temperature + Light + Food + (1|Colony), data = ID.slope)
+summary(int.m)
+
+dat2 <- ggemmeans(int.m, terms = c("Temperature", "Light", "Food")) #
+
+ggplot(dat2, aes(x,predicted, colour = group)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.3) +
+  labs(x = "Temperature", y = "Rate O2 Consumption (umol*min-1*g-1)",
+       color = "Light") +
+  facet_grid(~facet) +
+  ggtitle("") +
+  theme_classic() +
+  theme(axis.title.x = element_text(color="black", size=12),
+axis.title.y = element_text(color="black", size=12))+
+  theme(axis.text.x = element_text(size=12),
+          axis.text.y = element_text(size=12)) +
+  scale_color_manual(values=c("black", "goldenrod"))
+```
+
+
+###########################################################################################################################
+#
+#                                                 Format for merged metric datasheet
+#
+############################################################################################################################
+
+```{r}
+# load in data that includes mass on day 22 for NDF and NLF treatments (not used for analysis)
+all.mass.dat <- read.csv("~/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/growth.over.time.withNDF.NLF.day22.data.csv", header = TRUE)
+
+# switch to wide format
+wide.mass = all.mass.dat %>%
+  select(B.TAG, Day, Mass) %>%
+  spread(Day, Mass)
+```
+```{r}
+# load in all.data.merged
+all.data.merged <- read.csv("~/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/All.data.merged.csv", header=TRUE)
+names(all.data.merged)
+```
+
+```{r}
+# edit names of wide.mass
+names(wide.mass)[names(wide.mass) == "B.TAG"] <- "BTag" 
+names(wide.mass)[names(wide.mass) == "1"] <- "MassG.day0" 
+names(wide.mass)[names(wide.mass) == "8"] <- "MassG.day8" 
+names(wide.mass)[names(wide.mass) == "15"] <- "MassG.day15" 
+names(wide.mass)[names(wide.mass) == "22"] <- "MassG.day22" 
+```
+
+```{r}
+# add wide.mass to all.data.merged
+all.data.merged <- left_join(all.data.merged, wide.mass, by = "BTag")
+```
+```{r}
+# save merged data as a csv
+path <- "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-"
+write.csv(all.data.merged, file.path(path, "All.data.merged.csv"))
+```
+
+
+
+
+
+
+
+
+
+

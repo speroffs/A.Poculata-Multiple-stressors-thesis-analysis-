@@ -1,0 +1,1611 @@
+---
+title: "pam"
+author: "Sarah Speroff"
+date: "11/29/2021"
+output: html_document
+---
+
+###################################################################################################################################
+#
+#                                                           Data Prep
+#
+###################################################################################################################################
+
+```{r}
+# Libraries
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(ggthemes)
+library(RColorBrewer)
+library(lme4)
+library(performance)
+library(see)
+library(ggeffects)
+library(ggplot2)
+```
+
+```{r setup}
+setwd("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM")
+
+# load the data 
+#PAM.data <- read.csv("Full_Fv_Fm.data - FvFm.long.format.csv", header = TRUE)
+PAM.data <- read.csv("Full_Fv_Fm.data - Edited.FvFm.csv", header = TRUE) #edited dataframe without day 22 for NDF/NLF
+```
+
+```{r}
+# Inspect
+str(PAM.data)
+nrow(PAM.data)
+length(unique(PAM.data$B.Tag)) # should be 480 
+table(PAM.data$Sym.State) #should be even split
+```
+
+```{r}
+# Lots of NAs where a coral died mid-experiment
+PAM.data <- PAM.data[complete.cases(PAM.data),]
+nrow(PAM.data)
+
+# relevel to compare all to control 
+PAM.data$Treatment <- factor(PAM.data$Treatment, levels = c("control", "PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF"))
+```
+
+```{r}
+# change variables
+PAM.data$Day <- as.numeric(PAM.data$Day)
+PAM.data$Sump <- as.factor(PAM.data$Sump)
+PAM.data$Colony <- as.factor(PAM.data$Colony)
+PAM.data$Treatment <- as.factor(PAM.data$Treatment)
+PAM.data$Temperature <- as.factor(PAM.data$Temperature)
+PAM.data$Plastic <- as.factor(PAM.data$Plastic)
+PAM.data$Light <- as.factor(PAM.data$Light)
+PAM.data$Food <- as.factor(PAM.data$Food)
+PAM.data$Tank <- as.factor(PAM.data$Tank)
+PAM.data$Tile <- as.factor(PAM.data$Tile)
+PAM.data$Sym.State <- as.factor(PAM.data$Sym.State)
+PAM.data$B.Tag <- as.factor(PAM.data$B.Tag)
+```
+
+###################################################################################################################################
+#
+#                                                           Preliminary Data Visualization
+#
+###################################################################################################################################
+
+
+```{r}
+# Initial data visualization 
+# All treatments over time 
+
+all.plot <- 
+  ggplot(PAM.data, aes(Day, FvFm.AVG, color=Treatment)) +
+  geom_jitter(width=0.5, height=0, alpha=0.9) +
+  facet_wrap(vars(Treatment)) +
+  geom_smooth(method=loess) +
+ # stat_summary(geom="point", fun="mean", col="black") +
+  theme_bw() +
+  labs(x = "Day", y = "Photosynthetic Efficiency (Fv/Fm)",
+       color = "Treatment") +
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_text(color="black", size=12),
+        axis.title.y = element_text(color="black", size=12))+
+  theme(axis.text.x = element_text(size=12),
+        axis.text.y = element_text(size=12))
+
+all.plot + scale_color_brewer(palette="Spectral")
+
+# I do not understand what these errors are 
+
+```
+
+```{r}
+#### Sym vs Apo all treatments 
+
+state.plot <- 
+  ggplot(PAM.data, aes(Day, FvFm.AVG, color=Sym.State)) +
+  geom_jitter(width=0.3, height=0, alpha=0.9) +
+  facet_grid(vars(Temperature), vars(Sym.State)) +
+  geom_smooth(method=loess) +
+  stat_summary(geom="point", fun="mean", col="black") +
+  theme_bw() +
+  labs(x = "Symbiont State", y = "Photosynthetic Efficiency (Fv/Fm)",
+       color = "Symbiont State") +
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_text(color="black", size=12),
+        axis.title.y = element_text(color="black", size=12))+
+  theme(axis.text.x = element_text(size=12),
+        axis.text.y = element_text(size=12))
+
+state.plot + scale_color_brewer(palette="Set1")
+```
+
+```{r}
+##### All treatments over by time, Sym vs Apo
+
+day.plot <- 
+  ggplot(PAM.data, aes(Day, FvFm.AVG, color=Sym.State)) +
+  geom_jitter(width=0.3, height=0, alpha=0.8) +
+  facet_wrap(vars(Treatment)) +
+# stat_summary(geom="point", fun="mean", col="black") +
+  geom_smooth(method=loess) +
+  theme_bw() +
+  labs(x = "Day", y = "Photosynthetic Efficiency (Fv/Fm)",
+       color = "Symbiont State") +
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_text(color="black", size=12),
+        axis.title.y = element_text(color="black", size=12))+
+  theme(axis.text.x = element_text(size=12),
+        axis.text.y = element_text(size=12))
+
+day.plot + scale_color_brewer(palette="Set1")
+
+# Again, what are these errors?
+```
+
+###################################################################################################################################
+#
+#                                                           Visualize by Treatment 
+#
+###################################################################################################################################
+
+###################
+#
+# Ambient Control
+#
+###################
+
+```{r}
+# New df with just control variables 
+ctrl.data <- filter(PAM.data, Treatment == "control" )
+```
+```{r}
+ggplot(ctrl.data, aes(Treatment, FvFm.AVG, color=Sym.State)) +
+  geom_jitter(width=0.25, alpha=0.9) + 
+  #geom_errorbar(aes(ymin=FvFm.AVG-sd, ymax=FvFm.AVG+sd))
+  scale_color_brewer(palette="Set1") +
+  theme_bw()
+```
+
+############################
+#
+# Plastic / Dark / Starved
+#
+############################
+
+```{r}
+# New df with just Plastic/Dark/Starved variables 
+pds.data <- filter(PAM.data, Treatment == "PDS" )
+```
+```{r}
+# Summarize 
+library(Rmisc)
+pds.sum <- summarySE(pds.data, measurevar = "FvFm.AVG", groupvars = c("Day", "Sym.State"))
+```
+```{r}
+## PDS: compare apo and sym over time 
+ggplot(pds.sum, aes(as.factor(Day), FvFm.AVG, color=Sym.State, group=Sym.State)) +
+  geom_point() +  
+  geom_line () +
+  geom_errorbar(aes(ymin=FvFm.AVG-se, ymax=FvFm.AVG+se), width=0.2) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  labs(x = "\nDay", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+       caption = "") +
+  theme(legend.position = "",
+        legend.title = element_text(),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  ggtitle("PDS") +
+  theme_classic() 
+```
+
+### TRY A TUKEY HSD TEST ??
+
+############################
+#
+# Plastic / Light / Starved
+#
+############################
+
+```{r}
+# New df with just Plastic/Light/Starved variables 
+pls.data <- filter(PAM.data, Treatment == "PLS" )
+```
+```{r}
+# Summarize 
+pls.sum <- summarySE(pls.data, measurevar = "FvFm.AVG", groupvars = c("Day", "Sym.State"))
+```
+```{r}
+## PLS: compare apo and sym over time 
+ggplot(pls.sum, aes(as.factor(Day), FvFm.AVG, color=Sym.State, group=Sym.State)) +
+  geom_point() +  
+  geom_line () +
+  geom_errorbar(aes(ymin=FvFm.AVG-se, ymax=FvFm.AVG+se), width=0.2) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  labs(x = "\nDay", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+       caption = "") +
+  theme(legend.position = "",
+        legend.title = element_text(),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  ggtitle("PLS") +
+  theme_classic() 
+```
+
+############################
+#
+# No Plastic / Dark / Starved
+#
+############################
+
+```{r}
+# New df with just No Plastic/Dark/Starved variables 
+nds.data <- filter(PAM.data, Treatment == "NDS" )
+```
+```{r}
+# Summarize 
+nds.sum <- summarySE(nds.data, measurevar = "FvFm.AVG", groupvars = c("Day", "Sym.State"))
+```
+```{r}
+## NLS: compare apo and sym over time 
+ggplot(nds.sum, aes(as.factor(Day), FvFm.AVG, color=Sym.State, group=Sym.State)) +
+  geom_point() +  
+  geom_line () +
+  geom_errorbar(aes(ymin=FvFm.AVG-se, ymax=FvFm.AVG+se), width=0.2) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  labs(x = "\nDay", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+       caption = "") +
+  theme(legend.position = "",
+        legend.title = element_text(),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  ggtitle("NDS") +
+  theme_classic() 
+```
+
+############################
+#
+# No Plastic / Light / Starved
+#
+############################
+
+
+```{r}
+# New df with just No Plastic/Light/Starved variables 
+nls.data <- filter(PAM.data, Treatment == "NLS" )
+```
+```{r}
+# Summarize 
+nls.sum <- summarySE(nls.data, measurevar = "FvFm.AVG", groupvars = c("Day", "Sym.State"))
+```
+```{r}
+## NLS: compare apo and sym over time 
+ggplot(nls.sum, aes(as.factor(Day), FvFm.AVG, color=Sym.State, group=Sym.State)) +
+  geom_point() +  
+  geom_line () +
+  geom_errorbar(aes(ymin=FvFm.AVG-se, ymax=FvFm.AVG+se), width=0.2) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  labs(x = "\nDay", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+       caption = "") +
+  theme(legend.position = "",
+        legend.title = element_text(),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  ggtitle("NLS") +
+  theme_classic() 
+```
+
+############################
+#
+# Plastic / Dark / Fed
+#
+############################
+
+```{r}
+# New df with just Plastic/Dark/Fed variables 
+pdf.data <- filter(PAM.data, Treatment == "PDF" )
+```
+```{r}
+# Summarize 
+pdf.sum <- summarySE(pdf.data, measurevar = "FvFm.AVG", groupvars = c("Day", "Sym.State"))
+```
+```{r}
+## NLS: compare apo and sym over time 
+ggplot(pdf.sum, aes(as.factor(Day), FvFm.AVG, color=Sym.State, group=Sym.State)) +
+  geom_point() +  
+  geom_line () +
+  geom_errorbar(aes(ymin=FvFm.AVG-se, ymax=FvFm.AVG+se), width=0.2) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  labs(x = "\nDay", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+       caption = "") +
+  theme(legend.position = "",
+        legend.title = element_text(),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  ggtitle("PDF") +
+  theme_classic() 
+```
+
+############################
+#
+# Plastic / Light / Fed
+#
+############################
+
+```{r}
+# New df with just Plastic/Light/Fed variables 
+plf.data <- filter(PAM.data, Treatment == "PLF" )
+```
+```{r}
+# Summarize 
+plf.sum <- summarySE(plf.data, measurevar = "FvFm.AVG", groupvars = c("Day", "Sym.State"))
+```
+```{r}
+## NLS: compare apo and sym over time 
+ggplot(plf.sum, aes(as.factor(Day), FvFm.AVG, color=Sym.State, group=Sym.State)) +
+  geom_point() +  
+  geom_line () +
+  geom_errorbar(aes(ymin=FvFm.AVG-se, ymax=FvFm.AVG+se), width=0.2) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  labs(x = "\nDay", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+       caption = "") +
+  theme(legend.position = "",
+        legend.title = element_text(),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  ggtitle("PLF") +
+  theme_classic() 
+```
+
+############################
+#
+# No Plastic / Dark / Fed
+#
+############################
+
+```{r}
+# New df with just No Plastic/Dark/Fed variables 
+ndf.data <- filter(PAM.data, Treatment == "NDF" )
+```
+```{r}
+# Summarize 
+ndf.sum <- summarySE(ndf.data, measurevar = "FvFm.AVG", groupvars = c("Day", "Sym.State"))
+```
+```{r}
+## NLS: compare apo and sym over time 
+ggplot(ndf.sum, aes(as.factor(Day), FvFm.AVG, color=Sym.State, group=Sym.State)) +
+  geom_point() +  
+  geom_line () +
+  geom_errorbar(aes(ymin=FvFm.AVG-se, ymax=FvFm.AVG+se), width=0.2) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  labs(x = "\nDay", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+       caption = "") +
+  theme(legend.position = "",
+        legend.title = element_text(),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  ggtitle("NDF") +
+  theme_classic() 
+```
+
+############################
+#
+# No Plastic / Light / Fed
+#
+############################
+
+```{r}
+# New df with just No Plastic/Light/Fed variables - elevated temp control group
+nlf.data <- filter(PAM.data, Treatment == "NLF" )
+```
+```{r}
+# Summarize 
+nlf.sum <- summarySE(nlf.data, measurevar = "FvFm.AVG", groupvars = c("Day", "Sym.State"))
+```
+```{r}
+## NLS: compare apo and sym over time 
+ggplot(nlf.sum, aes(as.factor(Day), FvFm.AVG, color=Sym.State, group=Sym.State)) +
+  geom_point() +  
+  geom_line () +
+  geom_errorbar(aes(ymin=FvFm.AVG-se, ymax=FvFm.AVG+se), width=0.2) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  labs(x = "\nDay", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+       caption = "") +
+  theme(legend.position = "",
+        legend.title = element_text(),
+        axis.title = element_text(size = 12),
+        legend.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12)) +
+  ggtitle("NLF") +
+  theme_classic() 
+```
+
+####################
+#
+# All Toghther now
+#
+####################
+
+```{r}
+# Let's calculate the descriptive statistics to plot 
+library(dplyr)
+pamstats <- PAM.data %>% 
+  group_by(Treatment, Sym.State, Day) %>% 
+  summarize( Min = min(FvFm.AVG),
+             Max = max(FvFm.AVG),
+             Mean = mean(FvFm.AVG),
+             SD = sd(FvFm.AVG), 
+             N = length(FvFm.AVG)
+  )
+pamstats
+```
+```{r}
+# plot them
+stat.plot <- 
+  ggplot(pamstats, aes(Day, Mean, color=Sym.State)) +
+  geom_line(aes(linetype=Sym.State, color=Sym.State)) +
+  geom_point(aes(color=Sym.State)) +
+  geom_errorbar(aes(ymin=Mean-SD, ymax=Mean+SD), 
+                width=0.2, position=position_dodge(0.05)) +
+  facet_wrap(vars(Treatment)) +
+  labs(x = "Day", y = "Photosynthetic Efficiency (Fv/Fm)", color="Sym State") +
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_text(color="black", size=12),
+        axis.title.y = element_text(color="black", size=12))+
+  theme(axis.text.x = element_text(size=12),
+        axis.text.y = element_text(size=12))+
+  theme_bw()
+
+stat.plot + scale_color_manual(values=c("burlywood3", "coral4"))
+
+```
+
+```{r}
+## ALTERNATIVELY, can calculate using the summary se function 
+
+# summarise
+pam_treatmeans <- summarySE(PAM.data, measurevar="FvFm.AVG", groupvars=c("Treatment", "Day", "Sym.State")) 
+pam_treatmeans
+```
+```{r}
+# plot it 
+ggplot(data = pam_treatmeans, 
+         aes(x = Day, 
+             y = FvFm.AVG, 
+             color=Sym.State)) +
+  geom_line(aes(color=Sym.State)) +
+  geom_point(aes(color=Sym.State)) +
+  geom_errorbar(aes(ymin=FvFm.AVG-se, 
+                    ymax=FvFm.AVG+se), # SEM error bars
+                width=0.2, position=position_dodge(0.05)) +
+  
+  theme_classic() +
+  facet_wrap(vars(Treatment)) +
+  labs(x = "\nDay", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+       caption = "") +
+  theme(legend.position = "right") +
+  theme(axis.title.x = element_text(color="black", size=12),
+        axis.title.y = element_text(color="black", size=12))+
+  theme(axis.text.x = element_text(size=12),
+        axis.text.y = element_text(size=12)) +
+  scale_color_manual(values = c("tan", "coral4")) 
+```
+
+
+```{r}
+# Calculate rate of change in FvFm by treatment, ignoring sym state
+#summarize
+pam_daymeans <- summarySE(PAM.data, measurevar="FvFm.AVG", groupvars=c("Treatment", "Day"))
+```
+```{r}
+# Plot
+  ggplot(NULL, aes(Day, FvFm.AVG, color = Treatment)) +
+  geom_jitter(data = PAM.data, width = 0.5, alpha = 0.8) +
+  stat_smooth(data = pam_daymeans, method="lm", se=FALSE) +
+  geom_point(data = pam_daymeans, method = "lm", color = "black") +
+  geom_errorbar(data = pam_daymeans, aes(ymin=FvFm.AVG-sd, ymax=FvFm.AVG+sd), # SEM error bars
+                width=0.2, position=position_dodge(0.05), color = "black") +
+  facet_wrap(vars(Treatment)) +
+  labs(x = "\nDay", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+       caption = "") +
+  theme(legend.position = "right") +
+  theme(axis.title.x = element_text(color="black", size=12),
+        axis.title.y = element_text(color="black", size=12))+
+  theme(axis.text.x = element_text(size=12),
+        axis.text.y = element_text(size=12)) +
+  labs(x = "Day", y = "Photosynthetic Efficiency (Fv/Fm)", color="Treatment") +
+  scale_color_manual(name = "",values = c("#131513", "#E02D00", "#FF7E33", 
+                                                   "#D6A70A", "#ECDD09", "#075F3C", 
+                                                   "#7BB12F", "#35516E", "#3F88C5")) +
+  theme_classic()
+
+```
+```{r}
+# Extract slopes 
+by_treat <- group_by(PAM.data, Treatment)
+
+# Create a df with the parameter coefficients of every treatment Linear model 
+fvfm.rates <- 
+  do(by_treat, 
+   tidy(                     
+     lm(FvFm.AVG~Day, data= .)))
+fvfm.rates
+
+# keep the intercept term 
+fvfm.rates <- filter(fvfm.rates, term == "Day")
+#rename the estimate 
+names(fvfm.rates)[names(fvfm.rates) == "estimate"] <- "Slope"
+
+fvfm.rates
+```
+
+```{r}
+# Plot without the lm 
+  ggplot(pam_daymeans, 
+         aes(x = Day, 
+             y = FvFm.AVG,
+             color = Treatment)) +
+  geom_point() +
+  geom_line () +
+  geom_errorbar(data = pam_daymeans, 
+                aes(ymin = FvFm.AVG-se,
+                    ymax = FvFm.AVG+se,
+                    color = Treatment),
+                width=0.2, position=position_dodge(0.05)) +
+  facet_wrap(vars(Treatment)) +
+  labs(x = "\nDay", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+       caption = "") +
+  theme(legend.position = "") +
+  theme(axis.title.x = element_text(color="black", size=12),
+        axis.title.y = element_text(color="black", size=12))+
+  theme(axis.text.x = element_text(size=12),
+        axis.text.y = element_text(size=12)) +
+  labs(x = "Day", y = "Photosynthetic Efficiency (Fv/Fm)", color="Treatment") +
+  scale_color_manual(name = "",values = c("#131513", "#E02D00", "#FF7E33", 
+                                                   "#D6A70A", "#ECDD09", "#075F3C", 
+                                                   "#7BB12F", "#35516E", "#3F88C5")) +
+  theme_classic()
+
+```
+
+###################################################################################################################################
+#
+#                                                           Data Investigation
+#
+###################################################################################################################################
+
+```{r}
+# plot the distribution of the average pam values for all treatments and times 
+par(mfrow=c(1,1)) 
+hist(PAM.data$FvFm.AVG)
+```
+```{r}
+# Now let's take a look at our quantiles  
+par(mfrow=c(1,2))
+hist(PAM.data$FvFm.AVG, main="Fv/Fm")
+qqnorm(PAM.data$FvFm.AVG, main="Fv/FM")
+qqline(PAM.data$FvFm.AVG) # looks like a decent fit overall ? despite the stray points near the corners 
+```
+
+```{r}
+# summarise pam values 
+summary(PAM.data$FvFm.AVG)
+
+# interquartile range: 3rd - 1st q
+# 0.27 - 0.11  = 0.16
+# outlier rule of thumb: an outlier is > 1.5x the interquartile range above the 3rd
+# or below the 1st quartile 
+# for our data, outliers would be less than -0.08 or grater than 0.4
+# so according to this, we have some outliers greater than 0.4
+```
+
+#################
+#
+#   Sym.State   
+#
+#################
+```{r}
+# remove ambient controls from data
+exp.treat <- filter(PAM.data, Treatment != "control")
+```
+
+```{r}
+# Let's run a simple lm to see if sym.state affects FvFm
+sym.lm <- lm(FvFm.AVG~Sym.State, data= exp.treat)
+summary(sym.lm)
+```
+```{r}
+# plot the results of that lm
+par(mfrow=c(2,2))
+plot(sym.lm) 
+```
+```{r}
+# extract and plot the residuals 
+res <- residuals(sym.lm)
+hist(res)
+
+# seems like our data is skewed a bit, not quite normal, but is acceptable without transformation?
+```
+```{r}
+# Visualize the difference between sym state 
+ggplot(exp.treat, aes(Sym.State, FvFm.AVG)) +
+  geom_jitter(width = 0.25, height=0.25, alpha=0.6, aes(color=Sym.State))+
+  stat_summary(geom="point", fun="mean", col="black") +
+  scale_color_manual(values = c("tan", "coral4")) +
+  labs(x = "\nDay", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "Photosynthetic efficiency for all experimental treatments; exclused ambient controls" ) +
+  theme_classic() 
+```
+
+```{r}
+# Let's run a simple lm to see if sym.state affects FvFm
+sym.lm2 <- lm(FvFm.AVG~Sym.State*Day, data= exp.treat)
+summary(sym.lm2)
+```
+```{r}
+# plot over time 
+state.sum <- summarySE(exp.treat, measurevar="FvFm.AVG", groupvars=c("Sym.State", "Day"))
+
+ggplot(data = state.sum,
+       aes(x = Day,
+           y = FvFm.AVG,
+           color = Sym.State)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(data = state.sum, 
+                aes(ymin = FvFm.AVG-se,
+                    ymax = FvFm.AVG+se,
+                    color = Sym.State),
+                width=0.2) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  labs(x = "\nDay", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "Photosynthetic efficiency over time for all experimental treatments; exclused ambient controls" ) +
+  theme_classic() 
+```
+
+
+#################
+#
+#    Plastic   
+#
+#################
+
+```{r}
+# Plastic
+plastic.lm <- lm(FvFm.AVG~Plastic, data=exp.treat)
+summary(plastic.lm)
+```
+```{r}
+# plot
+par(mfrow=c(2,2))
+plot(plastic.lm) 
+```
+```{r}
+# plot residuals 
+plastic.res <- resid(plastic.lm)
+hist(plastic.res)
+```
+```{r}
+# Visualize the difference between plastics 
+ggplot(exp.treat, aes(Plastic, FvFm.AVG)) +
+  geom_jitter(width = 0.25, height=0.25, alpha=0.6, aes(color=Plastic))+
+  stat_summary(geom="point", fun="mean", col="black") +
+  scale_color_manual(values = c("black", "darkgreen")) +
+  labs(x = "\nDay", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "Photosynthetic efficiency for all experimental treatments; exclused ambient controls" ) +
+  theme_classic() 
+```
+
+```{r}
+# Let's run a simple lm to see if plastic and day affects FvFm
+plastic.lm2 <- lm(FvFm.AVG~Plastic*Day, data= exp.treat)
+summary(plastic.lm2)
+```
+```{r}
+# plot over time 
+plastic.sum <- summarySE(exp.treat, measurevar="FvFm.AVG", groupvars=c("Plastic", "Day"))
+
+ggplot(data = plastic.sum,
+       aes(x = Day,
+           y = FvFm.AVG,
+           color = Plastic)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(data = plastic.sum, 
+                aes(ymin = FvFm.AVG-se,
+                    ymax = FvFm.AVG+se,
+                    color = Plastic),
+                width=0.2) +
+  scale_color_manual(values = c("black", "darkgreen")) +
+  labs(x = "\nDay", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "Photosynthetic efficiency over time for all experimental treatments; exclused ambient controls" ) +
+  theme_classic() 
+```
+
+#################
+#
+#     Light   
+#
+#################
+
+```{r}
+# Light
+light.lm <- lm(FvFm.AVG~Light, data=exp.treat)
+summary(light.lm)
+```
+```{r}
+# plot
+par(mfrow=c(2,2))
+plot(light.lm)
+```
+```{r}
+# plot residuals 
+light.res <- resid(light.lm)
+hist(light.res)
+```
+```{r}
+# Visualize the difference between plastics 
+ggplot(exp.treat, aes(Light, FvFm.AVG)) +
+  geom_jitter(width = 0.25, height=0.25, alpha=0.6, aes(color=Light))+
+  stat_summary(geom="point", fun="mean", col="black") +
+  scale_color_manual(values = c("black", "goldenrod")) +
+  labs(x = "\nDay", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "Photosynthetic efficiency for all experimental treatments; exclused ambient controls" ) +
+  theme_classic() 
+
+# would have expected to see the greatest difference here due to difference in zoox density in apo vs sym
+```
+
+```{r}
+# Let's run a simple lm to see if light and day affects FvFm
+light.lm2 <- lm(FvFm.AVG~Light*Day, data= exp.treat)
+summary(light.lm2)
+```
+```{r}
+# plot over time 
+light.sum <- summarySE(exp.treat, measurevar="FvFm.AVG", groupvars=c("Light", "Day"))
+
+ggplot(data = light.sum,
+       aes(x = Day,
+           y = FvFm.AVG,
+           color = Light)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(data = light.sum, 
+                aes(ymin = FvFm.AVG-se,
+                    ymax = FvFm.AVG+se,
+                    color = Light),
+                width=0.2) +
+  scale_color_manual(values = c("black", "goldenrod")) +
+  labs(x = "\nDay", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "Photosynthetic efficiency over time for all experimental treatments; exclused ambient controls" ) +
+  theme_classic() 
+```
+
+```{r}
+# Let's run a simple lm to see if light, phenotype and day affects FvFm
+light.lm3 <- lm(FvFm.AVG~Light*Day*Sym.State, data= exp.treat)
+summary(light.lm3)
+```
+```{r}
+# plot over time 
+light.sum2 <- summarySE(exp.treat, measurevar="FvFm.AVG", groupvars=c("Light", "Day", "Sym.State"))
+
+ggplot(data = light.sum2,
+       aes(x = Day,
+           y = FvFm.AVG,
+           color = Sym.State)) +
+  geom_point() +
+  geom_line() +
+  facet_grid(~Light) +
+  geom_errorbar(data = light.sum2, 
+                aes(ymin = FvFm.AVG-se,
+                    ymax = FvFm.AVG+se),
+                width=0.2) +
+  scale_color_manual(values = c("tan", "coral4")) +
+  labs(x = "\nDay", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "Photosynthetic efficiency over time for all experimental treatments; exclused ambient controls" ) +
+  theme_classic() 
+```
+
+```{r}
+# Let's run a simple lm to see if light and day affects FvFm
+light.lm2 <- lm(FvFm.AVG~Light*Day, data= exp.treat)
+summary(light.lm2)
+```
+```{r}
+# plot over time 
+light.sum <- summarySE(exp.treat, measurevar="FvFm.AVG", groupvars=c("Light", "Day"))
+
+ggplot(data = light.sum,
+       aes(x = Day,
+           y = FvFm.AVG,
+           color = Light)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(data = light.sum, 
+                aes(ymin = FvFm.AVG-se,
+                    ymax = FvFm.AVG+se,
+                    color = Light),
+                width=0.2) +
+  scale_color_manual(values = c("black", "goldenrod")) +
+  labs(x = "\nDay", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "Photosynthetic efficiency over time for all experimental treatments; exclused ambient controls" ) +
+  theme_classic() 
+```
+
+#################
+#
+#     Food   
+#
+#################
+
+```{r}
+# Food
+food.lm <- lm(FvFm.AVG~Food, data=exp.treat)
+summary(food.lm)
+```
+```{r}
+# plot
+par(mfrow=c(2,2))
+plot(food.lm)
+```
+```{r}
+# plot residuals 
+food.res <- resid(food.lm)
+hist(food.res)
+```
+```{r}
+# Visualize the difference between feeding 
+ggplot(exp.treat, aes(Food, FvFm.AVG)) +
+  geom_jitter(width = 0.25, height=0.25, alpha=0.6, aes(color=Food))+
+  stat_summary(geom="point", fun="mean", col="black") +
+  scale_color_manual(values = c("brown", "darkgrey")) +
+  labs(x = "\nDay", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "Photosynthetic efficiency for all experimental treatments; exclused ambient controls" ) +
+  theme_classic() 
+```
+
+```{r}
+# Let's run a simple lm to see if light and day affects FvFm
+food.lm2 <- lm(FvFm.AVG~Food*Day, data= exp.treat)
+summary(food.lm2)
+```
+```{r}
+# plot over time 
+food.sum2 <- summarySE(exp.treat, measurevar="FvFm.AVG", groupvars=c("Food", "Day"))
+
+ggplot(data = food.sum2,
+       aes(x = Day,
+           y = FvFm.AVG,
+           color = Food)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(data = food.sum2, 
+                aes(ymin = FvFm.AVG-se,
+                    ymax = FvFm.AVG+se,
+                    color = Food),
+                width=0.2) +
+  scale_color_manual(values = c("brown", "darkgrey")) +
+  labs(x = "\nDay", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "Photosynthetic efficiency over time for all experimental treatments; exclused ambient controls" ) +
+  theme_classic() 
+```
+#################
+#
+#    Temperature   
+#
+#################
+
+```{r}
+# Temperature
+temperature.lm <- lm(FvFm.AVG~Temperature, data=PAM.data)
+summary(temperature.lm)
+```
+```{r}
+# plot
+par(mfrow=c(2,2))
+plot(temperature.lm) 
+```
+```{r}
+# plot residuals 
+temperature.res <- resid(temperature.lm)
+hist(temperature.res)
+```
+```{r}
+# Visualize the difference between temp 
+ggplot(PAM.data, aes(Temperature, FvFm.AVG)) +
+  geom_jitter(width = 0.25, height=0.25, alpha=0.6, aes(color=Temperature))+
+  stat_summary(geom="point", fun="mean", col="black") +
+  scale_color_manual(values = c("blue", "red")) +
+  labs(x = "\nDay", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "Photosynthetic efficiency for all treatments" ) +
+  theme_classic() 
+
+# fewer data observations in ambient bc only recorded for 158 individuals on day 22
+```
+
+```{r}
+# separate out day 22
+temp.dat <- filter(PAM.data, Day == "22")
+
+temp.lm2 <-lm(FvFm.AVG ~ Temperature, data = temp.dat)
+summary(temp.lm2)
+```
+```{r}
+# Visualize the difference between temp 
+ggplot(temp.dat, aes(Temperature, FvFm.AVG)) +
+  geom_jitter(width = 0.25, height=0.25, alpha=0.6, aes(color=Temperature))+
+  stat_summary(geom="point", fun="mean", col="black") +
+  scale_color_manual(values = c("blue", "red")) +
+  labs(x = "\nDay", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+      caption = "Photosynthetic efficiency for all treatments" ) +
+  theme_classic() 
+
+# fewer data observations in ambient bc only recorded for 158 individuals on day 22
+```
+
+
+###################################################################################################################################
+#
+#                                                             Mixed Effects Linear Models HERE
+#
+###################################################################################################################################
+
+```{r}
+#devtools::install_github("dustinfife/flexplot", ref="development")
+library(flexplot)
+```
+
+```{r}
+# Let's test null models against all of our potential random effects to see how much variation is due to cluster effects within that group ()
+
+m0 <- lmer(FvFm.AVG ~ 1 + (1|B.Tag), data=PAM.data)
+icc(m0) 
+# 3.2% 
+visualize(m0)
+```
+```{r}
+m0.1 <- lmer(FvFm.AVG~1 + (1|Colony), data=PAM.data)
+icc(m0.1)
+# 32%
+visualize(m0.1)
+```
+```{r}
+m0.2 <- lmer(FvFm.AVG~1 + (1|Tile), data=PAM.data)
+icc(m0.2)
+# 33%
+visualize(m0.2)
+```
+```{r}
+m0.3 <- lmer(FvFm.AVG~1 + (1|Tank), data=PAM.data)
+icc(m0.3)
+# 5%
+visualize(m0.3)
+```
+```{r}
+m0.4 <- lmer(FvFm.AVG~1 + (1|Sump), data=PAM.data)
+icc(m0.4)
+# 12%
+visualize(m0.4)
+```
+```{r}
+m0.5 <- lmer(FvFm.AVG~1 + (1|Day), data=PAM.data)
+icc(m0.5)
+# 5%
+visualize(m0.5)
+```
+
+```{r}
+### Those null models suggest that mixed models should be used with Colony, Tile, Sump, and potentially B. Tag as random effects. Although the variation in fvfm values is not highly correlated with B.Tag, this should account for the repeat measures of the individual polyps throughout the experiment 
+```
+
+# Let's take another look at the models based on Theresa's advice about singular fit
+
+```{r}
+library(lmerTest)
+
+# this is our null
+m0 <- lmer(FvFm.AVG ~ 1 + (1|B.Tag), REML = TRUE, data=PAM.data)
+summary(m0)
+```
+
+```{r}
+# Full model of just Stressors
+m.full <-lmer(FvFm.AVG ~ Plastic + Food + Light + Temperature + (1|B.Tag), REML = TRUE,  data=PAM.data)
+summary(m.full)
+```
+```{r}
+# Drop Light from model m.full because it is non-significant
+m1 <- lmer(FvFm.AVG ~ Plastic + Food + Temperature + (1|B.Tag), REML = TRUE, data=PAM.data)
+summary(m1)
+```
+```{r}
+# run an anova to perform the log likelihood test between the two models (with and with out the light factor)
+anova(m.full, m1)
+# M1 better (higher AIC) - good to drop light
+# p vaule needs to be < 0.05 to justify keeping the more complex model
+```
+```{r}
+# Drop plastic (next least significant value) 
+m2 <- lmer(FvFm.AVG ~ Food + Temperature + (1|B.Tag), REML = TRUE, data = PAM.data)
+summary(m2)
+```
+```{r}
+anova(m1, m2) 
+# not significantly different - AIC scores almost identical for M1 and M2 and p< 0.05. we should keep plastic in our model. 
+```
+
+
+```{r}
+# Now let's look at how sym.state and time might affect FvFm - full model with all stressors +
+m3 <- lmer(FvFm.AVG ~ Plastic + Food + Light + Temperature + Sym.State + Day + (1|B.Tag), REML = TRUE, data=PAM.data)
+summary(m3)
+```
+```{r}
+# Drop Light
+m4 <- lmer(FvFm.AVG ~ Plastic + Food + Temperature + Sym.State + Day + (1|B.Tag), REML = TRUE, data = PAM.data)
+summary(m4)
+```
+```{r}
+anova(m3, m4) # reduced model m4 is better
+```
+```{r}
+# drop next insignificant term, plastic
+m5 <- lmer(FvFm.AVG ~ Food + Temperature + Sym.State + Day + (1|B.Tag), REML = TRUE, data = PAM.data)
+summary(m5)
+```
+```{r}
+anova(m4, m5) # p > 0.05, can drop plastic from this model, (M5)
+```
+```{r}
+# drop next insignificant term, food
+m6 <- lmer(FvFm.AVG ~ Temperature + Sym.State + Day + (1|B.Tag), REML = TRUE, data = PAM.data)
+summary(m6) # all terms significant 
+```
+```{r}
+anova(m5, m6) # p > 0.05, drop food, (M6)
+```
+
+```{r}
+anova(m1, m6) # M6 better; Temp, Sym.State + Day
+```
+
+```{r}
+# Let's take a look at interactions between variables that might impact FvFm: start with a full model that includes every interaction
+m7 <- lmer(FvFm.AVG ~ Plastic + Food + Light + Temperature + Sym.State + Day +
+             Plastic*Food + Plastic*Light + Plastic*Temperature + Plastic*Sym.State + Plastic*Day +
+             Food*Light + Food*Temperature + Food*Sym.State + Food*Day +
+             Light*Temperature + Light*Sym.State + Light*Day +
+             Temperature*Sym.State + Temperature*Day +
+             Sym.State*Day +
+             (1|B.Tag), REML = TRUE, data = PAM.data)
+summary(m7)
+```
+```{r}
+# Drop Plastic*Day
+
+m8 <- lmer(FvFm.AVG ~ Plastic + Food + Light + Temperature + Sym.State + Day +
+             Plastic*Food + Plastic*Light + Plastic*Temperature + Plastic*Sym.State +
+             Food*Light + Food*Temperature + Food*Sym.State + Food*Day +
+             Light*Temperature + Light*Sym.State + Light*Day +
+             Temperature*Sym.State + Temperature*Day +
+             Sym.State*Day +
+             (1|B.Tag), REML = TRUE, data = PAM.data)
+summary(m8)
+```
+```{r}
+anova(m7, m8) #M8 better
+```
+```{r}
+# Drop food:day
+
+m9 <- lmer(FvFm.AVG ~ Plastic + Food + Light + Temperature + Sym.State + Day +
+             Plastic*Food + Plastic*Light + Plastic*Temperature + Plastic*Sym.State +
+             Food*Light + Food*Temperature + Food*Sym.State  +
+             Light*Temperature + Light*Sym.State + Light*Day +
+             Temperature*Sym.State + Temperature*Day +
+             Sym.State*Day +
+             (1|B.Tag), REML = TRUE, data = PAM.data)
+summary(m9)
+```
+```{r}
+anova(m8, m9) # p > 0.05, M9
+```
+```{r}
+# Drop light:day
+
+m10 <- lmer(FvFm.AVG ~ Plastic + Food + Temperature + Sym.State + Day +
+             Plastic*Food + Plastic*Light + Plastic*Temperature + Plastic*Sym.State +
+             Food*Light + Food*Temperature + Food*Sym.State + Food*Day +
+             Light*Temperature + Light*Sym.State  +
+             Temperature*Sym.State + Temperature*Day +
+             Sym.State*Day +
+             (1|B.Tag), REML = TRUE, data = PAM.data)
+summary(m10)
+```
+```{r}
+anova(m9, m10) #p > 0.05, m10
+```
+```{r}
+# Drop food:day
+
+m11 <- lmer(FvFm.AVG ~ Plastic + Food + Temperature + Sym.State + Day +
+             Plastic*Food + Plastic*Light + Plastic*Temperature + Plastic*Sym.State +
+             Food*Light + Food*Temperature + Food*Sym.State +
+             Light*Temperature + Light*Sym.State  +
+             Temperature*Sym.State + Temperature*Day +
+             Sym.State*Day +
+             (1|B.Tag), REML = TRUE, data = PAM.data)
+summary(m11)
+```
+```{r}
+anova(m10, m11) #p > 0.05, m11
+```
+```{r}
+# Drop plastic:light
+
+m12 <- lmer(FvFm.AVG ~ Plastic + Food + Temperature + Sym.State + Day +
+             Plastic*Food  + Plastic*Temperature + Plastic*Sym.State +
+             Food*Light + Food*Temperature + Food*Sym.State +
+             Light*Temperature + Light*Sym.State  +
+             Temperature*Sym.State + Temperature*Day +
+             Sym.State*Day +
+             (1|B.Tag), REML = TRUE, data = PAM.data)
+summary(m12)
+```
+```{r}
+anova(m11, m12) #p > 0.05, m11
+```
+
+```{r}
+install.packages("AICcmodavg")
+library(AICcmodavg)
+
+models1 <- list(m1, m2, m3)
+aictab(cand.set = models1, modnames = models1)
+AIC(m1, m2, m3, m4, m5 , m6) #M6
+AIC(m7, m8, m9, m10, m11, m12) # m12
+anova(m6, m12) # m12
+
+```
+
+```{r}
+library(performance)
+r2(m12)
+confint(m12)
+
+library(see)
+check_model(m12)
+check_collinearity(m12)
+check_outliers(m12)
+```
+```{r}
+# remove varialbes with high colinearity 
+# Drop temperature:sym.state
+
+m13 <- lmer(FvFm.AVG ~ Plastic + Food + Temperature + Sym.State + Day +
+             Plastic*Food  + Plastic*Temperature + Plastic*Sym.State +
+             Food*Light + Food*Temperature + Food*Sym.State +
+             Light*Temperature + Light*Sym.State  +
+             Temperature*Day +
+             Sym.State*Day +
+             (1|B.Tag), REML = TRUE, data = PAM.data)
+summary(m13)
+```
+```{r}
+anova(m12, m13)
+```
+```{r}
+# Drop sym.state:day
+
+m14 <- lmer(FvFm.AVG ~ Plastic + Food + Temperature + Sym.State + Day +
+             Plastic*Food  + Plastic*Temperature + Plastic*Sym.State +
+             Food*Light + Food*Temperature + Food*Sym.State +
+             Light*Temperature + Light*Sym.State  +
+             Temperature*Day +
+             (1|B.Tag), REML = TRUE, data = PAM.data)
+summary(m14)
+```
+```{r}
+anova(m13, m14)
+```
+```{r}
+# Drop sym.state:light
+
+m15 <- lmer(FvFm.AVG ~ Plastic + Food + Temperature + Sym.State + Day +
+             Plastic*Food  + Plastic*Temperature + Plastic*Sym.State +
+             Food*Light + Food*Temperature + Food*Sym.State +
+             Light*Temperature + 
+             Temperature*Day +
+             (1|B.Tag), REML = TRUE, data = PAM.data)
+summary(m15)
+```
+```{r}
+anova(m14, m15)
+```
+```{r}
+AIC(m12, m13, m14, m15) #M15
+```
+```{r}
+r2(m15)
+confit(m15)
+confint(m15)
+check_model(m15)
+check_collinearity(m15)
+check_outliers(m15)
+```
+
+```{r}
+# plot model predictions
+# model plots
+
+library('performance')
+library('insight')
+library('sjstats')
+library('sjPlot')
+library('effects')
+library('ggplot2')
+
+m <- lmer(FvFm.AVG ~ Plastic + Food + Temperature + Sym.State + Day +
+             Plastic*Food  + Plastic*Temperature + Plastic*Sym.State +
+             Food*Light + Food*Temperature + Food*Sym.State +
+             Light*Temperature + Temperature*Day +
+             (1|B.Tag), REML = TRUE, data = PAM.data)
+
+p=plot_model(m, 'pred', ci.lvl = 0.95, terms="sym.state")
+```
+
+```{r}
+# Question: is the affect of treatment symbiont-dependent
+
+ggplot(PAM.data, aes(Sym.State, FvFm.AVG, color = Sym.State)) +
+  geom_boxplot() + 
+  facet_wrap(vars(Treatment)) +
+  scale_color_manual(values=c("burlywood3", "coral4")) +
+  labs(x = "State", y = "Photosynthetic Efficiency (Fv/Fm)", color="Sym State") +
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_text(color="black", size=12),
+        axis.title.y = element_text(color="black", size=12))+
+  theme(axis.text.x = element_text(size=12),
+        axis.text.y = element_text(size=12))+
+  theme_bw()
+
+# Does not appear so: there is high similarity of fvfm response values between apo and sym in the same treatment outside of the ambient control conditions 
+```
+
+```{r}
+# Do we see the same results of our full when we use the Treatment ID rather than it's component parts
+m.treat <- lmer(FvFm.AVG ~ Treatment + Sym.State + (1|B.Tag), data = PAM.data)
+summary(m.treat)
+
+anova(m.full, m.treat)
+```
+
+#####################
+#
+#     Check model       
+#
+#####################
+
+```{r}
+# We'll look at m4
+
+plot(m1) # hmm
+check_collinearity(m1) # good
+check_outliers(m1) # good
+check_heteroscedasticity(m1) # not good
+check_homogeneity(m1) # not good
+check_model(m1) 
+
+library(sjPlot)
+plot_model(m1, "eff") # plots the predicted effects of each variable on fvfm 
+plot_model(m1, type="re") # plots random effects 
+
+```
+
+#####
+#
+#   Run a binomial logistic regression with a decision boundary for the FvFm on Apo vs Sym fragments in the Ambient Control group - DO WITH RGB DATA *****
+#
+#####
+
+```{r}
+# As a reminder, this is the figure we are working off 
+ggplot(ctrl.data, aes(Treatment, FvFm.AVG, color=Sym.State)) +
+  geom_jitter(width=0.25, alpha=0.9) + 
+  #geom_errorbar(aes(ymin=FvFm.AVG-sd, ymax=FvFm.AVG+sd))
+  scale_color_brewer(palette="Set1") +
+  theme_bw()
+```
+
+```{r}
+# Let's add a column to our ctrl df based on sym state where 1 = Sym and 0 = Apo
+ctrl.data$Success <- NA
+for(i in 1:nrow(ctrl.data))
+{if(ctrl.data[i,12]=="Sym")ctrl.data[i,15]="1"else ctrl.data[i,15]="0"}
+```
+
+```{r}
+# Let's fit the model
+ctrl.data$Success <- as.numeric(ctrl.data$Success)
+ctrl.binom <- glm(FvFm.AVG~Success, data = ctrl.data, family = "quasibinomial")
+ctrl.binom
+summary(ctrl.binom)
+```
+```{r}
+anova(ctrl.binom, test="Chisq")
+```
+
+```{r}
+# Plot the logistic regression output 
+
+ggplot(ctrl.data, aes(FvFm.AVG, Success)) +
+  geom_point() + 
+  scale_color_brewer(palette="Set1") +
+  theme_bw() +
+  stat_smooth(method = "glm", 
+              method.args = list(family = "quasibinomial"), se = FALSE)
+```
+
+```{r}
+# Let's look at our model predictions 
+
+```
+
+```{r}
+lr.int <- -coef(ctrl.binom)[1]/coef(ctrl.binom)[3]
+lr.slope <- -coef(ctrl.binom)[2]/coef(ctrl.binom)[3]
+ggplot(ctrl.data, aes(x = Sym.State, y = FvFm.AVG)) + 
+  geom_jitter(aes(color = Sym.State, width=0.3)) + 
+  geom_abline(intercept = lr.int, slope = lr.slope)
+```
+
+```{r}
+plot <- 
+  ggplot(ctrl.data, aes(1, FvFm.AVG)) +
+  geom_point(aes(col=Sym.State), size = 0.5)+
+  scale_color_manual(values = c("tan", "black")) +
+  labs(x="", y="") +
+  theme_bw() +
+  coord_equal () 
+
+plot + geom_line(data=db.data, aes(x=x, y=y))
+```
+
+
+```{r}
+b = coef(ctrl.binom)
+slope = -b[2]/b[3]
+int = -b[1]/b[3]
+
+ctrl.data %>% 
+  ggplot(aes(Treatment, FvFm.AVG, color = Sym.State))+
+  geom_point()+
+  geom_jitter(width=0.25, alpha=0.9) + 
+  geom_abline(aes(slope = slope, intercept=int), color = 'black')
+```
+
+
+##############################################################################################################
+#
+#     A potential solution to the issue of singularity in the model: Bayesian linear mixed model framework          
+#
+###############################################################################################################
+
+```{r}
+# libraries
+library(rstanarm)
+library(bayestestR)
+library(insight)
+```
+
+```{r}
+# Fit the same model (m4) but using the bayesian method
+
+m.bay <- stan_glmer(FvFm.AVG ~ Plastic + Food + Sym.State + 
+             (1|B.Tag) + (1|Colony) + (1|Tile) + (1|Day), data = PAM.data)
+```
+```{r}
+# extract parameters
+posteriors <- describe_posterior(m.bay)
+print_md(posteriors, digits=2)
+```
+```{r}
+#extract parameters (ie. coefficients) for plotting
+postt <- insight::get_parameters(m.bay)
+head(postt)
+nrow(postt)
+```
+
+```{r}
+# visualize posterior distribution for Plastic
+p <- ggplot(postt, aes(x=PlasticPlastic)) +
+  geom_density(fill="darkgreen")
+p
+```
+```{r}
+# Extract posterior values 
+mean(postt$PlasticPlastic)
+median(postt$PlasticPlastic)
+map_estimate(postt$PlasticPlastic) # MAP (maximum A posteriori) is equivalent to mode (ie the peak of distribution)
+
+# extract HDI values (highest density interval - range containing the 98% most probable effect values), similar to CI%
+hdi(postt$PlasticPlastic, ci= 0.89)
+```
+```{r}
+# add values to posterior distribution 
+p + geom_vline(xintercept = mean(postt$PlasticPlastic), color = "black", size = 1, lty = 2) +
+    geom_vline(xintercept = median(postt$PlasticPlastic), color = "red", size = 1, lty = 2) +
+    geom_vline(xintercept = map_estimate(postt$PlasticPlastic), color = "white", size = 1, lty = 2) +
+    geom_vline(xintercept = c(-0.04, -0.01),  color="green", size =1, lty = 1)
+
+```
+
+```{r}
+# visualize posterior distribution for Food
+f <- ggplot(postt, aes(x=FoodStarved)) +
+  geom_density(fill="tan")
+f
+```
+```{r}
+# Extract posterior values 
+mean(postt$FoodStarved)
+median(postt$FoodStarved)
+map_estimate(postt$FoodStarved) # MAP (maximum A posteriori) is equivalent to mode (ie the peak of distribution)
+
+# extract HDI values (highest density interval - range containing the 98% most probable effect values), similar to CI%
+hdi(postt$FoodStarved, ci= 0.89)
+```
+```{r}
+# add values to posterior distribution 
+f + geom_vline(xintercept = mean(postt$FoodStarved), color = "black", size = 1, lty = 2) +
+    geom_vline(xintercept = median(postt$FoodStarved), color = "red", size = 1, lty = 2) +
+    geom_vline(xintercept = map_estimate(postt$FoodStarved), color = "white", size = 1, lty = 2) +
+    geom_vline(xintercept = c(-0.04, -0.01),  color="green", size =1, lty = 1)
+
+```
+
+```{r}
+# visualize posterior distribution for Sym.State
+s <- ggplot(postt, aes(x=Sym.StateSym)) +
+  geom_density(fill="white")
+s
+```
+```{r}
+# Extract posterior values 
+mean(postt$Sym.StateSym)
+median(postt$Sym.StateSym)
+map_estimate(postt$Sym.StateSym) # MAP (maximum A posteriori) is equivalent to mode (ie the peak of distribution)
+
+# extract HDI values (highest density interval - range containing the 98% most probable effect values), similar to CI%
+hdi(postt$Sym.StateSym, ci= 0.89)
+```
+```{r}
+# add values to posterior distribution 
+s + geom_vline(xintercept = mean(postt$Sym.StateSym), color = "black", size = 1, lty = 2) +
+    geom_vline(xintercept = median(postt$Sym.StateSym), color = "red", size = 1, lty = 2) +
+    geom_vline(xintercept = map_estimate(postt$Sym.StateSym), color = "blue", size = 1, lty = 2) +
+    geom_vline(xintercept = c(0.03, 0.07),  color="green", size =1, lty = 1)
+
+```
+
+# But what does all of this mean? I don't know if I've fit these models right at all or really how to interpret them. And why does this type of linear mixed model fix the singularity issue that I was having when I was running the lmer models
+
+
+# a really useful link to walk through these statistics
+https://easystats.github.io/bayestestR/articles/example1.html 
+
+
+###################################################################################################################################
+#
+#                                                       Bayesian format statistical tests 
+#
+###################################################################################################################################
+
+
+```{r, echo=FALSE}
+library(BayesFactor)
+library(see)
+library(rstanarm)
+library(bayestestR)
+library(insight)
+```
+
+```{r}
+# We can run t-tests (one categorical variable and one continuous) to determine the difference between distributions 
+# let's look at the difference in FvFm (continuous) by Sym State (categorical)
+
+# First let's visualize the distribution of Fvfm values between the two states
+plot <- ggplot(PAM.data, aes(Sym.State, FvFm.AVG, fill=Sym.State)) +
+  geom_violin() +
+  scale_fill_material() +
+  theme_modern()
+plot
+```
+```{r}
+# Now let's run our test to determine if there is a statistical difference between the two groups 
+result <- BayesFactor::ttestBF(formula=FvFm.AVG~Sym.State, data=PAM.data)
+describe_posterior(result)
+
+# The difference in photosynthetic efficiency between Apo and Sym has a 100% probability (pd) of being positive (+ median value and 95% CI) and provides evidence against the null hypothesis (BF = 6.82) 
+```
+
+```{r}
+# We can similarly run logistic models to answer the question: how well can we categorize these two sym states by only looking at FvFm
+# First we fit the model 
+
+model <- stan_glm(Sym.State~FvFm.AVG, data=PAM.data, family="binomial")
+```
+```{r}
+# visualize the model 
+library(modelbased)
+
+visdata <- estimate_relation(model)
+visdata
+ggplot(visdata, aes(x = FvFm.AVG, y = Predicted)) +
+  geom_ribbon(aes(ymin = CI_low, ymax = CI_high), alpha = 0.5) +
+  geom_line() + 
+  ylab("Probability of being Sym(?)") +
+  theme_modern()
+```
+```{r}
+# Now we can describe the posteriors of our model
+describe_posterior(model)
+```
+```{r}
+model_performance(model)
+```
+```{r}
+plot(rope(result))
+```
+
+```{r}
+plot(bayesfactor_models(result)) +
+  scale_fill_pizza()
+```
