@@ -34,7 +34,8 @@ library(e1071)
 ```
 
 ```{r}
-setwd("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/")
+#setwd("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/")
+setwd("/Users/speroffs/Desktop/thesis_backup/PAM") # Oats
 
 # load the data 
 #data <- read.csv("Full_Fv_Fm.data - FvFm.long.format.csv", header = TRUE)
@@ -125,7 +126,8 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q1 LMER sum:", sep = " "))
   print(summary(exp.treat.lmer1)) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+  sink(paste("/Users/speroffs/Desktop/thesis_backup/PAM/Model.outputs/",
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
     paste(Exp.Treatments[t],"Q1 LMER sum.txt", sep = " "), sep = ""))
   print(summary(exp.treat.lmer1))
   sink()
@@ -137,7 +139,8 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q1 ANOVA sum:", sep = " ")) # name the summary output 
   print(exp.treat.lmer1.aov) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+  sink(paste("/Users/speroffs/Desktop/thesis_backup/PAM/Model.outputs/",
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
     paste(Exp.Treatments[t],"Q1 ANOVA sum.txt", sep = " "), sep = " ")) # save anova summary as txt
   print(exp.treat.lmer1.aov)
   sink()
@@ -159,7 +162,8 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q1 EMMEANS sum:", sep = " "))
   print(summary(exp.treat.lmer1.means))
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+  sink(paste("/Users/speroffs/Desktop/thesis_backup/PAM/Model.outputs/",
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
     paste(Exp.Treatments[t],"Q1 EMMEANS sum.txt", sep = " "), sep = " "))
   print(summary(exp.treat.lmer1.means))
   sink()
@@ -204,7 +208,8 @@ alltreat.fvfm.plot
 ```{r}
 # Save plot for publication
 ggsave(plot = alltreat.fvfm.plot, 
-       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/alltreat.fvfm.plot.pdf", 
+       filename = "/Users/speroffs/Desktop/thesis_backup/PAM/Plots/",
+     # filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/alltreat.fvfm.plot.pdf", 
        width = 9, height = 6, units = "in")
 ```
 
@@ -239,7 +244,8 @@ all.treat.fvfm.plot.2
 ```{r}
 # Save plot for publication
 ggsave(plot = all.treat.fvfm.plot.2, 
-       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/all.treat.fvfm.plot.2.pdf", 
+       filename = "/Users/speroffs/Desktop/thesis_backup/PAM/Plots/",
+    # filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/all.treat.fvfm.plot.2.pdf", 
        width = 8, height = 6, units = "in")
 ```
 
@@ -274,7 +280,8 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q2 LMER sum:", sep = " ")) # name the summary output 
   print(summary(exp.treat.lmer2)) # print the summary output
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+  sink(paste("/Users/speroffs/Desktop/thesis_backup/PAM/Model.outputs/",
+# sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
     paste(Exp.Treatments[t],"Q2 LMER sum.txt", sep = " "), sep = " "))   
   print(summary(exp.treat.lmer2)) # print summary output 
   sink()
@@ -287,7 +294,8 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q2 ANOVA sum:", sep = " ")) # name the summary output 
   print(exp.treat.lmer2.aov) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+  sink(paste("/Users/speroffs/Desktop/thesis_backup/PAM/Model.outputs/",
+# sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
     paste(Exp.Treatments[t],"Q2 ANOVA sum.txt", sep = " "), sep = " ")) # save anova summary as txt
   print(exp.treat.lmer2.aov)
   sink()
@@ -297,7 +305,8 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q2 EMMEANS sum:", sep = " ")) # print emmeans summary output 
   print(summary(exp.treat.lmer2.means))
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+  sink(paste("/Users/speroffs/Desktop/thesis_backup/PAM/Model.outputs/",
+# sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
     paste(Exp.Treatments[t],"Q2 EMMEANS sum.txt", sep = " "), sep = " ")) # save emmeans summary as txt
   print(summary(exp.treat.lmer2.means))
   sink()
@@ -370,7 +379,8 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q3 LMER sum:", sep = " ")) # name the summary output 
   print(summary(exp.treat.lmer3)) # print the summary output
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+  sink(paste("/Users/speroffs/Desktop/thesis_backup/PAM/Model.outputs/",
+# sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
     paste(Exp.Treatments[t],"Q3 LMER sum.txt", sep = " "), sep = " "))   
   print(summary(exp.treat.lmer3)) # print summary output 
   sink()
@@ -384,7 +394,8 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q3 ANOVA sum:", sep = " ")) # name the summary output 
   print(exp.treat.lmer3.aov) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+  sink(paste("/Users/speroffs/Desktop/thesis_backup/PAM/Model.outputs/",
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
     paste(Exp.Treatments[t],"Q3 ANOVA sum.txt", sep = " "), sep = " ")) # save anova summary as txt
   print(exp.treat.lmer3.aov)
   sink()
@@ -407,8 +418,9 @@ for (t in 1:length(Exp.Treatments)) {
   exp.treat.lmer3.means <- emmeans(exp.treat.lmer3, list(pairwise~'Day:Sym.State')) # run emmeans on lmer object 
   print(paste(Exp.Treatments[t],"Q3 EMMEANS sum:", sep = " ")) # print emmeans summary output 
   print(summary(exp.treat.lmer3.means))
- 
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+   
+  sink(paste("/Users/speroffs/Desktop/thesis_backup/PAM/Model.outputs/",
+# sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
     paste(Exp.Treatments[t],"Q3 EMMEANS sum.txt", sep = " "), sep = " "))
   print(summary(exp.treat.lmer3.means))
   sink()
@@ -454,7 +466,7 @@ ggplot(phen.means2,
 phen.treat.fvfm.plot
 ```
 
-
+## HERE ##
 ```{r}
 # save plot
 ggsave(plot = phen.treat.fvfm.plot,

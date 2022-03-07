@@ -1,0 +1,22 @@
+$`emmeans of Day`
+ Day emmean     SE  df lower.CL upper.CL
+ 1   0.1913 0.0132 139   0.1652    0.218
+ 8   0.2207 0.0134 139   0.1942    0.247
+ 15  0.1778 0.0146 139   0.1489    0.207
+ 22  0.0782 0.0151 139   0.0484    0.108
+
+Degrees-of-freedom method: kenward-roger 
+Confidence level used: 0.95 
+
+$`pairwise differences of Day`
+ 1       estimate     SE  df t.ratio p.value
+ 1 - 8    -0.0293 0.0188 103  -1.559  0.4067
+ 1 - 15    0.0136 0.0197 107   0.690  0.9008
+ 1 - 22    0.1132 0.0200 109   5.645  <.0001
+ 8 - 15    0.0429 0.0198 107   2.168  0.1390
+ 8 - 22    0.1425 0.0202 108   7.070  <.0001
+ 15 - 22   0.0996 0.0209 104   4.757  <.0001
+
+Degrees-of-freedom method: kenward-roger 
+P value adjustment: tukey method for comparing a family of 4 estimates 
+
