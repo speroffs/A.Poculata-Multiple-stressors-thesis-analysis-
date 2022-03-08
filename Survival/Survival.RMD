@@ -824,6 +824,10 @@ ggforest(multiv.mod, data=surv.dat)
 # now lets take a look how how our model changes if we remove phenotype, since sym state is not an environmental stressor
 m1 <- coxph(Surv(Time, Death) ~ Plastic + Light + Food + Temperature, data=surv.dat)
 summary(m1)
+
+# Perform Log-rank test
+m1_diff <- survdiff(Surv(Time, Death) ~ Plastic + Light + Food + Temperature,data = surv.dat)
+m1_diff
 ```
 ```{r}
 ggforest(m1, data=surv.dat)
