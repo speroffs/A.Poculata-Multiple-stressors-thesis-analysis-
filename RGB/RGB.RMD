@@ -37,7 +37,7 @@ setwd("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RG
 data <- read.csv("RGB data - coralRGB_compiled.csv", header = TRUE)
 
 # Metadata 
-meta.data <- read.csv("~/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Full_ ID Metadata - *Frag metadata (xrack&control).csv", header = TRUE)
+meta.data <- read.csv("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Full.ID.Metadata.Frag.metadata.(xrack&control).csv", header = TRUE)
 
 # Change names in meta.data df to join 
 names(meta.data)[names(meta.data) == "B.TAG"] <- "B.Tag" 
@@ -1644,7 +1644,6 @@ ctrl.LR.plot
 ggsave(plot = ctrl.LR.plot, 
        filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/ctrl.LR.plot.pdf", 
        width = 8, height = 6, units = "in")
-
 ```
 
 ###########################################################################################################################
@@ -1652,6 +1651,12 @@ ggsave(plot = ctrl.LR.plot,
 #                                            RGB / FvFm Logistic Regression: PDS
 #
 ############################################################################################################################
+
+## try export as .jpg
+
+## notes on how to make these all 1 figure <- annotate() to add titles 
+## one data set with RGB/FVFM values, treatment (x), time (y), treatment by time. Facet grid by treatment &/or time 
+## new df with intercept and slope from binomial coefficients 
 
 ## Pre treatment
 ```{r}
@@ -1703,6 +1708,8 @@ ggplot(pds.data1,
   scale_color_manual(labels = c("Aposymbiotic", "Symbiotic")) +
   scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(1,19)) +
   
+  annotate("text", x = 0.3, y = 0.51, label = deparse("PDS Pre: y=1.65x-0.57"), parse = TRUE, size = 10) +
+  
   theme_classic(base_size = 13) +
   theme(legend.position = "none",
         legend.title = element_blank(),
@@ -1710,6 +1717,8 @@ ggplot(pds.data1,
 
 PDS.preLR.plot
 
+```
+```{r}
 # Save plot for publication
 ggsave(plot = PDS.preLR.plot, 
        filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/PDS.preLR.plot.pdf", 
@@ -1765,17 +1774,42 @@ ggplot(pds.data2,
   scale_color_manual(labels = c("Aposymbiotic", "Symbiotic")) +
   scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(1,19)) +
   
+  annotate("rect", xmin = 0.45, xmax = 0.55, ymin = 0.47, ymax = 0.55, fill = "white") +
+  annotate("text", x = 0.35, y = 0.51, label = deparse("PDS Post: y=-24.18x+12.8"), parse = TRUE, size = 10) +
+
   theme_classic(base_size = 13) +
   theme(legend.position = "none",
         legend.title = element_blank(),
         legend.text = element_text(size = 18)) 
 
 PDS.postLR.plot
-
+```
+```{r}
 # Save plot for publication
 ggsave(plot = PDS.postLR.plot, 
        filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/PDS.postLR.plot.pdf", 
        width = 8, height = 6, units = "in")
+
+```
+
+## use ggarrange to facet plots
+```{r}
+LR.test.plot <-
+  ggarrange(PDS.preLR.plot, PDS.postLR.plot, PDS.preLR.plot, PDS.postLR.plot, 
+          PDS.preLR.plot, PDS.postLR.plot, PDS.preLR.plot, PDS.postLR.plot, 
+          PDS.preLR.plot, PDS.postLR.plot, PDS.preLR.plot, PDS.postLR.plot, 
+          PDS.preLR.plot, NULL, PDS.preLR.plot, NULL, 
+          
+          ncol = 4, nrow = 4, common.legend = TRUE, legend = "top", 
+          labels = c("A", "B", "C","D","E","F","G","H","I","J","K","L","M","","N",""))
+  
+LR.test.plot <- annotate_figure(LR.test.plot, 
+                bottom = text_grob("Intensity in the red channel (0 = darkest, 1 = brightest)"),
+                left = text_grob(expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+                                 rot = 90, vjust = 0.5))
+ggsave(plot = LR.test.plot, 
+       filename = "/Users/speroffs/Desktop/LR.test.plot.jpg", 
+       width = 6, height = 6, units = "in", dpi = 300)
 
 ```
 
