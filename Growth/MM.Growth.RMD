@@ -477,8 +477,8 @@ all.treat.growth.plot
 ```
 ```{r}
 # save plot
-ggsave(plot = all.treat.log.growth.plot,
-       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Plots/all.treat.log.growth.plot.pdf", width = 8, height = 6, units = "in")
+ggsave(plot = all.treat.growth.plot,
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Plots/all.treat.growth.plot.pdf", width = 8, height = 6, units = "in")
 
 ```
 
@@ -490,13 +490,13 @@ ggsave(plot = all.treat.log.growth.plot,
 
 ```{r}
 # Run a liner effects mixed model to determine if the treatment affects the growth rate of polyps while taking coral colony into account
-temp.lmer <- lmer(Slope~Temperature + (1|Colony), data = ID.slope)
+temp.lmer <- lmer(Log.Slope~Temperature + (1|Colony), data = ID.slope)
 summary(temp.lmer)
 ```
 ```{r}
 # Run an anova to compare this model to a null model 
 
-null <- lmer(Slope ~ 1 + (1|Colony), data = ID.slope)
+null <- lmer(Log.Slope ~ 1 + (1|Colony), data = ID.slope)
 anova(null, temp.lmer) 
 ```
 ```{r}
@@ -521,9 +521,9 @@ ggplot(data = temp.sum,
   scale_x_discrete(name = "", # remove labels for paneling 
                    limits = c("AMBIENT", "ELEVATED"),
                    labels = c("Ambient", "Elevated")) +
-  scale_y_continuous(name = "", 
-                     limits = c(-0.01, -0.003),
-                     breaks = seq(-0.01, -0.003, by = 0.001)) +
+  #scale_y_continuous(name = "", 
+   #                  limits = c(-0.01, -0.003),
+   #                  breaks = seq(-0.01, -0.003, by = 0.001)) +
   
   theme_classic(base_size = 16) +
   theme(legend.position = "none",
@@ -601,13 +601,13 @@ ggsave(plot = growth.plastic.plot,
 ```{r}
 # Run a liner effects mixed model to determine if the treatment affects the growth rate of polyps while taking coral colony into account
 
-light.lmer <- lmer(Slope~Light + (1|Colony), data = ID.slope)
+light.lmer <- lmer(Log.Slope~Light + (1|Colony), data = ID.slope)
 summary(light.lmer)
 ```
 ```{r}
 # Run an anova to compare this model to a null model 
 
-null <- lmer(Slope ~ 1 + (1|Colony), data = ID.slope)
+null <- lmer(Log.Slope ~ 1 + (1|Colony), data = ID.slope)
 anova(null, light.lmer) 
 ```
 ```{r}
@@ -656,13 +656,13 @@ ggsave(plot = growth.light.plot,
 ```{r}
 # Run a liner effects mixed model to determine if the treatment affects the growth rate of polyps while taking coral colony into account
 
-food.lmer <- lmer(Slope~Food + (1|Colony), data = ID.slope)
+food.lmer <- lmer(Log.Slope~Food + (1|Colony), data = ID.slope)
 summary(food.lmer)
 ```
 ```{r}
 # Run an anova to compare this model to a null model 
 
-null <- lmer(Slope ~ 1 + (1|Colony), data = ID.slope)
+null <- lmer(Log.Slope ~ 1 + (1|Colony), data = ID.slope)
 anova(null, food.lmer) 
 ```
 ```{r}
@@ -711,13 +711,13 @@ ggsave(plot = growth.food.plot,
 ```{r}
 # Run a liner effects mixed model to determine if the treatment affects the growth rate of polyps while taking coral colony into account
 
-phen.lmer <- lmer(Slope~Sym.State + (1|Colony), data = ID.slope)
+phen.lmer <- lmer(Log.Slope~Sym.State + (1|Colony), data = ID.slope)
 summary(phen.lmer)
 ```
 ```{r}
 # Run an anova to compare this model to a null model 
 
-null <- lmer(Slope ~ 1 + (1|Colony), data = ID.slope)
+null <- lmer(Log.Slope ~ 1 + (1|Colony), data = ID.slope)
 anova(null, phen.lmer) 
 ```
 ```{r}
@@ -750,19 +750,19 @@ ggplot(data = phen.sum,
 
 ```{r}
 # Null model 
-m0 <- lmer(Slope ~ 1 + (1|Colony), data=ID.slope)
+m0 <- lmer(Log.Slope ~ 1 + (1|Colony), data=ID.slope)
 summary(m0)
 ```
 
 # Start with our 4 stressors
 ```{r}
 # Full model
-m1 <- lmer(Slope ~ Temperature + Plastic + Light + Food + (1|Colony), data = ID.slope)
+m1 <- lmer(Log.Slope ~ Temperature + Plastic + Light + Food + (1|Colony), data = ID.slope)
 summary(m1)
 ```
 ```{r}
 # Drop plastic
-m2 <- lmer(Slope ~ Temperature + Light + Food + (1|Colony), data = ID.slope)
+m2 <- lmer(Log.Slope ~ Temperature + Light + Food + (1|Colony), data = ID.slope)
 summary(m2) # all significant
 
 anova(m0, m1, m2) # m2
@@ -770,18 +770,18 @@ anova(m0, m1, m2) # m2
 
 # Consider phenotype
 ```{r}
-m3 <- lmer(Slope ~ Temperature + Plastic + Light + Food + Sym.State + (1|Colony), data = ID.slope)
+m3 <- lmer(Log.Slope ~ Temperature + Plastic + Light + Food + Sym.State + (1|Colony), data = ID.slope)
 summary(m3)
 ```
 ```{r}
 # drop plastic
-m4 <- lmer(Slope ~ Temperature + Light + Food + Sym.State + (1|Colony), data = ID.slope)
+m4 <- lmer(Log.Slope ~ Temperature + Light + Food + Sym.State + (1|Colony), data = ID.slope)
 summary(m4) # sym not significant, if we drop we're at the same model as m2
 ```
 
 # Let's see if there are any interactions between these significant factors 
 ```{r}
-m5 <- lmer(Slope ~ Temperature + Light + Food + Light*Food + (1|Colony), data = ID.slope)
+m5 <- lmer(Log.Slope ~ Temperature + Light + Food + Light*Food + (1|Colony), data = ID.slope)
 summary(m5)
 ```
 ```{r}
@@ -802,7 +802,7 @@ library(sjPlot)
 library(effects)
 ```
 ```{r}
-m <- lmer(Slope ~ Temperature + Light + Food + (1|Colony), data = ID.slope)
+m <- lmer(Log.Slope ~ Temperature + Light + Food + (1|Colony), data = ID.slope)
 ```
 ```{r}
 # plot light
@@ -852,7 +852,7 @@ axis.title.y = element_text(color="black", size=14, face="bold"))+
 library(ggeffects)
 
 # Interaction plot model 
-int.m<-lmer(Slope ~ Temperature + Light + Food + (1|Colony), data = ID.slope)
+int.m<-lmer(Log.Slope ~ Temperature + Light + Food + (1|Colony), data = ID.slope)
 summary(int.m)
 
 dat2 <- ggemmeans(int.m, terms = c("Temperature", "Light", "Food")) #
