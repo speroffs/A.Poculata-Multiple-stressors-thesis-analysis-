@@ -36,7 +36,7 @@ setwd("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Gr
 ```
 ```{r}
 #Load data
-mass.dat <- read.csv("Full_ ID Metadata - *Frag metadata (xrack&control).csv", header = TRUE)
+mass.dat <- read.csv("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Full.ID.Metadata.Frag.metadata.(xrack&control).csv", header = TRUE)
 
 # Subset relevant data
 data <- subset(mass.dat, select = c("B.TAG", "Sym.State","Treat.ID", "Temperature", "Plastic", "Light", "Food",
@@ -247,22 +247,22 @@ qqline(decaydat$cubemass)
 skewness(decaydat$cubemass) # nope
 ```
 
-# We'll continue from here working with the Log transformed data:
+# Since the Log-transformed data helps with normality - we will use the Log-transformed Mass for STATISTICAL testing and reporting. But we will use the untransformed mass for graphing and rate reporting. 
 ```{r}
 # summarize the mass at each interval by treatment 
-decay_means <- summarySE(decaydat, measurevar = "Logmassmg", groupvars = c("Treatment", "Day"))
+decay_means <- summarySE(decaydat, measurevar = "Massmg", groupvars = c("Treatment", "Day"))
 ```
 ```{r}
 # plot 
 ggplot(data = decay_means, 
        aes(x = Day, 
-           y = Logmassmg,
+           y = Massmg,
            color = Treatment)) +
   geom_point() +
   geom_line() +
   facet_wrap(vars(Treatment)) +
-  geom_errorbar(aes(ymax = Logmassmg+se, ymin = Logmassmg-se), width = 0.1) +
-  ylab("Log Mass (mg)")+
+  geom_errorbar(aes(ymax = Massmg+se, ymin = Massmg-se), width = 0.1) +
+  ylab("Mass (mg)")+
   xlab("Day") +
   scale_color_manual(name = "", values = c("#131513", "#E02D00", "#FF7E33", 
                                                    "#D6A70A", "#ECDD09", "#075F3C", 
@@ -270,25 +270,24 @@ ggplot(data = decay_means,
   scale_x_continuous(breaks=seq(1, 22, by = 7)) + # change x axis intervals 
   theme(panel.border = element_rect(colour = "black", fill = NA, size = 1)) +
   theme_classic()
-
 ```
 
 ```{r}
 # summarize the mass at each interval by treatment 
-decay_means2 <- summarySE(decaydat, measurevar = "Logmassmg", groupvars = c("Treatment", "Day", "Sym.State"))
+decay_means2 <- summarySE(decaydat, measurevar = "Massmg", groupvars = c("Treatment", "Day", "Sym.State"))
 ```
 ```{r}
 # plot 
 ggplot(data = decay_means2, 
        aes(x = Day, 
-           y = Logmassmg, 
+           y = Massmg, 
            color = Sym.State,
            group=Sym.State)) +
   geom_point() +
   geom_line() +
   facet_wrap(vars(Treatment)) +
-  geom_errorbar(aes(ymax = Logmassmg+se, ymin = Logmassmg-se), width = .1) +
-  ylab("Log Mass (mg)")+
+  geom_errorbar(aes(ymax = Massmg+se, ymin = Massmg-se), width = .1) +
+  ylab("Mass (mg)")+
   xlab("Day") +
   scale_color_manual(name = "Phenotype",
                      labels = c("Apo", "Sym"),
@@ -305,13 +304,13 @@ ggplot(data = decay_means2,
 
 ggplot(data = decay_means, 
        aes(x = Day, 
-           y = Logmassmg,)) +
+           y = Massmg,)) +
   geom_point(size=1.2) +
   
   geom_smooth(method="lm", se = FALSE, size=1.2, col="black") +
-  geom_errorbar(aes(ymax = Logmassmg+se, ymin = Logmassmg-se),width =1, size=1.2) +
+  geom_errorbar(aes(ymax = Massmg+se, ymin = Massmg-se),width =1, size=1.2) +
   
-  labs(x="Day", y = "Log Mass (mg)") +
+  labs(x="Day", y = "Mass (mg)") +
   scale_x_continuous(breaks=seq(1, 22, by = 7)) + # change x axis intervals
   facet_wrap(vars(Treatment)) +
 
@@ -327,12 +326,12 @@ ggplot(data = decay_means,
 # plot growth of both phenotypes
 ggplot(data = decay_means2, 
        aes(x = Day, 
-           y = Logmassmg,
+           y = Massmg,
            color = Sym.State)) +
   geom_point(size=1.2) +
   
   geom_smooth(method="lm", se = FALSE, size=1.2) +
-  geom_errorbar(aes(ymax = Logmassmg+se, ymin = Logmassmg-se),width =1, size=1.2) +
+  geom_errorbar(aes(ymax = Massmg+se, ymin = Massmg-se),width =1, size=1.2) +
   
   scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"),
                      values = c("tan","coral4")) +
@@ -365,7 +364,7 @@ by_ID <- group_by(decaydat, B.TAG)
 ID.slope <- 
   do(by_ID, 
    tidy(                     
-     lm(Logmassmg~Day, data= .)))
+     lm(Massmg~Day, data= .)))
 ID.slope
 
 # keep the intercept term 
@@ -373,6 +372,23 @@ ID.slope <- filter(ID.slope, term == "Day")
 #rename the estimate 
 names(ID.slope)[names(ID.slope) == "estimate"] <- "Slope"
 ```
+
+## Run linear model with the log-transformed Mass data for statistical comparisons
+```{r}
+ID.log.slope <-
+  do(by_ID,
+     tidy(
+       lm(Logmassmg~Day, data=.))) 
+
+ID.log.slope <- filter(ID.log.slope, term == "Day")
+names(ID.log.slope)[names(ID.log.slope) == "estimate"] <- "Log.Slope"
+names(ID.log.slope)[names(ID.log.slope) == "std.error"] <- "Log.std.error"
+names(ID.log.slope)[names(ID.log.slope) == "statistic"] <- "Log.statistic"
+names(ID.log.slope)[names(ID.log.slope) == "p.value"] <- "Log.pvalue"
+
+ID.slope <- left_join(ID.slope, ID.log.slope, by = "B.TAG")
+```
+
 ```{r}
 # Add treatment and sym.state values to ID.test dataframe by BTag
 
@@ -404,7 +420,8 @@ ID.slope = ID.slope %>%
 
 # Remove NAs
 ID.slope <- ID.slope %>%
-  drop_na(Slope) # should be 451 individuals 
+  drop_na(Slope)  %>% # should be 451 individuals 
+  drop_na(Log.Slope)
 ```
 
 ###########################################################################################################################
@@ -415,12 +432,12 @@ ID.slope <- ID.slope %>%
 
 ```{r}
 # Run a liner effects mixed model to determine if the treatment affects the growth rate of polyps while taking coral colony into account
-treat.lmer <- lmer(Slope~Treatment + (1|Colony), data = ID.slope)
+treat.lmer <- lmer(Log.Slope~Treatment + (1|Colony), data = ID.slope)
 summary(treat.lmer)
 ```
 ```{r}
 # Run an anova to compare this model to a null model 
-null <- lmer(Slope ~ 1 + (1|Colony), data = ID.slope)
+null <- lmer(Log.Slope ~ 1 + (1|Colony), data = ID.slope)
 anova(null, treat.lmer) 
 ```
 ```{r}
@@ -435,18 +452,19 @@ treat.means <- summarySE(ID.slope, measurevar = "Slope", groupvars = "Treatment"
 ```
 ```{r}
 # plot
-all.treat.log.growth.plot <- 
+all.treat.growth.plot <- 
 ggplot(data = treat.means,
        aes(x = Treatment, 
            y = Slope,
            color = Treatment)) +
-  geom_point(size=1.5) +
+  geom_point(size=2) +
   geom_errorbar(aes(ymax = Slope+se, ymin = Slope-se), width = 0.2, size=1.2) +
   
-  geom_hline(yintercept = -0.003744175, col="black", lty=2) + 
+  geom_hline(yintercept = -0.8013345, col="black", lty=2) + 
   geom_hline(yintercept = 0, col="black", lty=1) +
   
-  scale_y_continuous(name = "Average growth rate [log(mg*day"^"-1"~")]", limits = c(-0.016, 0), breaks = seq(-0.016, 0, by = 0.004)) + # set y axis intervals
+  scale_y_continuous(name = "Average growth rate (mg*day"^"-1"~")", 
+                     limits = c(-3,0), breaks = seq(-3, 0, by = 0.5)) + # set y axis intervals
 
   labs(x = "Treatment") +
   scale_color_manual(name = "", values = c("#131513","#F53100", "#FF8B47","#C39809","#F6CB3C","#0B8454","#7BB12F","#3F88C5","#A33461")) +
@@ -455,7 +473,7 @@ ggplot(data = treat.means,
   theme(legend.position = "none",
         legend.title = element_blank(),
         legend.text = element_text(size = 12))
-all.treat.log.growth.plot
+all.treat.growth.plot
 ```
 ```{r}
 # save plot
