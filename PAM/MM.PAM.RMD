@@ -34,8 +34,7 @@ library(e1071)
 ```
 
 ```{r}
-#setwd("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/")
-setwd("/Users/speroffs/Desktop/thesis_backup/PAM") # Oats
+setwd("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/")
 
 # load the data 
 #data <- read.csv("Full_Fv_Fm.data - FvFm.long.format.csv", header = TRUE)
@@ -126,8 +125,7 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q1 LMER sum:", sep = " "))
   print(summary(exp.treat.lmer1)) 
   
-  sink(paste("/Users/speroffs/Desktop/thesis_backup/PAM/Model.outputs/",
-#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
     paste(Exp.Treatments[t],"Q1 LMER sum.txt", sep = " "), sep = ""))
   print(summary(exp.treat.lmer1))
   sink()
@@ -139,8 +137,7 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q1 ANOVA sum:", sep = " ")) # name the summary output 
   print(exp.treat.lmer1.aov) 
   
-  sink(paste("/Users/speroffs/Desktop/thesis_backup/PAM/Model.outputs/",
-#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
     paste(Exp.Treatments[t],"Q1 ANOVA sum.txt", sep = " "), sep = " ")) # save anova summary as txt
   print(exp.treat.lmer1.aov)
   sink()
@@ -188,7 +185,7 @@ alltreat.fvfm.plot <-
            group = Treatment)) +
   geom_point(size = 1.2)+
   geom_line(size = 1.2) +
-  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width = 0.5, size =1) +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width = 0, size =1) +
   scale_x_continuous(breaks=seq(1, 22, by = 7)) +
   facet_wrap(~Treatment, ncol=3) +
   scale_color_manual(name = "", values = rep("black", times = 9)) +
@@ -221,7 +218,7 @@ ggplot(day.means,
            y = fvfm,
            color = Treatment,
            group = Treatment)) +
-  geom_point(size = 2.5)+
+  geom_point(size = 1.5)+
   geom_line(size = 1) +
   geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width = 0.5, size =1) +
   
@@ -234,7 +231,8 @@ ggplot(day.means,
        y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")"))) +
   theme_classic() +
   theme_classic(base_size=14) +
-  theme(legend.position = c(0.5,0.85),
+  theme(legend.position = "none",
+ # theme(legend.position = c(0.5,0.85),
         legend.title = element_blank(),
         legend.text = element_text(size = 12)) +
   guides(color = guide_legend(direction = "horizontal"))
@@ -280,22 +278,20 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q2 LMER sum:", sep = " ")) # name the summary output 
   print(summary(exp.treat.lmer2)) # print the summary output
   
-  sink(paste("/Users/speroffs/Desktop/thesis_backup/PAM/Model.outputs/",
-# sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/",
     paste(Exp.Treatments[t],"Q2 LMER sum.txt", sep = " "), sep = " "))   
   print(summary(exp.treat.lmer2)) # print summary output 
   sink()
   
   # Posthoc ANOVA to compare model to the null
   null <- lmer(fvfm ~ 1 + (1| B.Tag), data = tmp.data) # null model without effect 
-  Q1 <- lmer(fvfm ~ Day + (1|B.Tag), data = tmp.data) # q1 model
+  #Q1 <- lmer(fvfm ~ Day + (1|B.Tag), data = tmp.data) # q1 model
   
-  exp.treat.lmer2.aov <- anova(null, Q1, exp.treat.lmer2) # model comparison
+  exp.treat.lmer2.aov <- anova(null, exp.treat.lmer2) # model comparison
   print(paste(Exp.Treatments[t],"Q2 ANOVA sum:", sep = " ")) # name the summary output 
   print(exp.treat.lmer2.aov) 
   
-  sink(paste("/Users/speroffs/Desktop/thesis_backup/PAM/Model.outputs/",
-# sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+ sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/",
     paste(Exp.Treatments[t],"Q2 ANOVA sum.txt", sep = " "), sep = " ")) # save anova summary as txt
   print(exp.treat.lmer2.aov)
   sink()
@@ -305,8 +301,7 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q2 EMMEANS sum:", sep = " ")) # print emmeans summary output 
   print(summary(exp.treat.lmer2.means))
   
-  sink(paste("/Users/speroffs/Desktop/thesis_backup/PAM/Model.outputs/",
-# sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/",
     paste(Exp.Treatments[t],"Q2 EMMEANS sum.txt", sep = " "), sep = " ")) # save emmeans summary as txt
   print(summary(exp.treat.lmer2.means))
   sink()
@@ -340,27 +335,48 @@ ggplot(phen.means,
 ```{r}
 # a non facet plot
 
+phen.plot2 <- 
 ggplot(phen.means, 
        aes(x = Sym.State,
            y = fvfm,
            color = Treatment)) +
-  geom_point(position = position_dodge(0.2)) +
-  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.2, size = 1, position = position_dodge(0.2)) +
+  geom_point(size = 1.5, position = position_dodge(0.4)) +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.5, size = 1, position = position_dodge(0.4)) +
   scale_color_manual(name = "",values = c("#131513", "#E02D00", "#FF7E33", 
                                                    "#D6A70A", "#ECDD09", "#075F3C", 
                                                    "#7BB12F", "#35516E", "#3F88C5")) +
   scale_y_continuous(limits=c(0.1, 0.42), breaks = seq(0.1,0.4, by = 0.05)) +
 
   labs(x = "Symbiotic Phenotype", 
-       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")"))) +
+#     y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")"))) +
+       y = "") +
+
   theme_classic() +
   theme_classic(base_size=14) +
-  theme(legend.position = "right",
+  theme(legend.position = "none",
         legend.title = element_blank(),
         legend.text = element_text(size = 12)) 
   #guides(color = guide_legend(direction = "horizontal"))
   
+phen.plot2
 ```
+
+# arrange! HERE ##
+```{r}
+library(ggpubr)
+
+fvfm.panel <- ggarrange(all.treat.fvfm.plot.2, phen.plot2, 
+                        ncol = 1, common.legend = TRUE, 
+                        labels = "AUTO", heights = c(5,5))
+```
+
+```{r}
+ggsave(plot = fvfm.panel, 
+       filename = "/Users/speroffs/Desktop/fvfm.panel.jpg", 
+       width = 8, height = 4, units = "in", dpi = 300)
+
+```
+
 
 ###########################################################################################################################
 #
@@ -379,23 +395,21 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q3 LMER sum:", sep = " ")) # name the summary output 
   print(summary(exp.treat.lmer3)) # print the summary output
   
-  sink(paste("/Users/speroffs/Desktop/thesis_backup/PAM/Model.outputs/",
-# sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
-    paste(Exp.Treatments[t],"Q3 LMER sum.txt", sep = " "), sep = " "))   
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/",
+  paste(Exp.Treatments[t],"Q3 LMER sum.txt", sep = " "), sep = " "))   
   print(summary(exp.treat.lmer3)) # print summary output 
   sink()
   
   # Posthoc ANOVA to compare model to the null
   null <- lmer(fvfm ~ 1 + (1| B.Tag), data = tmp.data) # null model without effect 
-  Q1 <- lmer(fvfm ~ Day + (1|B.Tag), data = tmp.data) # q1 model
-  Q2 <- lmer(fvfm ~ Sym.State + (1|B.Tag), data = tmp.data) # q2 model
+  #Q1 <- lmer(fvfm ~ Day + (1|B.Tag), data = tmp.data) # q1 model
+  #Q2 <- lmer(fvfm ~ Sym.State + (1|B.Tag), data = tmp.data) # q2 model
   
-  exp.treat.lmer3.aov <- anova(null, Q1, Q2, exp.treat.lmer3) # model comparison to the null 
+  exp.treat.lmer3.aov <- anova(null, exp.treat.lmer3) # model comparison to the null 
   print(paste(Exp.Treatments[t],"Q3 ANOVA sum:", sep = " ")) # name the summary output 
   print(exp.treat.lmer3.aov) 
   
-  sink(paste("/Users/speroffs/Desktop/thesis_backup/PAM/Model.outputs/",
-#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/",
     paste(Exp.Treatments[t],"Q3 ANOVA sum.txt", sep = " "), sep = " ")) # save anova summary as txt
   print(exp.treat.lmer3.aov)
   sink()
