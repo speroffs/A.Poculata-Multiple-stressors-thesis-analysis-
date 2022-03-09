@@ -1,0 +1,14 @@
+$`emmeans of Bacteria`
+ Bacteria emmean    SE   df lower.CL upper.CL
+ EC        -4.91 0.221 36.4    -5.36    -4.46
+ SW        -5.54 0.163 22.1    -5.88    -5.20
+
+Degrees-of-freedom method: kenward-roger 
+Confidence level used: 0.95 
+
+$`pairwise differences of Bacteria`
+ 1       estimate    SE   df t.ratio p.value
+ EC - SW    0.629 0.275 30.8   2.292  0.0289
+
+Degrees-of-freedom method: kenward-roger 
+

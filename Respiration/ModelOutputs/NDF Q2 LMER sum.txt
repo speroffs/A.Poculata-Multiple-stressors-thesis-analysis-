@@ -1,0 +1,30 @@
+Linear mixed model fit by REML. t-tests use Satterthwaite's method ['lmerModLmerTest']
+Formula: Lograte ~ Day * Bacteria + (1 | B.TAG)
+   Data: tmp.data
+
+REML criterion at convergence: 121.3
+
+Scaled residuals: 
+     Min       1Q   Median       3Q      Max 
+-1.78090 -0.60944 -0.07529  0.41977  2.91040 
+
+Random effects:
+ Groups   Name        Variance Std.Dev.
+ B.TAG    (Intercept) 0.09734  0.3120  
+ Residual             0.53201  0.7294  
+Number of obs: 51, groups:  B.TAG, 32
+
+Fixed effects:
+               Estimate Std. Error      df t value Pr(>|t|)   
+(Intercept)     -2.9646     0.9822 34.4435  -3.018  0.00476 **
+Day             -0.8758     0.4338 35.9228  -2.019  0.05101 . 
+BacteriaSW      -1.7350     1.0332 34.7873  -1.679  0.10207   
+Day:BacteriaSW   0.3259     0.4726 35.7992   0.690  0.49487   
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Correlation of Fixed Effects:
+            (Intr) Day    BctrSW
+Day         -0.979              
+BacteriaSW  -0.951  0.931       
+Day:BactrSW  0.899 -0.918 -0.964

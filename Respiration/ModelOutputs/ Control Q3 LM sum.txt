@@ -1,0 +1,21 @@
+
+Call:
+lm(formula = Lograte ~ Sym.state * Bacteria, data = ctrl.data)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-1.5554 -0.7121 -0.1590  0.5383  2.5986 
+
+Coefficients:
+                        Estimate Std. Error t value Pr(>|t|)    
+(Intercept)              -3.9062     0.2069 -18.883  < 2e-16 ***
+Sym.statesym              0.7628     0.2964   2.574  0.01204 *  
+BacteriaSW               -0.8171     0.2926  -2.793  0.00663 ** 
+Sym.statesym:BacteriaSW  -0.5163     0.4165  -1.240  0.21891    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.9251 on 75 degrees of freedom
+Multiple R-squared:  0.3089,	Adjusted R-squared:  0.2813 
+F-statistic: 11.17 on 3 and 75 DF,  p-value: 3.833e-06
+

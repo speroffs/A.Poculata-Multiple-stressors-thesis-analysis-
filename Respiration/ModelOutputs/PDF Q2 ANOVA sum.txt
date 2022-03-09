@@ -1,0 +1,11 @@
+Data: tmp.data
+Models:
+null: Lograte ~ 1 + (1 | B.TAG)
+Q1.m: Lograte ~ Bacteria + (1 | B.TAG)
+exp.treat.lmer2: Lograte ~ Day * Bacteria + (1 | B.TAG)
+                npar    AIC    BIC  logLik deviance  Chisq Df Pr(>Chisq)    
+null               3 310.71 318.68 -152.36   304.71                         
+Q1.m               4 275.70 286.32 -133.85   267.70 37.012  1  1.174e-09 ***
+exp.treat.lmer2    6 242.05 257.97 -115.02   230.05 37.653  2  6.665e-09 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1

@@ -1,0 +1,14 @@
+  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = Lograte ~ Sym.state * Bacteria, data = ctrl.data)
+
+$`Sym.state:Bacteria`
+                    diff         lwr         upr     p adj
+sym:EC-apo:EC  0.7627533 -0.01601201  1.54151856 0.0570750
+apo:SW-apo:EC -0.8170638 -1.58578009 -0.04834753 0.0328458
+sym:SW-apo:EC -0.5706295 -1.33934581  0.19808675 0.2161926
+apo:SW-sym:EC -1.5798171 -2.35858237 -0.80105180 0.0000059
+sym:SW-sym:EC -1.3333828 -2.11214809 -0.55461752 0.0001419
+sym:SW-apo:SW  0.2464343 -0.52228200  1.01515056 0.8340639
+

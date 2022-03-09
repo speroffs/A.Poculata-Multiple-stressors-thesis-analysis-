@@ -1,0 +1,41 @@
+Linear mixed model fit by REML. t-tests use Satterthwaite's method ['lmerModLmerTest']
+Formula: Lograte ~ Sym.state * Day * Bacteria + (1 | B.TAG)
+   Data: tmp.data
+
+REML criterion at convergence: 262.5
+
+Scaled residuals: 
+    Min      1Q  Median      3Q     Max 
+-2.3430 -0.6070 -0.0561  0.5449  3.1747 
+
+Random effects:
+ Groups   Name        Variance Std.Dev.
+ B.TAG    (Intercept) 0.0000   0.0000  
+ Residual             0.5618   0.7496  
+Number of obs: 113, groups:  B.TAG, 38
+
+Fixed effects:
+                             Estimate Std. Error        df t value Pr(>|t|)    
+(Intercept)                  -3.08789    0.36207 105.00000  -8.528  1.2e-13 ***
+Sym.statesym                 -0.40816    0.51470 105.00000  -0.793   0.4296    
+Day                          -0.05957    0.16761 105.00000  -0.355   0.7230    
+BacteriaSW                   -0.52019    0.54311 105.00000  -0.958   0.3404    
+Sym.statesym:Day             -0.06518    0.24024 105.00000  -0.271   0.7867    
+Sym.statesym:BacteriaSW       0.16251    0.74826 105.00000   0.217   0.8285    
+Day:BacteriaSW               -0.44662    0.25141 105.00000  -1.776   0.0786 .  
+Sym.statesym:Day:BacteriaSW   0.11564    0.34774 105.00000   0.333   0.7401    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Correlation of Fixed Effects:
+            (Intr) Sym.st Day    BctrSW Sym.:D S.:BSW Dy:BSW
+Sym.statsym -0.703                                          
+Day         -0.926  0.651                                   
+BacteriaSW  -0.667  0.469  0.617                            
+Sym.sttsy:D  0.646 -0.925 -0.698 -0.431                     
+Sym.stt:BSW  0.484 -0.688 -0.448 -0.726  0.636              
+Day:BactrSW  0.617 -0.434 -0.667 -0.926  0.465  0.672       
+Sym.s:D:BSW -0.446  0.639  0.482  0.669 -0.691 -0.926 -0.723
+optimizer (nloptwrap) convergence code: 0 (OK)
+boundary (singular) fit: see help('isSingular')
+

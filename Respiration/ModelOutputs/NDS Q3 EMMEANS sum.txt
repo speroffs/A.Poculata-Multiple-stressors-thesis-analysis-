@@ -1,0 +1,22 @@
+$`emmeans of Sym.state, Bacteria`
+ Sym.state Bacteria emmean    SE   df lower.CL upper.CL
+ apo       EC        -4.55 0.181 32.2    -4.92    -4.18
+ sym       EC        -4.29 0.188 34.0    -4.67    -3.91
+ apo       SW        -5.87 0.181 32.2    -6.24    -5.50
+ sym       SW        -5.63 0.172 32.2    -5.98    -5.28
+
+Degrees-of-freedom method: kenward-roger 
+Confidence level used: 0.95 
+
+$`pairwise differences of Sym.state, Bacteria`
+ 1               estimate    SE   df t.ratio p.value
+ apo EC - sym EC   -0.261 0.261 33.1  -1.001  0.7500
+ apo EC - apo SW    1.314 0.256 32.2   5.129  0.0001
+ apo EC - sym SW    1.072 0.250 32.2   4.295  0.0008
+ sym EC - apo SW    1.575 0.261 33.1   6.033  <.0001
+ sym EC - sym SW    1.334 0.255 33.2   5.235  0.0001
+ apo SW - sym SW   -0.242 0.250 32.2  -0.967  0.7687
+
+Degrees-of-freedom method: kenward-roger 
+P value adjustment: tukey method for comparing a family of 4 estimates 
+

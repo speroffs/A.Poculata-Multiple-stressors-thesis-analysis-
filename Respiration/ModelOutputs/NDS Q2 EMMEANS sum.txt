@@ -1,0 +1,33 @@
+$`emmeans of Day, Bacteria`
+ Day Bacteria emmean    SE   df lower.CL upper.CL
+ 8   EC        -3.72 0.177 90.9    -4.07    -3.37
+ 15  EC        -4.76 0.182 92.3    -5.13    -4.40
+ 22  EC        -4.81 0.182 92.3    -5.17    -4.44
+ 8   SW        -5.15 0.173 90.9    -5.49    -4.80
+ 15  SW        -5.89 0.173 90.9    -6.23    -5.54
+ 22  SW        -6.18 0.173 90.9    -6.53    -5.84
+
+Degrees-of-freedom method: kenward-roger 
+Confidence level used: 0.95 
+
+$`pairwise differences of Day, Bacteria`
+ 1             estimate    SE   df t.ratio p.value
+ 8 EC - 15 EC    1.0449 0.220 69.7   4.748  0.0002
+ 8 EC - 22 EC    1.0870 0.220 69.7   4.939  0.0001
+ 8 EC - 8 SW     1.4284 0.248 90.9   5.769  <.0001
+ 8 EC - 15 SW    2.1682 0.248 90.9   8.756  <.0001
+ 8 EC - 22 SW    2.4640 0.248 90.9   9.951  <.0001
+ 15 EC - 22 EC   0.0421 0.222 68.2   0.189  1.0000
+ 15 EC - 8 SW    0.3835 0.251 91.6   1.527  0.6479
+ 15 EC - 15 SW   1.1232 0.251 91.6   4.472  0.0003
+ 15 EC - 22 SW   1.4190 0.251 91.6   5.650  <.0001
+ 22 EC - 8 SW    0.3414 0.251 91.6   1.359  0.7508
+ 22 EC - 15 SW   1.0812 0.251 91.6   4.305  0.0006
+ 22 EC - 22 SW   1.3770 0.251 91.6   5.482  <.0001
+ 8 SW - 15 SW    0.7397 0.210 68.2   3.518  0.0097
+ 8 SW - 22 SW    1.0355 0.210 68.2   4.925  0.0001
+ 15 SW - 22 SW   0.2958 0.210 68.2   1.407  0.7228
+
+Degrees-of-freedom method: kenward-roger 
+P value adjustment: tukey method for comparing a family of 6 estimates 
+
