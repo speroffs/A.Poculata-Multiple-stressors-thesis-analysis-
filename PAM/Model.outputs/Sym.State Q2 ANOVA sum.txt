@@ -1,0 +1,11 @@
+Data: expt.data
+Models:
+null: fvfm ~ 1 + (1 | B.Tag)
+Q1: as.formula(paste("fvfm~", paste(stressors[s]), "+ (1|B.Tag)"))
+s.lmer2: as.formula(paste("fvfm~", paste(stressors[s]), "* Day + (1|B.Tag)"))
+        npar     AIC     BIC  logLik deviance   Chisq Df Pr(>Chisq)    
+null       3 -1971.0 -1956.0  988.52  -1977.0                          
+Q1         4 -1972.8 -1952.8  990.40  -1980.8  3.7754  1    0.05201 .  
+s.lmer2    6 -2012.8 -1982.9 1012.42  -2024.8 44.0427  2  2.731e-10 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1

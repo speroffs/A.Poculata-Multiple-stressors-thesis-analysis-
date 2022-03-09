@@ -1,0 +1,30 @@
+Linear mixed model fit by REML. t-tests use Satterthwaite's method ['lmerModLmerTest']
+Formula: as.formula(paste("fvfm~", paste(stressors[s]), "* Day + (1|B.Tag)"))
+   Data: expt.data
+
+REML criterion at convergence: -1945.4
+
+Scaled residuals: 
+    Min      1Q  Median      3Q     Max 
+-1.6696 -0.7509 -0.1580  0.6095  3.6231 
+
+Random effects:
+ Groups   Name        Variance  Std.Dev.
+ B.Tag    (Intercept) 0.0002398 0.01548 
+ Residual             0.0092057 0.09595 
+Number of obs: 1088, groups:  B.Tag, 320
+
+Fixed effects:
+                  Estimate Std. Error         df t value Pr(>|t|)    
+(Intercept)      1.986e-01  7.175e-03  1.053e+03  27.673   <2e-16 ***
+FoodStarved     -6.504e-04  9.961e-03  1.047e+03  -0.065    0.948    
+Day             -4.145e-04  6.065e-04  9.192e+02  -0.684    0.494    
+FoodStarved:Day -1.022e-03  7.895e-04  8.821e+02  -1.295    0.196    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Correlation of Fixed Effects:
+            (Intr) FdStrv Day   
+FoodStarved -0.720              
+Day         -0.779  0.561       
+FodStrvd:Dy  0.598 -0.787 -0.768

@@ -4,6 +4,7 @@ author: "Sarah Speroff"
 date: "2/15/2022"
 output:
   pdf_document: default
+  dev: "cairo_pdf"
   html_document: default
 ---
 
@@ -37,8 +38,8 @@ library(e1071)
 setwd("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/")
 
 # load the data 
-#data <- read.csv("Full_Fv_Fm.data - FvFm.long.format.csv", header = TRUE)
-data <- read.csv("Full_Fv_Fm.data - Edited.FvFm.csv", header = TRUE) #edited dataframe without day 22 for NDF/NLF
+#data <- read.csv("Full_Fv_Fm.data - FvFm.long.format.csv", header = TRUE) # full data
+data <- read.csv("Full_Fv_Fm.data - Edited.FvFm.csv", header = TRUE)  #edited data without day 22 for NDF/NLF
 ```
 ```{r}
 # Rename column headers
@@ -160,7 +161,7 @@ for (t in 1:length(Exp.Treatments)) {
   print(summary(exp.treat.lmer1.means))
   
   sink(paste("/Users/speroffs/Desktop/thesis_backup/PAM/Model.outputs/",
-#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
     paste(Exp.Treatments[t],"Q1 EMMEANS sum.txt", sep = " "), sep = " "))
   print(summary(exp.treat.lmer1.means))
   sink()
@@ -434,7 +435,7 @@ for (t in 1:length(Exp.Treatments)) {
   print(summary(exp.treat.lmer3.means))
    
   sink(paste("/Users/speroffs/Desktop/thesis_backup/PAM/Model.outputs/",
-# sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+# sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
     paste(Exp.Treatments[t],"Q3 EMMEANS sum.txt", sep = " "), sep = " "))
   print(summary(exp.treat.lmer3.means))
   sink()
@@ -526,7 +527,7 @@ summary(temp.lm1)
 
 # Save aov output to ModelOutputs folder
 sink(
-  paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", # path
+  paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", # path
         file = "Temperature Q1 LM sum.txt")) # name txt
 summary(temp.lm1) # what to print
 sink(file = NULL) 
@@ -545,7 +546,7 @@ for (s in 1:length(stressors)) {
   print(paste(stressors[s],"Q1 LMER sum:", sep = " "))
   print(summary(s.lmer1)) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
              paste(stressors[s],"Q1 LMER sum.txt", sep = " "), sep = ""))
   print(summary(s.lmer1))
   sink()
@@ -557,7 +558,7 @@ for (s in 1:length(stressors)) {
   print(paste(stressors[s],"Q1 ANOVA sum:", sep = " ")) # name the summary output 
   print(s.lmer1.aov) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
              paste(stressors[s],"Q1 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
   print(s.lmer1.aov)
   sink()
@@ -567,7 +568,7 @@ for (s in 1:length(stressors)) {
   print(paste(stressors[s],"Q1 EMMEANS sum:", sep = " "))
   print(summary(s.lmer1.means))
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
              paste(stressors[s],"Q1 EMMEANS sum.txt", sep = " "), sep = ""))
   print(summary(s.lmer1.means))
   sink()
@@ -591,19 +592,23 @@ PN.fvfm.plot<-
   labs(x = "", y = "") + # remove axes text for paneling plots
   scale_x_discrete(limits = c("NoPlastic", "Plastic"),
                    labels = c("No Plastic", "Plastic")) +
-  scale_y_continuous(limits = c(0.15, 0.3), breaks = seq(0.15, 0.3, by = 0.05)) +
+  scale_y_continuous(limits = c(0.15, 0.31), breaks = seq(0.15, 0.3, by = 0.05)) +
   
+  annotate("text", x = 1, y = 0.3, label = deparse("C. Plastic"), parse = TRUE, size = 14) +
+ 
   theme_classic() +
   theme_classic(base_size=16) +
   theme(legend.position = "none",
         legend.title = element_blank(),
         legend.text = element_text(size = 12))
 PN.fvfm.plot
+```
 
+```{r}
 # Save plot 
 ggsave(plot = PN.fvfm.plot,
-       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/PN.fvfm.plot.pdf", 
-       width = 8, height = 6, units = "in")
+       filename = "/Users/speroffs/Desktop/PN.fvfm.plot.jpg", 
+       width = 4, height = 4, units = "in", dpi = 300)
 
 ```
 
@@ -621,8 +626,10 @@ ggplot(data = light.sum1,
   geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
   
   labs(x="",y="") +
-  scale_y_continuous(limits = c(0.15, 0.3), breaks = seq(0.15, 0.3, by = 0.05)) +
+  scale_y_continuous(limits = c(0.15, 0.31), breaks = seq(0.15, 0.3, by = 0.05)) +
   
+  annotate("text", x = 1, y = 0.3, label = deparse("E. Light"), parse = TRUE, size = 14) +
+
   theme_classic() +
   theme_classic(base_size=16) +
   theme(legend.position = "none",
@@ -630,10 +637,12 @@ ggplot(data = light.sum1,
         legend.text = element_text(size = 12))
 
 LD.fvfm.plot
+```
 
+```{r}
 # Save plot 
 ggsave(plot = LD.fvfm.plot,
-       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/LD.fvfm.plot.pdf", 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/LD.fvfm.plot.jpg", 
        width = 8, height = 6, units = "in")
 
 ```
@@ -652,8 +661,10 @@ ggplot(data = food.sum1,
   geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
   
   labs(x="",y="") +
-  scale_y_continuous(limits = c(0.15, 0.3), breaks = seq(0.15, 0.3, by = 0.05)) +
-  
+  scale_y_continuous(limits = c(0.15, 0.31), breaks = seq(0.15, 0.3, by = 0.05)) +
+
+    annotate("text", x = 1, y = 0.3, label = deparse("F. Food"), parse = TRUE, size = 14) +
+
   theme_classic() +
   theme_classic(base_size=16) +
   theme(legend.position = "none",
@@ -661,10 +672,12 @@ ggplot(data = food.sum1,
         legend.text = element_text(size = 12))
 
 FS.fvfm.plot
+```
 
+```{r}
 # Save plot 
 ggsave(plot = FS.fvfm.plot,
-       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/FS.fvfm.plot.pdf", 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/FS.fvfm.plot.jpg", 
        width = 8, height = 6, units = "in")
 
 ```
@@ -701,7 +714,10 @@ ggplot(data = temp.sum1,
   geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
   
   labs(x="",y="") +
-  scale_y_continuous(limits = c(0.15, 0.3), breaks = seq(0.15, 0.3, by = 0.05)) +
+  scale_y_continuous(limits = c(0.15, 0.31), breaks = seq(0.15, 0.3, by = 0.05)) +
+  
+  annotate("text", x = 1.2, y = 0.305, label = deparse("A. Temperature"), parse = TRUE, size = 14) +
+  stat_compare_means(aes(label=..p.signif..), label.x = 1.5, label.y = 0.25) +
   
   theme_classic() +
   theme_classic(base_size=16) +
@@ -710,13 +726,34 @@ ggplot(data = temp.sum1,
         legend.text = element_text(size = 12))
 
 AE.fvfm.plot
+```
 
+
+```{r}
 # Save plot 
 ggsave(plot = AE.fvfm.plot,
        filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/AE.fvfm.plot.pdf", 
        width = 8, height = 6, units = "in")
 
 ```
+
+```{r}
+library(ggpubr)
+
+fvfm.panel1 <- ggarrange(AE.fvfm.plot, PN.fvfm.plot, LD.fvfm.plot, FS.fvfm.plot, 
+          ncol = 1, common.legend = FALSE, 
+          #labels = c("A", "C", "D", "E"),
+          heights = c(1,1,1,1))
+```
+
+```{r}
+# Save plot 
+ggsave(plot = fvfm.panel1,
+       filename = "/Users/speroffs/Desktop/fvfm.panel1.jpg", 
+       width = 6, height = 8, units = "in", dpi = 300)
+
+```
+
 
 ###########################################################################################################################
 #
@@ -735,7 +772,7 @@ temp.lmer2 <- lmer(fvfm ~ Day + (1|B.Tag), data = elev.dat)
 summary(temp.lmer2)
 
 # Save output to ModelOutputs folder
-sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", # path
+sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", # path
         file = "Temperature Q2 LMER sum.txt")) # name txt
 summary(temp.lmer2) # what to print
 sink(file = NULL) 
@@ -746,7 +783,7 @@ temp.lmer2.aov <- anova(null, temp.lmer2) #model comparison
 temp.lmer2.aov
 
 # Save output to ModelOutputs folder
-sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", # path
+sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", # path
         file = "Temperature Q2 ANOVA sum.txt")) # name txt
 summary(temp.lmer2.aov) # what to print
 sink(file = NULL) 
@@ -760,7 +797,7 @@ temp.means2 <- emmeans(temp.lmer2.2, list(pairwise~"Day"))
 temp.means2 # view tukey output
 
 # Save Tukey to ModelOutputs folder
-sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", # path
+sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", # path
         file = "Temperature Q2 EMMEANS sum.txt")) # name txt
 (temp.means2) # what to print
 sink(file = NULL)
@@ -775,7 +812,7 @@ for (s in 1:length(stressors)) {
   print(paste(stressors[s],"Q2 LMER sum:", sep = " "))
   print(summary(s.lmer2)) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
              paste(stressors[s],"Q2 LMER sum.txt", sep = " "), sep = ""))
   print(summary(s.lmer2))
   sink()
@@ -788,7 +825,7 @@ for (s in 1:length(stressors)) {
   print(paste(stressors[s],"Q2 ANOVA sum:", sep = " ")) # name the summary output 
   print(s.lmer2.aov) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
              paste(stressors[s],"Q2 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
   print(s.lmer2.aov)
   sink()
@@ -806,7 +843,7 @@ for (s in 1:length(stressors)) {
   print(paste(stressors[s],"Q2 EMMEANS sum:", sep = " "))
   print(summary(s.lmer2.means))
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", 
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
              paste(stressors[s],"Q2 EMMEANS sum.txt", sep = " "), sep = ""))
   print(summary(s.lmer2.means))
   sink()
@@ -843,7 +880,10 @@ ggplot(data = plastic.sum2,
   guides(color = guide_legend(direction = "horizontal")) 
 
 NP.time.fvfm.plot
+```
 
+
+```{r}
 # Save plot 
 ggsave(plot = NP.time.fvfm.plot,
        filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/NP.time.fvfm.plot.pdf", 
@@ -1010,7 +1050,7 @@ for (s in 1:length(stressors2)) {
   print(paste(stressors2[s],"Q3 LMER sum:", sep = " ")) # name the summary output 
   print(summary(s.lmer3)) # print the summary output
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/",
     paste(stressors2[s],"Q3 LMER sum.txt", sep = " "), sep = " "))   
   print(summary(s.lmer3)) # print summary output 
   sink()
@@ -1024,7 +1064,7 @@ for (s in 1:length(stressors2)) {
   print(paste(stressors2[s],"Q3 ANOVA sum:", sep = " ")) # name the summary output 
   print(s.lmer3.aov) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/",
     paste(stressors2[s],"Q3 ANOVA sum.txt", sep = " "), sep = " ")) # save anova summary as txt
   print(s.lmer3.aov)
   sink()
@@ -1034,7 +1074,7 @@ for (s in 1:length(stressors2)) {
   print(paste(stressors2[s],"Q3 EMMEANS sum:", sep = " ")) # print emmeans summary output 
   print(summary(s.lmer3.means))
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/",
     paste(stressors2[s],"Q3 EMMEANS sum.txt", sep = " "), sep = " ")) # save emmeans summary as txt
   print(summary(s.lmer3.means))
   sink()
@@ -1132,7 +1172,7 @@ temp.lmer4 <- lmer(fvfm ~ Sym.State * Day + (1|B.Tag), data = elev.dat)
 summary(temp.lmer4)
 
 # Save output to ModelOutputs folder
-sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", # path
+sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", # path
         file = "Temperature Q4 LMER sum.txt")) # name txt
 summary(temp.lmer4) # what to print
 sink(file = NULL) 
@@ -1145,7 +1185,7 @@ temp.lmer4.aov <- anova(null, Q2, temp.lmer4) #model comparison
 temp.lmer4.aov
 
 # Save output to ModelOutputs folder
-sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", # path
+sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", # path
         file = "Temperature Q4 ANOVA sum.txt")) # name txt
 summary(temp.lmer4.aov) # what to print
 sink(file = NULL) 
@@ -1160,7 +1200,7 @@ temp.means4 <- emmeans(temp.lmer4, list(pairwise~"Sym.State:Day"))
 temp.means4 # view tukey output
 
 # Save Tukey to ModelOutputs folder
-sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/", # path
+sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", # path
         file = "Temperature Q4 EMMEANS sum.txt")) # name txt
 (temp.means4) # what to print
 sink(file = NULL)
@@ -1175,7 +1215,7 @@ for (s in 1:length(stressors2)) {
   print(paste(stressors2[s],"Q4 LMER sum:", sep = " ")) # name the summary output 
   print(summary(s.lmer4)) # print the summary output
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/",
     paste(stressors2[s],"Q4 LMER sum.txt", sep = " "), sep = " "))   
   print(summary(s.lmer4)) # print summary output 
   sink()
@@ -1190,7 +1230,7 @@ for (s in 1:length(stressors2)) {
   print(paste(stressors2[s],"Q4 ANOVA sum:", sep = " ")) # name the summary output 
   print(s.lmer4.aov) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/",
     paste(stressors2[s],"Q4 ANOVA sum.txt", sep = " "), sep = " ")) # save anova summary as txt
   print(s.lmer4.aov)
   sink()
@@ -1208,7 +1248,7 @@ for (s in 1:length(stressors)) {
   print(paste(stressors2[s],"Q4 EMMEANS sum:", sep = " ")) # print emmeans summary output 
   print(summary(s.lmer4.means))
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/PAM.model.outputs/",
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/",
     paste(stressors2[s],"Q4 EMMEANS sum.txt", sep = " "), sep = " ")) # save emmeans summary as txt
   print(summary(s.lmer4.means))
   sink()

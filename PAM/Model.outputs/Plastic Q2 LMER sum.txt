@@ -1,0 +1,30 @@
+Linear mixed model fit by REML. t-tests use Satterthwaite's method ['lmerModLmerTest']
+Formula: as.formula(paste("fvfm~", paste(stressors[s]), "* Day + (1|B.Tag)"))
+   Data: expt.data
+
+REML criterion at convergence: -1942.5
+
+Scaled residuals: 
+    Min      1Q  Median      3Q     Max 
+-1.7280 -0.7515 -0.1691  0.5960  3.5186 
+
+Random effects:
+ Groups   Name        Variance  Std.Dev.
+ B.Tag    (Intercept) 0.0002484 0.01576 
+ Residual             0.0092220 0.09603 
+Number of obs: 1088, groups:  B.Tag, 320
+
+Fixed effects:
+                     Estimate Std. Error         df t value Pr(>|t|)    
+(Intercept)         2.039e-01  7.099e-03  1.047e+03  28.720   <2e-16 ***
+PlasticPlastic     -1.009e-02  9.959e-03  1.045e+03  -1.014   0.3111    
+Day                -1.145e-03  5.827e-04  9.028e+02  -1.964   0.0498 *  
+PlasticPlastic:Day  1.621e-04  7.799e-04  8.771e+02   0.208   0.8354    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Correlation of Fixed Effects:
+            (Intr) PlstcP Day   
+PlastcPlstc -0.713              
+Day         -0.785  0.560       
+PlstcPlst:D  0.587 -0.789 -0.747

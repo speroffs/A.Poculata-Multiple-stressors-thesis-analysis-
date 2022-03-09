@@ -1,0 +1,16 @@
+      npar           AIC             BIC            logLik         deviance         Chisq             Df   
+ Min.   :3.00   Min.   :-1977   Min.   :-1957   Min.   :988.5   Min.   :-1985   Min.   :7.989   Min.   :1  
+ 1st Qu.:3.25   1st Qu.:-1976   1st Qu.:-1957   1st Qu.:989.5   1st Qu.:-1983   1st Qu.:7.989   1st Qu.:1  
+ Median :3.50   Median :-1974   Median :-1957   Median :990.5   Median :-1981   Median :7.989   Median :1  
+ Mean   :3.50   Mean   :-1974   Mean   :-1957   Mean   :990.5   Mean   :-1981   Mean   :7.989   Mean   :1  
+ 3rd Qu.:3.75   3rd Qu.:-1973   3rd Qu.:-1956   3rd Qu.:991.5   3rd Qu.:-1979   3rd Qu.:7.989   3rd Qu.:1  
+ Max.   :4.00   Max.   :-1971   Max.   :-1956   Max.   :992.5   Max.   :-1977   Max.   :7.989   Max.   :1  
+                                                                                NA's   :1       NA's   :1  
+   Pr(>Chisq)      
+ Min.   :0.004705  
+ 1st Qu.:0.004705  
+ Median :0.004705  
+ Mean   :0.004705  
+ 3rd Qu.:0.004705  
+ Max.   :0.004705  
+ NA's   :1         
