@@ -108,6 +108,7 @@ skewness(data$cuberate) # definitely not the best value here
 ```
 
 ## It looks like our metabolic rate data could benefit from being log-transformed 
+## We'll use the log-transformed MR for modelling and statistical testing, and the untransformed MR for plotting and data reporting
 
 ###########################################################################################################################
 #
@@ -163,7 +164,7 @@ ggsave(plot = resp.alltreat.plot,
 # Separate ambient control from experimental treatments
 ctrl.data <- filter(data, Treatment == "Control")
 
-ctrl.lm1 <- lm(rate~Bacteria, data = ctrl.data) # Run lm model (one obs per ID)
+ctrl.lm1 <- lm(Lograte~Bacteria, data = ctrl.data) # Run lm model (one obs per ID)
 summary(ctrl.lm1) # summarize lm 
 
 # Save lm output to ModelOutputs folder
@@ -174,7 +175,7 @@ summary(ctrl.lm1) # what to print
 sink(file = NULL) 
 
 # tukey posthoc
-ctrl.aov1 <- aov(rate~Bacteria, data = ctrl.data)
+ctrl.aov1 <- aov(Lograte~Bacteria, data = ctrl.data)
 ctrl.tukey1 <- TukeyHSD(ctrl.aov1)
 ctrl.tukey1
 
@@ -186,6 +187,31 @@ sink(file = NULL)
 ```
 
 ```{r}
+ctrl.means <- summarySE(ctrl.data, measurevar = "rate", groupvars = "Bacteria")
+
+ctrl.resp.A <-
+  ggplot(data = ctrl.means, 
+       aes(x = Bacteria,
+           y = rate,
+           color = Bacteria)) +
+  geom_point(size = 2) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1.2) +
+  
+  scale_color_manual(labels = c("", ""), values = c("black", "black")) +
+  scale_x_discrete(name = "", limits = c("EC", "SW"), labels = c("Acute", "Basal")) +
+  scale_y_continuous(name= expression(paste("Rate O2 Consumption(umol*min"^"-1"~"*g"^"-1"~")")),
+                     limits = c(0, 0.06), breaks = seq(0, 0.06, by = 0.03)) +
+  theme_classic(base_size = 14) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 14),
+        axis.text.y = element_text(size = 14),
+        axis.title.y = element_text(size = 12))
+        #axis.title.y = element_text(hjust=0.2))
+```
+
+
+```{r}
 # Create a string of the experimental Treatment names 
 Exp.Treatments <- c("PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF")
 ```
@@ -195,7 +221,7 @@ Exp.Treatments <- c("PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF")
 for (t in 1:length(Exp.Treatments)) {
   
   tmp.data <- filter(data, Treatment == Exp.Treatments[t])
-  exp.treat.lmer1 <- lmer(rate ~ Bacteria + (1|B.TAG), data = tmp.data) # write lmer with fixed and ID random effects
+  exp.treat.lmer1 <- lmer(Lograte ~ Bacteria + (1|B.TAG), data = tmp.data) # write lmer with fixed and ID random effects
   print(paste(Exp.Treatments[t],"Q1 LMER sum:", sep = " ")) # name the summary output 
   print(summary(exp.treat.lmer1)) # print the summary output
   
@@ -207,7 +233,7 @@ for (t in 1:length(Exp.Treatments)) {
   sink()
   
   # Posthoc ANOVA to compare model to the null
-  null <- lmer(rate ~ 1 + (1| B.TAG), data = tmp.data) # null model without effect of bacteria
+  null <- lmer(Lograte ~ 1 + (1| B.TAG), data = tmp.data) # null model without effect of bacteria
   exp.treat.lmer1.aov <- anova(null, exp.treat.lmer1) # model comparison to the null 
   print(paste(Exp.Treatments[t],"Q1 ANOVA sum:", sep = " ")) # name the summary output 
   print(exp.treat.lmer1.aov) 
@@ -268,8 +294,8 @@ ggplot(bac.sum,
   geom_point(position = position_dodge(0.2)) +
   geom_line(lty=2,position = position_dodge(0.2)) +
   geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.3, size = 1, position = position_dodge(0.2)) +
-  scale_y_continuous(name = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")),
-                     limits = c(-5.9, -3.3), breaks=seq(-5.75, -3, by = 0.5)) +
+  #scale_y_continuous(name = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")),
+                     #limits = c(-5.9, -3.3), breaks=seq(-5.75, -3, by = 0.5)) +
 
   scale_color_manual(name = "", values = c("#131513", "#E02D00", "#FF7E33", 
                                                    "#D6A70A", "#ECDD09", "#075F3C", 
@@ -297,7 +323,7 @@ for (t in 1:length(Exp.Treatments)) { # use same Exp.treatments string
   
   tmp.data <- filter(data, Treatment == Exp.Treatments[t])
   tmp.data$Day <- as.numeric(tmp.data$Day)
-  exp.treat.lmer2 <- lmer(rate ~ Day * Bacteria + (1|B.TAG), data = tmp.data) #write lmer with fixed and ID random effects
+  exp.treat.lmer2 <- lmer(Lograte ~ Day * Bacteria + (1|B.TAG), data = tmp.data) #write lmer with fixed and ID random effects
   print(paste(Exp.Treatments[t],"Q2 LMER sum:", sep = " ")) # name the summary output 
   print(summary(exp.treat.lmer2)) # print the summary output
   
@@ -309,8 +335,8 @@ for (t in 1:length(Exp.Treatments)) { # use same Exp.treatments string
   sink()
   
   # Posthoc ANOVA to compare model to the null
-  null <- lmer(rate ~ 1 + (1| B.TAG), data = tmp.data) # null model without effect of bacteria
-  Q1.m <- lmer(rate ~ Bacteria + (1| B.TAG), data = tmp.data) # q1 model 
+  null <- lmer(Lograte ~ 1 + (1| B.TAG), data = tmp.data) # null model without effect of bacteria
+  Q1.m <- lmer(Lograte ~ Bacteria + (1| B.TAG), data = tmp.data) # q1 model 
   exp.treat.lmer2.aov <- anova(null, Q1.m, exp.treat.lmer2) # model comparison to the null and model q1
   print(paste(Exp.Treatments[t],"Q2 ANOVA sum:", sep = " ")) # name the summary output 
   print(exp.treat.lmer2.aov) 
@@ -328,7 +354,7 @@ for (t in 1:length(Exp.Treatments)) { # use same Exp.treatments string
   
   tmp.data <- filter(data, Treatment == Exp.Treatments[t])
   tmp.data$Day <- as.factor(tmp.data$Day)
-  exp.treat.lmer2 <- lmer(rate ~ Day * Bacteria + (1|B.TAG), data = tmp.data) #write lmer with fixed and ID random effects
+  exp.treat.lmer2 <- lmer(Lograte ~ Day * Bacteria + (1|B.TAG), data = tmp.data) #write lmer with fixed and ID random effects
   
   # Emmmeans posthoc test 
   exp.treat.lmer2.means <- emmeans(exp.treat.lmer2, list(pairwise~Day:Bacteria)) # run emmeans on lmer object 
@@ -361,13 +387,13 @@ ggplot(data = bac.day.sum,
   geom_line(size = 1.2) +
   geom_errorbar(aes(ymin=rate-se, ymax=rate+se),width=0.1, size = 1, lty=1) +
   
-  scale_linetype_manual(values = c(5, 1)) +
-  scale_color_manual(labels = c("EC", "SW"), values=c("black","black")) +
+  scale_linetype_manual(labels = c("Acute Challenge", "Basal"),values = c(5, 1)) +
+  scale_color_manual(labels = c("Acute Challenge", "Basal"), values=c("black","black")) +
   facet_wrap(vars(Treatment)) +
 
   labs(x = "\nDay") +
-  scale_y_continuous(name= expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")),
-                     limits = c(-7, -3), breaks = seq(-7, -3, by = 2)) +
+  scale_y_continuous(name= expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")),
+                     limits = c(0, 0.075), breaks = seq(0, 0.075, by = 0.025)) +
 
   theme_classic(base_size = 13) +
    theme(legend.position = c(0.83,0.15),
@@ -380,7 +406,7 @@ resp.treat.time.plot
 ```{r}
 # save plot
 ggsave(plot = resp.treat.time.plot,
-       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/Plots/resp.treat.time.plot.pdf", 
+       filename = "/Users/speroffs/Desktop/resp.treat.time.plot.jpg", 
        width = 8, height = 6, units = "in")
 
 ```
@@ -394,8 +420,9 @@ ggsave(plot = resp.treat.time.plot,
 
 ```{r}
 # Start with Control data (lm for non repeat obs)
-ctrl.lm3 <- lm(rate~Sym.state*Bacteria, data=ctrl.data)
+ctrl.lm3 <- lm(Lograte~Sym.state*Bacteria, data=ctrl.data)
 summary(ctrl.lm3) # view summary
+anova(ctrl.lm3)
 
 # Save aov output to ModelOutputs folder
 sink(
@@ -405,7 +432,7 @@ summary(ctrl.lm3) # what to print
 sink(file = NULL) 
 
 # Tukey post hoc 
-ctrl.aov3 <- aov(rate~Sym.state*Bacteria, data=ctrl.data) # for tukey test
+ctrl.aov3 <- aov(Lograte~Sym.state*Bacteria, data=ctrl.data) # for tukey test
 ctrl.tukey3 <- TukeyHSD(ctrl.aov3, which = 'Sym.state:Bacteria')
 ctrl.tukey3 # view tukey output
 
@@ -423,7 +450,7 @@ sink(file = NULL)
 for (t in 1:length(Exp.Treatments)) { # use same Exp.treatments string
   
   tmp.data <- filter(data, Treatment == Exp.Treatments[t])
-  exp.treat.lmer3 <- lmer(rate ~ Sym.state * Bacteria + (1|B.TAG), data = tmp.data) #write lmer with fixed and ID random effects
+  exp.treat.lmer3 <- lmer(Lograte ~ Sym.state * Bacteria + (1|B.TAG), data = tmp.data) #write lmer with fixed and ID random effects
   print(paste(Exp.Treatments[t],"Q3 LMER sum:", sep = " ")) # name the summary output 
   print(summary(exp.treat.lmer3)) # print the summary output
   
@@ -435,8 +462,8 @@ for (t in 1:length(Exp.Treatments)) { # use same Exp.treatments string
   sink()
   
   # Posthoc ANOVA to compare model to the null
-  null <- lmer(rate ~ 1 + (1| B.TAG), data = tmp.data) # null model without effects
-  Q1.m <- lmer(rate ~ Bacteria + (1| B.TAG), data = tmp.data) # q1 model with bacteria
+  null <- lmer(Lograte ~ 1 + (1| B.TAG), data = tmp.data) # null model without effects
+  Q1.m <- lmer(Lograte ~ Bacteria + (1| B.TAG), data = tmp.data) # q1 model with bacteria
   
   exp.treat.lmer3.aov <- anova(null, Q1.m, exp.treat.lmer3) # model comparison to the null 
   print(paste(Exp.Treatments[t],"Q3 ANOVA sum:", sep = " ")) # name the summary output 
@@ -461,7 +488,7 @@ for (t in 1:length(Exp.Treatments)) { # use same Exp.treatments string
 
 ```{r}
 # Summarize to plot
-phen.means <- summarySE(data, measurevar = "rate", groupvars = c("Treatment", "Bacteria", "Sym.state"))
+phen.means <- summarySE(exp.data, measurevar = "rate", groupvars = c("Treatment", "Bacteria", "Sym.state"))
 ```
 ```{r}
 # Plot
@@ -478,24 +505,58 @@ ggplot(data = phen.means,
   facet_wrap(vars(Treatment)) +
   scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"), values = c("tan", "coral4")) +
   #scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values = c(1, 19)) +
+  scale_x_discrete(limits = c("EC", "SW"),
+                   labels = c("Acute", "Basal")) +
 
-  labs(x = "\nBacterial Treatment", 
-       y = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]"))) +
+  labs(x = "\nBacterial Challenge", 
+       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")"))) +
   
   theme_classic(base_size = 13) +
-  theme(legend.position = "top",
+  theme(legend.position = c(0.85,0.1),
         legend.title = element_blank(),
-        legend.text = element_text(size = 12),
-        axis.text.y = element_text(size = 12))
+        legend.text = element_text(size = 13),
+        axis.text.y = element_text(size = 13))
 resp.phen.plot
 ```
 ```{r}
 # save plot
 ggsave(plot = resp.phen.plot,
-       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/Plots/resp.phen.plot.pdf", 
-       width = 8, height = 6, units = "in")
+       filename = "/Users/speroffs/Desktop/resp.phen.plot.jpg", 
+       width = 8, height = 6, units = "in", dpi = 300)
 
 ```
+
+## Isolate ambient controls
+
+```{r}
+ctrl.phen.means <-summarySE(ctrl.data, measurevar = "rate", groupvars = c("Bacteria", "Sym.state"))
+ctrl.resp.B <-
+  ggplot(ctrl.phen.means, aes(x = Bacteria, 
+                         y = rate, 
+                         col = Sym.state, 
+                         group = Sym.state)) +
+  geom_point(size = 2) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1.2) +
+  scale_color_manual(labels = c("Apo", "Sym"), values = c("tan", "coral4")) +
+  scale_x_discrete(name = "", limits = c("EC", "SW"), labels = c("Acute", "Basal")) +
+  scale_y_continuous(name= "",limits = c(0, 0.075), breaks = seq(0, 0.075, by = 0.025)) +
+
+  theme_classic(base_size = 14) +
+  theme(legend.position = c(0.8,0.85),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 14),
+        axis.text.y = element_text(size = 14))
+ctrl.resp.B
+```
+```{r}
+amb.ctrl.resp <- ggarrange(ctrl.resp.A, ctrl.resp.B, labels = "AUTO", widths = c(2,2.2), align = "v")
+# save plot
+ggsave(plot = amb.ctrl.resp,
+       filename = "/Users/speroffs/Desktop/amb.ctrl.resp.jpg", 
+       width = 6, height = 4, units = "in", dpi=300)
+
+```
+
 
 ###########################################################################################################################
 #
@@ -512,7 +573,7 @@ for (t in 1:length(Exp.Treatments)) { # use same Exp.treatments string
   
   tmp.data <- filter(data, Treatment == Exp.Treatments[t])
   tmp.data$Day <- as.numeric(tmp.data$Day)
-  exp.treat.lmer4 <- lmer(rate ~ Sym.state * Day * Bacteria + (1|B.TAG), data = tmp.data) #write lmer with fixed and ID random effects
+  exp.treat.lmer4 <- lmer(Lograte ~ Sym.state * Day * Bacteria + (1|B.TAG), data = tmp.data) #write lmer with fixed and ID random effects
   print(paste(Exp.Treatments[t],"Q4 LMER sum:", sep = " ")) # name the summary output 
   print(summary(exp.treat.lmer4)) # print the summary output
   
@@ -524,10 +585,10 @@ for (t in 1:length(Exp.Treatments)) { # use same Exp.treatments string
   sink()
   
   # Posthoc ANOVA to compare model to the null and previous 
-  null <- lmer(rate ~ 1 + (1| B.TAG), data = tmp.data) # null model without effects
-  Q1.m <- lmer(rate ~ Bacteria + (1| B.TAG), data = tmp.data) # q1 model with bacteria
-  Q2.m <- lmer(rate ~ Day * Bacteria + (1|B.TAG), data = tmp.data) # q2 model
-  Q3.m <- lmer(rate ~ Sym.state * Bacteria + (1|B.TAG), data = tmp.data) # q3 model with phenotype, bacteria, and day
+  null <- lmer(Lograte ~ 1 + (1| B.TAG), data = tmp.data) # null model without effects
+  Q1.m <- lmer(Lograte ~ Bacteria + (1| B.TAG), data = tmp.data) # q1 model with bacteria
+  Q2.m <- lmer(Lograte ~ Day * Bacteria + (1|B.TAG), data = tmp.data) # q2 model
+  Q3.m <- lmer(Lograte ~ Sym.state * Bacteria + (1|B.TAG), data = tmp.data) # q3 model with phenotype, bacteria, and day
   
   exp.treat.lmer4.aov <- anova(null, Q1.m, Q2.m, Q3.m, exp.treat.lmer4) # model comparison 
   print(paste(Exp.Treatments[t],"Q4 ANOVA sum:", sep = " ")) # name the summary output 

@@ -449,6 +449,8 @@ summary(treat.emmeans)
 ```{r}
 # Summarise
 treat.means <- summarySE(ID.slope, measurevar = "Slope", groupvars = "Treatment")
+summarySE(ID.slope, measurevar = "Slope", groupvars = "Temperature")
+
 ```
 ```{r}
 # plot
@@ -478,7 +480,8 @@ all.treat.growth.plot
 ```{r}
 # save plot
 ggsave(plot = all.treat.growth.plot,
-       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Plots/all.treat.growth.plot.pdf", width = 8, height = 6, units = "in")
+       filename = "/Users/speroffs/Desktop/all.treat.growth.plot.jpg", 
+       width = 8, height = 6, units = "in", dpi = 300)
 
 ```
 
@@ -547,12 +550,12 @@ ggsave(plot = growth.temp.plot,
 ```{r}
 # Run a liner effects mixed model to determine if the treatment affects the growth rate of polyps while taking coral colony into account
 
-plastic.lmer <- lmer(Slope~Plastic + (1|Colony), data = ID.slope)
+plastic.lmer <- lmer(Log.Slope~Plastic + (1|Colony), data = ID.slope)
 summary(plastic.lmer)
 ```
 ```{r}
 # Run an anova to compare this model to a null model 
-null <- lmer(Slope ~ 1 + (1|Colony), data = ID.slope)
+null <- lmer(Log.Slope ~ 1 + (1|Colony), data = ID.slope)
 anova(null, plastic.lmer) 
 ```
 ```{r}
@@ -793,6 +796,34 @@ anova(m0, m1, m2, m3, m4, m5)
 library(performance)
 check_model(m2) # actually looks alright
 ```
+
+```{r}
+#libraries required
+library(lme4)
+library(sjPlot)
+
+# plot model outputs 
+tab_model(m1, m2,             # models to table
+          show.intercept = TRUE,  # show intercept value
+          p.val = "kr",           # p value method for lmer models, kenward-rogers
+          p.style = "numeric",
+          show.df = FALSE,        # degrees freedom
+          show.aic = TRUE,        # AIC score
+          show.icc = FALSE,       # contrast correlation for mm  
+          show.r2 = FALSE,
+          show.stat = TRUE,
+          show.ngroups = FALSE,
+          show.loglik = TRUE,
+          show.ci = FALSE,
+          digits = 4,
+          show.re.var = FALSE,
+          title = "")
+          
+```
+
+
+
+
 
 # Let's plot our model estimates
 ```{r}

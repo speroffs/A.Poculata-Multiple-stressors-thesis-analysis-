@@ -4,6 +4,7 @@ author: "Sarah Speroff"
 date: "2/18/2022"
 output:
   pdf_document: default
+  dev: "cairo_pdf"
   html_document: default
 ---
 ```{r setup, include=FALSE}
