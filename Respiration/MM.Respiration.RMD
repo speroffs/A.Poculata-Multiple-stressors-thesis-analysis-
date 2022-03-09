@@ -108,10 +108,6 @@ skewness(data$cuberate) # definitely not the best value here
 ```
 
 ## It looks like our metabolic rate data could benefit from being log-transformed 
-```{r}
-# Let's make sure our rate data have the appropriate transformation 
-data$rate = log(data$rate)
-```
 
 ###########################################################################################################################
 #
@@ -136,9 +132,10 @@ ggplot(explore.sum,
   geom_line(size=1.2) +
   geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1.2, lty = 1) +
   
-  scale_y_continuous(name = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")),
-                     limits = c(-6.5, -3), breaks=seq(-6.5, -3, by = 0.5)) +
-  scale_color_manual(name = "", values = c("#131513","#F53100", "#FF8B47","#C39809","#F6CB3C","#0B8454","#7BB12F","#3F88C5","#A33461")) +
+   scale_y_continuous(name = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")),
+                      limits = c(0, 0.08), breaks=seq(0.0, 0.08, by = 0.01)) +
+  scale_color_manual(name = "", 
+                     values = c("#131513","#F53100", "#FF8B47","#C39809","#F6CB3C","#0B8454","#7BB12F","#3F88C5","#A33461")) +
   
   facet_wrap(vars(Bacteria)) +
   theme_classic(base_size=13) +

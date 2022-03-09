@@ -1,0 +1,14 @@
+$`emmeans of Sym.State`
+ Sym.State emmean     SE   df lower.CL upper.CL
+ Apo        0.179 0.0118 39.7    0.155    0.203
+ Sym        0.162 0.0109 33.4    0.140    0.184
+
+Degrees-of-freedom method: kenward-roger 
+Confidence level used: 0.95 
+
+$`pairwise differences of Sym.State`
+ 1         estimate     SE   df t.ratio p.value
+ Apo - Sym   0.0174 0.0161 36.6   1.082  0.2865
+
+Degrees-of-freedom method: kenward-roger 
+

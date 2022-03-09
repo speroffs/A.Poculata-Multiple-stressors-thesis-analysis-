@@ -1,29 +1,29 @@
 Linear mixed model fit by REML. t-tests use Satterthwaite's method ['lmerModLmerTest']
-Formula: fvfm ~ Day + (1 | B.Tag)
+Formula: fvfm ~ Sym.State + (1 | B.Tag)
    Data: tmp.data
 
-REML criterion at convergence: -267.2
+REML criterion at convergence: -250.5
 
 Scaled residuals: 
     Min      1Q  Median      3Q     Max 
--1.8367 -0.6369 -0.1574  0.5569  3.5666 
+-1.5173 -0.8602 -0.1919  0.6803  3.2665 
 
 Random effects:
  Groups   Name        Variance Std.Dev.
  B.Tag    (Intercept) 0.000000 0.00000 
- Residual             0.007967 0.08926 
+ Residual             0.009327 0.09657 
 Number of obs: 143, groups:  B.Tag, 40
 
 Fixed effects:
-              Estimate Std. Error         df t value Pr(>|t|)    
-(Intercept)  2.271e-01  1.271e-02  1.410e+02  17.876  < 2e-16 ***
-Day         -5.185e-03  9.616e-04  1.410e+02  -5.392 2.86e-07 ***
+              Estimate Std. Error        df t value Pr(>|t|)    
+(Intercept)    0.15507    0.01138 141.00000  13.625   <2e-16 ***
+Sym.StateSym   0.03347    0.01615 141.00000   2.072   0.0401 *  
 ---
 Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 Correlation of Fixed Effects:
-    (Intr)
-Day -0.809
+            (Intr)
+Sym.StatSym -0.705
 optimizer (nloptwrap) convergence code: 0 (OK)
 boundary (singular) fit: see help('isSingular')
 

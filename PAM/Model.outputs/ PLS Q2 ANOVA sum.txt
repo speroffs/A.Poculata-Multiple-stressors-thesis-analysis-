@@ -1,0 +1,7 @@
+Data: tmp.data
+Models:
+null: fvfm ~ 1 + (1 | B.Tag)
+exp.treat.lmer2: fvfm ~ Sym.State + (1 | B.Tag)
+                npar     AIC     BIC logLik deviance  Chisq Df Pr(>Chisq)
+null               3 -298.52 -289.61 152.26  -304.52                     
+exp.treat.lmer2    4 -297.38 -285.50 152.69  -305.38 0.8623  1     0.3531
