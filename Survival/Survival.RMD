@@ -92,7 +92,7 @@ new.pal <- c("#131513", # control
              "#0B8454", # pdf
              "#7BB12F", # plf
              "#3F88C5", # ndf
-             "#A33461")# nlf
+             "#A33461") # nlf
 ```
 ```{r}
 # write the same model using the graphing data, and plot that 
@@ -117,14 +117,16 @@ Km.surv.fig <- ggsurvplot(treat, # survival function
                 conf.int = FALSE, # remove confidence intervals
                 pval = FALSE, # do not include p value on plot
                 surv.scale = "default", # or %
-                legend.labs = c("Control", "PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF"), # treatments
-                legend = c(0.1, 0.35), font.legend = 11, legend.title ="", # legend parameters 
-                xlab = "Day", xlim = c(0, 23), break.x.by = 2, font.x = 12, # x axis parameters
-                ylim = c(0.65,1), font.y= 12, # y axis parameters
+                legend.labs = c("Control", "PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF"), 
+                legend = c(0.1, 0.35), font.legend = 14, legend.title ="", # legend parameters 
+                xlab = "Day", xlim = c(0, 23), break.x.by = 2, font.x = 14, # x axis parameters
+                ylim = c(0.65,1), font.y= 14, # y axis parameters
+                font.tickslab = 14,
                 censor.size = 6,
                 ggtheme = theme_classic2(),
-                title = "A.",
-                palette = c("#131513","#F53100", "#FF8B47","#C39809","#F6CB3C","#0B8454", "#7BB12F","#3F88C5","#A33461"))
+                # title = "A.",
+                palette = c("#131513","#F53100", "#FF8B47","#C39809","#F6CB3C",
+                            "#0B8454", "#7BB12F","#3F88C5","#A33461"))
 Km.surv.fig 
 ```
 
@@ -172,17 +174,29 @@ plastic <- survfit(Surv(Time, Death) ~ Plastic, data = graph.dat)
 km.plastic.fig <- 
   ggsurvplot(plastic, 
           conf.int = FALSE, pval = FALSE, surv.scale = "default", # or %
-           legend.labs = c("No plastic", "Plastic"), legend.title = "", legend = c(0.15, 0.2), font.legend = 12,
-           xlab = "", xlim = c(0, 23),break.x.by = 2, font.x = 12,
-           ylab = "", ylim = c(0.75,1),font.y= 12,
-           font.tickslab = 12,
-           censor.size = 6,
-           ggtheme = theme_classic2(),
-           linetype = c(1,6),
-           palette = c("black","black"))
+          legend.labs = c("No plastic", "Plastic"), 
+          legend.title = "", legend = c(0.15, 0.2), font.legend = 20,
+          xlab = "", xlim = c(0, 23),break.x.by = 2, font.x = 14,
+          ylab = "", ylim = c(0.75,1),font.y= 14,
+          font.tickslab = 14,
+          censor.size = 6,
+          censor.shape = 4,
+          ggtheme = theme_classic2(),
+          linetype = c(1,6),
+          palette = c("black","black")) +
+  guides(shape = guide_legend(override.aes = list(shape=NA)))
            
 km.plastic.fig
 ```
+```{r}
+#Save plot
+ggsave(file = "/Users/speroffs/Desktop/km.plastic.fig.jpg", 
+       print(km.plastic.fig), 
+       width = 8, height = 6, units = "in", dpi=300)
+  
+ 
+```
+
 
 ########
 # FOOD #   

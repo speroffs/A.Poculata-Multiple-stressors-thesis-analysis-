@@ -579,15 +579,16 @@ ggplot(data = plastic.sum,
   scale_x_discrete(name = "", # remove labels for paneling 
                    limits = c("NOPLASTIC", "PLASTIC"),
                    labels = c("No Plastic", "Plastic")) +
-  scale_y_continuous(name = "", 
-                     limits = c(-0.01, -0.003),
-                     breaks = seq(-0.01, -0.003, by = 0.001)) +
+ # scale_y_continuous(name = "", 
+ #                    limits = c(-0.01, -0.003),
+ #                    breaks = seq(-0.01, -0.003, by = 0.001)) +
 
   
   theme_classic(base_size = 16) +
   theme(legend.position = "none",
         legend.title = element_blank(),
         legend.text = element_text(size = 12))
+growth.plastic.plot
 ```
 ```{r}
 # Save plot
@@ -634,14 +635,15 @@ ggplot(data = light.sum,
   scale_x_discrete(name = "", # remove labels for paneling 
                    limits = c("DARK", "LIGHT"),
                    labels = c("Dark ", "Light")) +
-  scale_y_continuous(name = "", 
-                     limits = c(-0.01, -0.003),
-                     breaks = seq(-0.01, -0.003, by = 0.001)) +
+  #scale_y_continuous(name = "", 
+  #                   limits = c(-0.01, -0.003),
+  #                   breaks = seq(-0.01, -0.003, by = 0.001)) +
 
   theme_classic(base_size = 16) +
   theme(legend.position = "none",
         legend.title = element_blank(),
         legend.text = element_text(size = 12))
+growth.light.plot
 ```
 ```{r}
 # Save plot
@@ -689,14 +691,15 @@ ggplot(data = food.sum,
   scale_x_discrete(name = "", # remove labels for paneling 
                    limits = c("FED", "STARVED"),
                    labels = c("Fed ", "Starved")) +
-  scale_y_continuous(name = "", 
-                     limits = c(-0.01, -0.003),
-                     breaks = seq(-0.01, -0.003, by = 0.001)) +
+  #scale_y_continuous(name = "", 
+  #                   limits = c(-0.01, -0.003),
+  #                   breaks = seq(-0.01, -0.003, by = 0.001)) +
 
   theme_classic(base_size = 16) +
   theme(legend.position = "none",
         legend.title = element_blank(),
         legend.text = element_text(size = 12))
+growth.food.plot
 ```
 ```{r}
 # Save plot
@@ -820,10 +823,6 @@ tab_model(m1, m2,             # models to table
           title = "")
           
 ```
-
-
-
-
 
 # Let's plot our model estimates
 ```{r}

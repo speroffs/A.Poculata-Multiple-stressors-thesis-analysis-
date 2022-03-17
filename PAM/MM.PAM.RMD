@@ -225,13 +225,13 @@ ggplot(day.means,
   
   scale_x_continuous(breaks=seq(1, 22, by = 7)) +
   scale_y_continuous(limits=c(0.07, 0.36), breaks = seq(0.05,0.35, by = 0.05)) +
-  scale_color_manual(name = "",values = c("#E02D00", "#FF7E33", 
-                                          "#D6A70A", "#ECDD09", "#075F3C", 
-                                           "#7BB12F", "#35516E", "#3F88C5")) +
-  labs(x = "Day", 
-       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")"))) +
+  scale_color_manual(name = "",values = c("#F53100", "#FF8B47", "#C39809", "#F6CB3C", 
+                                          "#0B8454", "#7BB12F", "#3F88C5","#A33461"))  +
+ # labs(x = "Day", 
+ #      y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")"))) +
+  labs(x="Day", y="") +
   theme_classic() +
-  theme_classic(base_size=14) +
+  theme_classic(base_size=12) +
   theme(legend.position = "none",
  # theme(legend.position = c(0.5,0.85),
         legend.title = element_blank(),
@@ -312,7 +312,6 @@ for (t in 1:length(Exp.Treatments)) {
 ```{r}
 # Summarise to plot
 phen.means <- summarySE(data, measurevar = "fvfm", groupvars = c("Treatment", "Sym.State"))
-temp.phen.means <- summarySE(data, measurevar = "fvfm", groupvars = c("Temperature", "Sym.State"))
 ```
 ```{r}
 # Plot
@@ -343,9 +342,9 @@ ggplot(phen.means,
            color = Treatment)) +
   geom_point(size = 1.5, position = position_dodge(0.4)) +
   geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.5, size = 1, position = position_dodge(0.4)) +
-  scale_color_manual(name = "",values = c("#131513", "#E02D00", "#FF7E33", 
-                                                   "#D6A70A", "#ECDD09", "#075F3C", 
-                                                   "#7BB12F", "#35516E", "#3F88C5")) +
+  scale_color_manual(name = "", labels = c("Control", "PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF"),
+                                           values = c("#131513", "#F53100", "#FF8B47", "#C39809", "#F6CB3C", 
+                                          "#0B8454", "#7BB12F", "#3F88C5","#A33461")) +
   scale_y_continuous(limits=c(0.1, 0.42), breaks = seq(0.1,0.4, by = 0.05)) +
 
   labs(x = "Symbiotic Phenotype", 
@@ -353,11 +352,11 @@ ggplot(phen.means,
        y = "") +
 
   theme_classic() +
-  theme_classic(base_size=14) +
-  theme(legend.position = "none",
+  theme_classic(base_size=12) +
+  theme(legend.position = "top",
         legend.title = element_blank(),
-        legend.text = element_text(size = 12)) 
-  #guides(color = guide_legend(direction = "horizontal"))
+        legend.text = element_text(size = 10)) +
+  guides(col = guide_legend(nrow = 3))
   
 phen.plot2
 ```
@@ -366,18 +365,25 @@ phen.plot2
 ```{r}
 library(ggpubr)
 
-fvfm.panel <- ggarrange(all.treat.fvfm.plot.2, phen.plot2, 
-                        ncol = 1, common.legend = TRUE, 
-                        labels = "AUTO", heights = c(5,5))
+fvfm.panel1 <- ggarrange(all.treat.fvfm.plot.2, ggplot()+theme_void(), phen.fvfm.plot, 
+                        common.legend = FALSE, ncol=1,
+                        labels = c("A","","C"), heights = c(5, 0.5, 5)) 
+                  
+
+fvfm.panel2 <- ggarrange(fvfm.panel1, phen.plot2, labels = c("","B")) 
+
+  
+fvfm.panel2 <- annotate_figure(fvfm.panel2, 
+                left = text_grob(expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+                                 rot = 90, vjust = 1, size = 14))
+             
 ```
 
 ```{r}
-ggsave(plot = fvfm.panel, 
+ggsave(plot = fvfm.panel2, 
        filename = "/Users/speroffs/Desktop/fvfm.panel.jpg", 
-       width = 8, height = 4, units = "in", dpi = 300)
-
+       width = 8, height = 5, units = "in", dpi = 300)
 ```
-
 
 ###########################################################################################################################
 #
@@ -531,6 +537,11 @@ sink(
         file = "Temperature Q1 LM sum.txt")) # name txt
 summary(temp.lm1) # what to print
 sink(file = NULL) 
+
+#post hoc tukey
+ctrl.aov1.1 <- aov(fvfm ~ Temperature, data = temp22.data)
+ctrl.tukey1.1 <- TukeyHSD(ctrl.aov1.1)
+ctrl.tukey1.1
 ```
 
 ```{r}
@@ -970,19 +981,33 @@ phen.sum2 <- summarySE(expt.data, measurevar="fvfm", groupvars=c("Sym.State","Da
 ```
 ```{r}
 # Plot
+phen.fvfm.plot <- 
 ggplot(data = phen.sum2,
        aes(x = Day,
            y = fvfm,
            color = Sym.State,
            group = Sym.State)) +
-  geom_point() +
-  geom_line() +
-  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1) +
-  scale_color_manual(values = c("tan", "coral4")) +
-  labs(x = "Day", 
-       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
-      caption = "" ) +
-  theme_classic() 
+  geom_point(size=2) +
+  geom_line(aes(group=Sym.State), size = 1.2, linetype = rep(seq(1, 2, 1), each=4)) +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.4, size = 1.2) +
+  
+  scale_linetype_manual(labels = c("Apo", "Sym"), values = c(1,2)) +
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"), values = c("ivory4","coral4")) +
+  scale_x_continuous(name = "Day", breaks=seq(1, 22, by = 7)) +
+  
+  #labs(y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")"))) +
+  labs(y="")+
+  theme_classic(base_size=12) +
+  theme(legend.position = c(0.5,1),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10)) + 
+  guides(color = guide_legend(direction = "horizontal")) 
+phen.fvfm.plot
+
+ggsave(plot = phen.fvfm.plot,
+       filename = "/Users/speroffs/Desktop/phen.fvfm.plot.jpg", 
+       width = 8, height = 6, units = "in", dpi=300)
+
 ```
 
 ```{r}
@@ -1035,6 +1060,18 @@ summary(ctrl.lm3)
 temp.aov3 <- aov(fvfm ~ Sym.State * Temperature, data = temp22.data) # for tukey test
 temp.tukey3 <- TukeyHSD(temp.aov3, which = 'Sym.State:Temperature')
 temp.tukey3 # view tukey output
+```
+## For future analysis: compare the difference in fvfm of apo and sym between temperatures:
+```{r}
+temp.phen.means <- summarySE(data, measurevar = "fvfm", groupvars = c("Temperature", "Sym.State"))
+
+ggplot(temp.phen.means, 
+       aes(x = Temperature,
+           y = fvfm,
+           col = Sym.State)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.05, size = 0.5) +
+  theme_classic()
 ```
 
 ```{r}
@@ -1270,7 +1307,7 @@ ggplot(data = plastic.sum4,
   geom_point(aes(color = Sym.State)) +
   geom_line(aes(color = Sym.State, linetype=Plastic)) +
   #facet_grid(vars(Plastic)) +
-  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1) +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.5, size = 1) +
   scale_color_manual(values = c("tan", "coral4")) +
   labs(x = "Day", 
        y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
