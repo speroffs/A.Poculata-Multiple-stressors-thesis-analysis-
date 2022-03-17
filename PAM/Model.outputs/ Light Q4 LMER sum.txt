@@ -1,0 +1,38 @@
+Linear mixed model fit by REML. t-tests use Satterthwaite's method ['lmerModLmerTest']
+Formula: as.formula(paste("fvfm ~ Sym.State *", paste(stressors2[s]),      "* Day + (1|B.Tag)"))
+   Data: expt.data
+
+REML criterion at convergence: -1956.9
+
+Scaled residuals: 
+    Min      1Q  Median      3Q     Max 
+-1.7939 -0.7288 -0.1382  0.6008  3.7829 
+
+Random effects:
+ Groups   Name        Variance  Std.Dev.
+ B.Tag    (Intercept) 0.0002559 0.01600 
+ Residual             0.0087926 0.09377 
+Number of obs: 1088, groups:  B.Tag, 320
+
+Fixed effects:
+                              Estimate Std. Error         df t value Pr(>|t|)    
+(Intercept)                  1.782e-01  9.743e-03  1.039e+03  18.296  < 2e-16 ***
+Sym.StateSym                 5.276e-02  1.372e-02  1.036e+03   3.847 0.000127 ***
+LightLight                   5.800e-03  1.383e-02  1.041e+03   0.419 0.674964    
+Day                          5.417e-04  7.582e-04  8.816e+02   0.714 0.475119    
+Sym.StateSym:LightLight     -3.528e-02  1.944e-02  1.037e+03  -1.815 0.069864 .  
+Sym.StateSym:Day            -4.169e-03  1.064e-03  8.727e+02  -3.918 9.63e-05 ***
+LightLight:Day               1.571e-03  1.084e-03  8.897e+02   1.449 0.147712    
+Sym.StateSym:LightLight:Day -8.998e-04  1.511e-03  8.725e+02  -0.596 0.551561    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Correlation of Fixed Effects:
+            (Intr) Sym.SS LghtLg Day    Sy.SS:LL S.SS:D LghL:D
+Sym.StatSym -0.710                                            
+LightLight  -0.705  0.500                                     
+Day         -0.784  0.557  0.553                              
+Sym.SttS:LL  0.501 -0.706 -0.711 -0.393                       
+Sym.SttSy:D  0.559 -0.789 -0.394 -0.713  0.556                
+LghtLght:Dy  0.548 -0.390 -0.782 -0.699  0.556    0.498       
+Sym.SS:LL:D -0.394  0.555  0.561  0.502 -0.788   -0.704 -0.718
