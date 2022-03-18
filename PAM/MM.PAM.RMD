@@ -160,8 +160,7 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q1 EMMEANS sum:", sep = " "))
   print(summary(exp.treat.lmer1.means))
   
-  sink(paste("/Users/speroffs/Desktop/thesis_backup/PAM/Model.outputs/",
-#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
+  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
     paste(Exp.Treatments[t],"Q1 EMMEANS sum.txt", sep = " "), sep = " "))
   print(summary(exp.treat.lmer1.means))
   sink()
@@ -379,7 +378,7 @@ fvfm.panel2 <- annotate_figure(fvfm.panel2,
              
 ```
 
-```{r}
+```{r fvfm.figure5}
 ggsave(plot = fvfm.panel2, 
        filename = "/Users/speroffs/Desktop/fvfm.panel.jpg", 
        width = 8, height = 5, units = "in", dpi = 300)
@@ -487,7 +486,6 @@ ggplot(phen.means2,
 phen.treat.fvfm.plot
 ```
 
-## HERE ##
 ```{r}
 # save plot
 ggsave(plot = phen.treat.fvfm.plot,
@@ -596,7 +594,8 @@ plastic.sum1 <- summarySE(expt.data, measurevar="fvfm", groupvars="Plastic")
 PN.fvfm.plot<-
   ggplot(data = plastic.sum1,
        aes(x = Plastic,
-           y = fvfm)) +
+           y = fvfm,
+       col = Plastic)) +
   geom_point(size=1.2) +
   geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
   
@@ -604,14 +603,16 @@ PN.fvfm.plot<-
   scale_x_discrete(limits = c("NoPlastic", "Plastic"),
                    labels = c("No Plastic", "Plastic")) +
   scale_y_continuous(limits = c(0.15, 0.31), breaks = seq(0.15, 0.3, by = 0.05)) +
-  
-  annotate("text", x = 1, y = 0.3, label = deparse("C. Plastic"), parse = TRUE, size = 14) +
- 
+  scale_color_manual(values = c("black", "forestgreen")) +
+  ggtitle("B. Plastic") +
+
   theme_classic() +
   theme_classic(base_size=16) +
   theme(legend.position = "none",
         legend.title = element_blank(),
-        legend.text = element_text(size = 12))
+        legend.text = element_text(size = 12),
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold"))
+
 PN.fvfm.plot
 ```
 
@@ -632,20 +633,22 @@ light.sum1 <- summarySE(expt.data, measurevar="fvfm", groupvars="Light")
 LD.fvfm.plot <- 
 ggplot(data = light.sum1,
        aes(x = Light,
-           y = fvfm)) +
+           y = fvfm,
+           color = Light)) +
   geom_point(size=1.2) +
   geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
   
   labs(x="",y="") +
   scale_y_continuous(limits = c(0.15, 0.31), breaks = seq(0.15, 0.3, by = 0.05)) +
-  
-  annotate("text", x = 1, y = 0.3, label = deparse("E. Light"), parse = TRUE, size = 14) +
+    scale_color_manual(values = c("black", "darkgoldenrod1")) +
+  ggtitle("C. Light") +
 
-  theme_classic() +
   theme_classic(base_size=16) +
   theme(legend.position = "none",
         legend.title = element_blank(),
-        legend.text = element_text(size = 12))
+        legend.text = element_text(size = 12),
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold"))
+
 
 LD.fvfm.plot
 ```
@@ -667,20 +670,23 @@ food.sum1 <- summarySE(expt.data, measurevar="fvfm", groupvars="Food")
 FS.fvfm.plot <- 
 ggplot(data = food.sum1,
        aes(x = Food,
-           y = fvfm)) +
+           y = fvfm,
+       col = Food)) +
   geom_point(size=1.2) +
   geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
   
   labs(x="",y="") +
   scale_y_continuous(limits = c(0.15, 0.31), breaks = seq(0.15, 0.3, by = 0.05)) +
+  scale_color_manual(values = c("orangered4", "black")) +
+  ggtitle("D. Food") +
 
-    annotate("text", x = 1, y = 0.3, label = deparse("F. Food"), parse = TRUE, size = 14) +
 
-  theme_classic() +
   theme_classic(base_size=16) +
   theme(legend.position = "none",
         legend.title = element_blank(),
-        legend.text = element_text(size = 12))
+        legend.text = element_text(size = 12),
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold"))
+
 
 FS.fvfm.plot
 ```
@@ -720,21 +726,21 @@ temp.sum1 <- summarySE(temp22.data, measurevar="fvfm", groupvars="Temperature")
 AE.fvfm.plot <- 
 ggplot(data = temp.sum1,
        aes(x = Temperature,
-           y = fvfm)) +
+           y = fvfm,
+           col = Temperature)) +
   geom_point(size=1.2) +
   geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
   
   labs(x="",y="") +
   scale_y_continuous(limits = c(0.15, 0.31), breaks = seq(0.15, 0.3, by = 0.05)) +
-  
-  annotate("text", x = 1.2, y = 0.305, label = deparse("A. Temperature"), parse = TRUE, size = 14) +
-  stat_compare_means(aes(label=..p.signif..), label.x = 1.5, label.y = 0.25) +
-  
-  theme_classic() +
-  theme_classic(base_size=16) +
+  scale_color_manual(values = c("royalblue4","firebrick2")) +
+  ggtitle("A. Temperature") +
+
+theme_classic(base_size=16) +
   theme(legend.position = "none",
         legend.title = element_blank(),
-        legend.text = element_text(size = 12))
+        legend.text = element_text(size = 12),
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold")) 
 
 AE.fvfm.plot
 ```
@@ -749,12 +755,14 @@ ggsave(plot = AE.fvfm.plot,
 ```
 
 ```{r}
-library(ggpubr)
+fvfm.plot1 <- ggarrange(AE.fvfm.plot, PN.fvfm.plot, LD.fvfm.plot, FS.fvfm.plot, 
+          ncol = 1, common.legend = FALSE) 
 
-fvfm.panel1 <- ggarrange(AE.fvfm.plot, PN.fvfm.plot, LD.fvfm.plot, FS.fvfm.plot, 
-          ncol = 1, common.legend = FALSE, 
-          #labels = c("A", "C", "D", "E"),
-          heights = c(1,1,1,1))
+fvfm.plot1 <- annotate_figure(fvfm.plot1, 
+                              bottom = text_grob("Stressor", 
+                              hjust = 0.1, vjust = -1, size = 18, face = "bold"))
+    
+fvfm.plot1
 ```
 
 ```{r}
@@ -875,11 +883,11 @@ ggplot(data = plastic.sum2,
            group=Plastic)) +
   
   geom_point(size=1.2) +
-  geom_line(aes(group=Plastic), size = 1.2, linetype = rep(seq(1,2,1), each=4)) +
+  geom_line(aes(group=Plastic), size = 1.2) +
   geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
   
   scale_linetype_manual(labels = c("No plastic", "Plastic"), values = c(1,2)) +
-  scale_color_manual(labels = c("No plastic", "Plastic"), values = c("black","black")) +
+  scale_color_manual(labels = c("No plastic", "Plastic"), values = c("black","forestgreen")) +
 
   scale_x_continuous(name = "", breaks=seq(1, 22, by = 7)) +
   scale_y_continuous(name = "", limits = c(0.13, 0.3), breaks=seq(0.13, 0.3, by = 0.05)) +
@@ -887,7 +895,7 @@ ggplot(data = plastic.sum2,
   theme_classic(base_size=16) +
   theme(legend.position = c(0.5 , 0.9),
         legend.title = element_blank(),
-        legend.text = element_text(size = 12)) +
+        legend.text = element_text(size = 14)) +
   guides(color = guide_legend(direction = "horizontal")) 
 
 NP.time.fvfm.plot
@@ -915,11 +923,11 @@ ggplot(data = light.sum2,
            color = Light,
            group = Light)) +
   geom_point(size=1.2) +
-  geom_line(aes(group=Light), size = 1.2, linetype = rep(seq(2,1,-1), each=4)) +
+  geom_line(aes(group=Light), size = 1.2) +
   geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
   
   scale_linetype_manual(labels = c("Dark", "Light"), values = c(1,2)) +
-  scale_color_manual(labels = c("Dark", "Light"), values = c("black","black")) +
+  scale_color_manual(labels = c("Dark", "Light"), values = c("black","darkgoldenrod1")) +
 
   scale_x_continuous(name = "", breaks=seq(1, 22, by = 7)) +
   scale_y_continuous(name = "", limits = c(0.13, 0.3), breaks=seq(0.13, 0.3, by = 0.05)) +
@@ -927,11 +935,13 @@ ggplot(data = light.sum2,
   theme_classic(base_size=16) +
   theme(legend.position = c(0.5 , 0.9),
         legend.title = element_blank(),
-        legend.text = element_text(size = 12)) +
+        legend.text = element_text(size = 14)) +
   guides(color = guide_legend(direction = "horizontal")) 
 
 LD.time.fvfm.plot
+```
 
+```{r}
 # Save plot 
 ggsave(plot = LD.time.fvfm.plot,
        filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/LD.time.fvfm.plot.pdf", 
@@ -952,11 +962,11 @@ ggplot(data = food.sum2,
            color = Food,
            group = Food)) +
   geom_point(size=1.2) +
-  geom_line(aes(group=Food), size = 1.2, linetype = rep(seq(1, 2, 1), each=4)) +
+  geom_line(aes(group=Food), size = 1.2) +
   geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
   
   scale_linetype_manual(labels = c("Fed", "Starved"), values = c(1,2)) +
-  scale_color_manual(labels = c("Fed", "Starved"), values = c("black","black")) +
+  scale_color_manual(labels = c("Fed", "Starved"), values = c("orangered4","black")) +
 
   scale_x_continuous(name = "", breaks=seq(1, 22, by = 7)) +
   scale_y_continuous(name = "", limits = c(0.13, 0.3), breaks=seq(0.13, 0.3, by = 0.05)) +
@@ -964,10 +974,13 @@ ggplot(data = food.sum2,
   theme_classic(base_size=16) +
   theme(legend.position = c(0.5 , 0.9),
         legend.title = element_blank(),
-        legend.text = element_text(size = 12)) +
+        legend.text = element_text(size = 14)) +
   guides(color = guide_legend(direction = "horizontal")) 
 FS.time.fvfvm.plot
+```
 
+
+```{r}
 # Save plot 
 ggsave(plot = FS.time.fvfvm.plot,
        filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/FS.time.fvfvm.plot.pdf", 
@@ -1022,26 +1035,49 @@ ggplot(data = temp.sum2,
            y = fvfm,
            color=Temperature)) +
   geom_point(size=1.2) +
-  geom_line(linetype=2, size =1.2) +
+  geom_line(linetype=1, size =1.2) +
   geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
   
-  scale_color_manual(labels = "Elevated (30C)", values = "black") +
+  scale_color_manual(labels = "Elevated (30C)", values = "firebrick2") +
   scale_x_continuous(name = "", breaks=seq(1, 22, by = 7)) +
   scale_y_continuous(name = "", limits = c(0.13, 0.3), breaks=seq(0.13, 0.3, by = 0.05)) +
 
   theme_classic(base_size=16) +
   theme(legend.position = c(0.5 , 0.9),
         legend.title = element_blank(),
-        legend.text = element_text(size = 12)) +
+        legend.text = element_text(size = 14)) +
   guides(color = guide_legend(direction = "horizontal"))
 
 E.time.fvfm.plot
-
+```
+```{r}
 # Save plot 
 ggsave(plot = E.time.fvfm.plot,
        filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/E.time.fvfm.plot.pdf", 
        width = 8, height = 6, units = "in")
 
+```
+
+```{r plot 6}
+# arrange
+
+fvfm.plot2 <- ggarrange(E.time.fvfm.plot, NP.time.fvfm.plot, LD.time.fvfm.plot, FS.time.fvfvm.plot,
+                        ncol = 1) 
+
+fvfm.plot2<- annotate_figure(fvfm.plot2, 
+                bottom = text_grob("Experimental Day", hjust = 0.3, vjust = -1, size = 18, face = "bold"))
+
+stressor.fvfm.figure.6 <- ggarrange(fvfm.plot1, fvfm.plot2)
+
+stressor.fvfm.figure.6 <- 
+  annotate_figure(stressor.fvfm.figure.6, 
+                left = text_grob(expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+                                 rot = 90, vjust = 1, size = 18, face = "bold"))
+
+
+ggsave(plot = stressor.fvfm.figure.6,
+       filename = "/Users/speroffs/Desktop/stressor.fvfm.figure.6.jpg", 
+       width = 8.5, height = 11, units = "in", dpi=300)
 ```
 
 ###########################################################################################################################
