@@ -1061,7 +1061,7 @@ ggplot(data = light.sum3,
 ```{r}
 # lmer model
 light.mod3.3 <- lmer(CoralR ~ Light * Time + (1|B.Tag), data = exp.data)
-summary(light.mod3)
+summary(light.mod3.3)
 
 # emmeans post hoc
 light.emm3.3 <- emmeans(light.mod3.3, list(pairwise~Light:Time))
@@ -1245,6 +1245,48 @@ ggsave(plot = rbg.temp.plot,
        filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/rbg.temp.plot.pdf", 
        width = 8, height = 6, units = "in")
 ```
+
+```{r}
+# Isolate elevated temepratures to look at how apo and sym changed during the experiment
+elev.dat <- filter(data, Temperature == "ELEVATED", Time != "Post_Frag")
+# lmer model
+temp.mod4.4 <- lmer(CoralR ~ Sym.State  * Time + (1|B.Tag), data = elev.dat)
+summary(temp.mod4.4)
+
+# emmeans post hoc
+temp.emm4.4 <- emmeans(temp.mod4.4, list(pairwise~Sym.State:Time))
+summary(temp.emm4.4)
+```
+```{r}
+# plot
+temp.sum4.4 <- summarySE(elev.dat, measurevar = "CoralR", groupvars = c("Sym.State", "Time"))
+
+ggplot(data = temp.sum4.4,
+       aes(x = Time,
+           y = CoralR,
+           color = Sym.State,
+           group = Sym.State,
+           linetype = Sym.State)) +
+  
+  geom_point(size = 1.5)+
+  geom_line(size = 1.2) +
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1.2, lty = 1) +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c("ivory4","coral4")) +
+  scale_linetype_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(5,1)) +
+  scale_x_discrete(name = "Day", limits = c("Pre_Treat", "Post_Treat"),
+                   labels = c("1", "22")) +
+ # scale_y_continuous(name = "Intensity in the red channel \n (0 = darkest, 1 = brightest)", limits = c(0.4, 0.53), breaks = seq(0.4, 0.525, by = 0.025)) +  
+  scale_y_reverse(name = "Intensity in the red channel \n (0 = darkest, 1 = brightest)", limits = c(0.53, 0.4), breaks = seq(0.525, 0.4, by = -0.025)) +
+  theme_classic(base_size=12) +
+  theme(legend.position = c(0.8,0.85),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12)) 
+  #guides(color = guide_legend(direction = "horizontal")) 
+
+```
+
+
 
 ## Plastic
 ```{r}
@@ -1645,6 +1687,136 @@ ctrl.LR.plot
 ggsave(plot = ctrl.LR.plot, 
        filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/ctrl.LR.plot.pdf", 
        width = 8, height = 6, units = "in")
+```
+
+###########################################################################################################################
+#
+#                                      RGB / FvFm Logistic Regression: ALL ELEVATED TEMPERATURES
+#
+############################################################################################################################
+
+# First, for day 1
+```{r}
+# Filter out elevated fragments
+pam.elev.data <- filter(pam.data, Temperature == "Elevated" )
+
+# select variables from pam.data to keep
+pam.elev.data <- pam.elev.data %>%
+  select(B.Tag, FvFm.AVG)
+
+# Rename column headers
+names(pam.elev.data)[names(pam.elev.data) == "FvFm.AVG"] <- "fvfm"
+
+# Filter out ambient control fragments from RBG data at day 22 (thats the day fvfm was collected)
+rgb.elev.data <- filter(data, Temperature == "ELEVATED", Time == "Pre_Treat")
+
+# add fvfm to new rgb based on ID
+elev.data <- left_join(pam.elev.data, rgb.elev.data, by = "B.Tag")
+
+# remove two NAs
+elev.data <- elev.data[complete.cases(elev.data),]
+elev.data$B.Tag <- as.factor(elev.data$B.Tag)
+```
+
+# LR
+```{r}
+# we will use the glm function to fit the model with the family binomial
+elev.lr <- glm(Sym.State ~ CoralR + fvfm, data = elev.data, family = binomial) # Since we are only looking at the ambient control polyps on a single day there are no random effects
+
+summary(elev.lr)
+anova(elev.lr, test="Chisq")
+```
+
+#Extract coefficients
+```{r}
+# plot with the decision boundary as determined by the logistic regression coefficients
+elev.int <- -coef(elev.lr)[1]/coef(elev.lr)[3] # for fvfm 
+elev.slope <- -coef(elev.lr)[2]/coef(elev.lr)[3] # for coral r
+```
+
+# PLot
+```{r}
+ggplot(elev.data, 
+       aes(x = CoralR,
+           y = fvfm)) + 
+  
+  geom_point(aes(shape=Sym.State, color = Sym.State), size = 3, alpha=0.7) +
+  
+  expand_limits(x=0,y=0) + # sets plot origin
+  scale_x_continuous(name = "Intensity in the red channel \n (0 = darkest, 1 = brightest)",
+                     limits = c(0,0.75), breaks = seq(0, 0.75, by = 0.1)) + # set x axis intervals
+  scale_y_continuous(name = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")),
+                     limits = c(0, 0.55), breaks = seq(0, 0.5, by = 0.1)) + # set y axis intervals
+
+  geom_abline(intercept = elev.int, slope = elev.slope, lty=2, size = 1.2) +
+  #stat_regline_equation(label.x = 0.6, label.y = 0.4, size = 4.5) + # this is not plotting the correct values. 
+    # ctrl. slope = 0.809
+    # ctrl.int = -0.0386
+
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"), values = c("ivory4","coral4")) +
+  scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(19,19)) +
+  
+  theme_classic(base_size = 13) +
+  theme(legend.position = "top",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+```
+
+# Now for day 22
+```{r}
+# Filter out ambient control fragments from RBG data at day 22 (thats the day fvfm was collected)
+rgb.elev.data2 <- filter(data, Temperature == "ELEVATED", Time == "Post_Treat")
+
+# add fvfm to new rgb based on ID
+elev.data2 <- left_join(pam.elev.data, rgb.elev.data2, by = "B.Tag")
+
+# remove two NAs
+elev.data2 <- elev.data2[complete.cases(elev.data2),]
+elev.data2$B.Tag <- as.factor(elev.data2$B.Tag)
+```
+
+# LR
+```{r}
+# we will use the glm function to fit the model with the family binomial
+elev.lr2 <- glm(Sym.State ~ CoralR + fvfm, data = elev.data2, family = binomial) # Since we are only looking at the ambient control polyps on a single day there are no random effects
+
+summary(elev.lr2)
+anova(elev.lr2, test="Chisq")
+```
+
+#Extract coefficients
+```{r}
+# plot with the decision boundary as determined by the logistic regression coefficients
+elev.int2 <- -coef(elev.lr2)[1]/coef(elev.lr2)[3] # for fvfm 
+elev.slope2 <- -coef(elev.lr2)[2]/coef(elev.lr2)[3] # for coral r
+```
+
+# PLot
+```{r}
+ggplot(elev.data2, 
+       aes(x = CoralR,
+           y = fvfm)) + 
+  
+  geom_point(aes(shape=Sym.State, color = Sym.State), size = 3, alpha=0.7) +
+  
+  expand_limits(x=0,y=0) + # sets plot origin
+  scale_x_continuous(name = "Intensity in the red channel \n (0 = darkest, 1 = brightest)",
+                     limits = c(0,0.75), breaks = seq(0, 0.75, by = 0.1)) + # set x axis intervals
+  scale_y_continuous(name = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")),
+                     limits = c(0, 0.55), breaks = seq(0, 0.5, by = 0.1)) + # set y axis intervals
+
+  geom_abline(intercept = elev.int2, slope = elev.slope2, lty=2, size = 1.2) +
+  #stat_regline_equation(label.x = 0.6, label.y = 0.4, size = 4.5) + # this is not plotting the correct values. 
+    # ctrl. slope = 0.809
+    # ctrl.int = -0.0386
+
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"), values = c("ivory4","coral4")) +
+  scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(19,19)) +
+  
+  theme_classic(base_size = 13) +
+  theme(legend.position = "top",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12)) 
 ```
 
 ###########################################################################################################################
