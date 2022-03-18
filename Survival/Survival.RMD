@@ -12,7 +12,11 @@ knitr::opts_chunk$set(echo = TRUE)
 
 knitr::opts_chunk$set(
   fig.path = "images/")
+
+knitr::opts_chunk$set(dev = "png",
+                      dpi = 300)
 ```
+
 
 ###################################################################################################################################
 #
@@ -175,15 +179,14 @@ km.plastic.fig <-
   ggsurvplot(plastic, 
           conf.int = FALSE, pval = FALSE, surv.scale = "default", # or %
           legend.labs = c("No plastic", "Plastic"), 
-          legend.title = "", legend = c(0.15, 0.2), font.legend = 20,
+          legend.title = "", legend = c(0.2, 0.2), font.legend = 20,
           xlab = "", xlim = c(0, 23),break.x.by = 2, font.x = 14,
           ylab = "", ylim = c(0.75,1),font.y= 14,
           font.tickslab = 14,
           censor.size = 6,
-          censor.shape = 4,
           ggtheme = theme_classic2(),
-          linetype = c(1,6),
-          palette = c("black","black")) +
+          linetype = c(1,1),
+          palette = c("black","forestgreen")) +
   guides(shape = guide_legend(override.aes = list(shape=NA)))
            
 km.plastic.fig
@@ -235,15 +238,16 @@ food <- survfit(Surv(Time, Death) ~ Food, data = graph.dat)
 km.food.fig <- 
   ggsurvplot(food, 
           conf.int = FALSE, pval = FALSE, surv.scale = "default", # or %
-           legend.labs = c("Fed", "Starved"), legend.title = "", legend = c(0.15, 0.2), font.legend = 12,
-           xlab = "", xlim = c(0, 23),break.x.by = 2, font.x = 12,
-           ylab = "", ylim = c(0.75,1),font.y= 14, 
-           font.tickslab = 12,
-           censor.size = 6,
-           ggtheme = theme_classic2(),
-           linetype = c(1,6),
-           palette = c("black","black"))
-           
+          legend.labs = c("Fed", "Starved"), 
+          legend.title = "", legend = c(0.2, 0.2), font.legend = 20,
+          xlab = "", xlim = c(0, 23),break.x.by = 2, font.x = 14,
+          ylab = "", ylim = c(0.75,1),font.y= 14,
+          font.tickslab = 14,
+          censor.size = 6,
+          ggtheme = theme_classic2(),
+          linetype = c(1,1),
+          palette = c("orangered4","black")) +
+  guides(shape = guide_legend(override.aes = list(shape=NA)))
 km.food.fig
 ```
 
@@ -500,15 +504,17 @@ light <- survfit(Surv(Time, Death) ~ Light, data = graph.dat)
 # plot 
 km.light.fig <- 
   ggsurvplot(light, 
-          conf.int = FALSE, pval = FALSE, surv.scale = "default", # or %
-           legend.labs = c("Dark", "Light"), legend.title = "", legend = c(0.15, 0.2), font.legend = 11,
-           xlab = "", xlim = c(0, 23),break.x.by = 2, font.x = 12,
-           ylab = "", ylim = c(0.75,1),font.y= 12,
-           font.tickslab = 12,
-           censor.size = 6,
-           ggtheme = theme_classic2(),
-           linetype = c(6,1),
-           palette = c("black","black"))
+         conf.int = FALSE, pval = FALSE, surv.scale = "default", # or %
+          legend.labs = c("Dark", "Light"), 
+          legend.title = "", legend = c(0.2, 0.2), font.legend = 20,
+          xlab = "", xlim = c(0, 23),break.x.by = 2, font.x = 14,
+          ylab = "", ylim = c(0.75,1),font.y= 14,
+          font.tickslab = 14,
+          censor.size = 6,
+          ggtheme = theme_classic2(),
+          linetype = c(1,1),
+          palette = c("black","darkgoldenrod1")) +
+  guides(shape = guide_legend(override.aes = list(shape=NA)))
            
 km.light.fig
 ```
@@ -649,15 +655,14 @@ temperature <- survfit(Surv(Time, Death) ~ Temperature, data = graph.dat)
 km.temp.fig <- 
   ggsurvplot(temperature, 
           conf.int = FALSE, pval = FALSE, surv.scale = "default", # or %
-           legend.labs = c("Ambient (19 C)", "Elevated (30 C)"), legend.title = "", legend = c(0.15, 0.2), font.legend = 11,
-           xlab = "", xlim = c(0, 23),break.x.by = 2, font.x = 12,
-           ylab = "", ylim = c(0.75,1),font.y= 12, 
-           font.tickslab = 12,
-           censor.size = 6,
-           ggtheme = theme_classic2(),
-           linetype = c(1,6),
-           palette = c("black","black"))
-           
+          legend.labs = c("Ambient (19 C)", "Elevated (30 C)"), legend.title = "", legend = c(0.3, 0.2), font.legend = 19,
+          xlab = "", xlim = c(0, 23),break.x.by = 2, font.x = 14,
+          ylab = "", ylim = c(0.75,1),font.y= 14,
+          font.tickslab = 14,
+          censor.size = 6,
+          ggtheme = theme_classic2(),
+          linetype = c(1,1),
+          palette = c("royalblue4","firebrick2")) 
 km.temp.fig
 ```
 
