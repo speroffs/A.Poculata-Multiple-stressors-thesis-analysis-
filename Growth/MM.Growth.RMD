@@ -349,7 +349,7 @@ ggplot(data = decay_means2,
 
 ###########################################################################################################################
 #
-#                            Calculate growth rate for each individual polyp using log transformed data 
+#                                    Calculate growth rate for each individual polyp 
 #
 ############################################################################################################################
 
@@ -498,7 +498,6 @@ summary(temp.lmer)
 ```
 ```{r}
 # Run an anova to compare this model to a null model 
-
 null <- lmer(Log.Slope ~ 1 + (1|Colony), data = ID.slope)
 anova(null, temp.lmer) 
 ```
@@ -516,22 +515,27 @@ temp.sum <- summarySE(ID.slope, measurevar = "Slope", groupvars = "Temperature")
 growth.temp.plot <-
 ggplot(data = temp.sum,
        aes(x = Temperature,
-           y = Slope)) +
+           y = Slope,
+           col = Temperature)) +
   
-  geom_point(size=2) +
+  geom_point(size=3) +
   geom_errorbar(aes(ymax = Slope+se, ymin = Slope-se), width = .1, size=1.2) +
   
   scale_x_discrete(name = "", # remove labels for paneling 
                    limits = c("AMBIENT", "ELEVATED"),
                    labels = c("Ambient", "Elevated")) +
-  #scale_y_continuous(name = "", 
-   #                  limits = c(-0.01, -0.003),
-   #                  breaks = seq(-0.01, -0.003, by = 0.001)) +
+  scale_y_continuous(name = "", 
+                     limits = c(-1.65, -0.6),
+                     breaks = seq(-1.6, -0.6, by = 0.2)) +
   
-  theme_classic(base_size = 16) +
+  scale_color_manual(values = c("royalblue4","firebrick2")) +
+  ggtitle("A. Temperature") +
+
+theme_classic(base_size=16) +
   theme(legend.position = "none",
         legend.title = element_blank(),
-        legend.text = element_text(size = 12))
+        legend.text = element_text(size = 16),
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold")) 
 
 growth.temp.plot
 ```
@@ -572,22 +576,26 @@ plastic.sum <- summarySE(ID.slope, measurevar = "Slope", groupvars = "Plastic")
 growth.plastic.plot <- 
 ggplot(data = plastic.sum,
        aes(x = Plastic,
-           y = Slope)) +
-  geom_point(size=2) +
+           y = Slope,
+           col = Plastic)) +
+  geom_point(size=3) +
   geom_errorbar(aes(ymax = Slope+se, ymin = Slope-se), width = .1, size=1.2) +
   
   scale_x_discrete(name = "", # remove labels for paneling 
                    limits = c("NOPLASTIC", "PLASTIC"),
                    labels = c("No Plastic", "Plastic")) +
- # scale_y_continuous(name = "", 
- #                    limits = c(-0.01, -0.003),
- #                    breaks = seq(-0.01, -0.003, by = 0.001)) +
+ scale_y_continuous(name = "", 
+                     limits = c(-1.65, -0.6),
+                     breaks = seq(-1.6, -0.6, by = 0.2)) +
+  scale_color_manual(labels = c("No plastic", "Plastic"), values = c("black","forestgreen")) +
+  ggtitle("B. Plastic") +
 
-  
-  theme_classic(base_size = 16) +
+  theme_classic(base_size=16) +
   theme(legend.position = "none",
         legend.title = element_blank(),
-        legend.text = element_text(size = 12))
+        legend.text = element_text(size = 16),
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold")) 
+
 growth.plastic.plot
 ```
 ```{r}
@@ -628,21 +636,25 @@ light.sum <- summarySE(ID.slope, measurevar = "Slope", groupvars = "Light")
 growth.light.plot <- 
 ggplot(data = light.sum,
        aes(x = Light,
-           y = Slope)) +
+           y = Slope,
+           col = Light)) +
   geom_point(size=2) +
   geom_errorbar(aes(ymax = Slope+se, ymin = Slope-se), width = .1, size=1.2) +
   
   scale_x_discrete(name = "", # remove labels for paneling 
                    limits = c("DARK", "LIGHT"),
                    labels = c("Dark ", "Light")) +
-  #scale_y_continuous(name = "", 
-  #                   limits = c(-0.01, -0.003),
-  #                   breaks = seq(-0.01, -0.003, by = 0.001)) +
+ scale_y_continuous(name = "", 
+                     limits = c(-1.65, -0.6),
+                     breaks = seq(-1.6, -0.6, by = 0.2))  +
+  scale_color_manual(values = c("black","darkgoldenrod1")) +
+  ggtitle("C. Light") +
 
-  theme_classic(base_size = 16) +
+  theme_classic(base_size=16) +
   theme(legend.position = "none",
         legend.title = element_blank(),
-        legend.text = element_text(size = 12))
+        legend.text = element_text(size = 16),
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold")) 
 growth.light.plot
 ```
 ```{r}
@@ -684,21 +696,25 @@ food.sum <- summarySE(ID.slope, measurevar = "Slope", groupvars = "Food")
 growth.food.plot <-
 ggplot(data = food.sum,
        aes(x = Food,
-           y = Slope)) +
+           y = Slope,
+           col = Food)) +
   geom_point(size=2) +
   geom_errorbar(aes(ymax = Slope+se, ymin = Slope-se), width = .1, size=1.2) +
   
   scale_x_discrete(name = "", # remove labels for paneling 
                    limits = c("FED", "STARVED"),
                    labels = c("Fed ", "Starved")) +
-  #scale_y_continuous(name = "", 
-  #                   limits = c(-0.01, -0.003),
-  #                   breaks = seq(-0.01, -0.003, by = 0.001)) +
+  scale_y_continuous(name = "", 
+                     limits = c(-1.65, -0.6),
+                     breaks = seq(-1.6, -0.6, by = 0.2)) +
+    scale_color_manual(values = c("orangered4", "black")) +
+  ggtitle("D. Food") +
 
-  theme_classic(base_size = 16) +
+  theme_classic(base_size=16) +
   theme(legend.position = "none",
         legend.title = element_blank(),
-        legend.text = element_text(size = 12))
+        legend.text = element_text(size = 12),
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold"))
 growth.food.plot
 ```
 ```{r}
@@ -706,6 +722,27 @@ growth.food.plot
 ggsave(plot = growth.food.plot,
        filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Plots/growth.food.plot.pdf", width = 8, height = 6, units = "in")
 
+```
+
+
+```{r}
+# Arrange 4 stressor plots 
+growth.panel.figure.12<- 
+  ggarrange(growth.temp.plot, growth.plastic.plot, growth.light.plot, growth.food.plot,
+          common.legend = FALSE, labels = NA)
+
+growth.panel.figure.12<-
+  annotate_figure(growth.panel.figure.12, 
+                bottom = text_grob("Stress Treatment", 
+                                   hjust = 0.35, vjust = -1, size = 18, face = "bold"),
+                left = text_grob("Average growth rate (mg day"^"-1"~")", 
+                                 rot = 90, vjust = 1.5, hjust = 0.4 , size = 18, face = "bold"))
+growth.panel.figure.12
+```
+```{r}
+ggsave(plot = growth.panel.figure.12,
+       filename = "/Users/speroffs/Desktop/growth.panel.figure.12.jpg", 
+       width = 8, height = 6, units = "in", dpi= 300)
 ```
 
 ###########################################################################################################################
