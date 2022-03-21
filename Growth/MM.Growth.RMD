@@ -29,6 +29,7 @@ library(lmerTest)
 library(emmeans)
 library(Rmisc)
 library(e1071)
+library(ggpubr)
 ```
 
 ```{r}
