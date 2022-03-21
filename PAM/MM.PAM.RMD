@@ -26,7 +26,7 @@ library(ggplot2)
 library(Rmisc)
 library(emmeans)
 library(e1071)
-
+library(ggpubr)
 
 #library(tidyr)
 #library(ggthemes)
@@ -358,30 +358,6 @@ ggplot(phen.means,
   guides(col = guide_legend(nrow = 3))
   
 phen.plot2
-```
-
-# arrange! HERE ##
-```{r}
-library(ggpubr)
-
-fvfm.panel1 <- ggarrange(all.treat.fvfm.plot.2, ggplot()+theme_void(), phen.fvfm.plot, 
-                        common.legend = FALSE, ncol=1,
-                        labels = c("A","","C"), heights = c(5, 0.5, 5)) 
-                  
-
-fvfm.panel2 <- ggarrange(fvfm.panel1, phen.plot2, labels = c("","B")) 
-
-  
-fvfm.panel2 <- annotate_figure(fvfm.panel2, 
-                left = text_grob(expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
-                                 rot = 90, vjust = 1, size = 14))
-             
-```
-
-```{r fvfm.figure5}
-ggsave(plot = fvfm.panel2, 
-       filename = "/Users/speroffs/Desktop/fvfm.panel.jpg", 
-       width = 8, height = 5, units = "in", dpi = 300)
 ```
 
 ###########################################################################################################################
@@ -991,7 +967,21 @@ ggsave(plot = FS.time.fvfvm.plot,
 ```{r}
 # Summarize by phenotype 
 phen.sum2 <- summarySE(expt.data, measurevar="fvfm", groupvars=c("Sym.State","Day"))
+
+# Calculate fold changes for fvfm over time by phenotype
+# APO: 
+day 1-8: 
+day 8-15: 
+day 15-22: 
+overall day 1-22: 0.0267866
+  
+# SYM: 
+day 1-8: 
+day 8-15: 
+day 15-22: 
+overall day 1-22: -0.0589454
 ```
+
 ```{r}
 # Plot
 phen.fvfm.plot <- 
@@ -1001,11 +991,11 @@ ggplot(data = phen.sum2,
            color = Sym.State,
            group = Sym.State)) +
   geom_point(size=2) +
-  geom_line(aes(group=Sym.State), size = 1.2, linetype = rep(seq(1, 2, 1), each=4)) +
+  geom_line(aes(group=Sym.State), size = 1.2) +
   geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.4, size = 1.2) +
   
   scale_linetype_manual(labels = c("Apo", "Sym"), values = c(1,2)) +
-  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"), values = c("ivory4","coral4")) +
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"), values = c("tan","coral4")) +
   scale_x_continuous(name = "Day", breaks=seq(1, 22, by = 7)) +
   
   #labs(y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")"))) +
@@ -1022,6 +1012,30 @@ ggsave(plot = phen.fvfm.plot,
        width = 8, height = 6, units = "in", dpi=300)
 
 ```
+
+# Arrange plots for figure: fvfm over time all treats, fvfm over time sym vs apo in elev control, fvfm in sym vs apo all treats
+```{r}
+fvfm.panel1 <- ggarrange(all.treat.fvfm.plot.2, ggplot()+theme_void(), phen.fvfm.plot, 
+                        common.legend = FALSE, ncol=1,
+                        labels = c("A","","C"), heights = c(5, 0.5, 5)) 
+                  
+
+fvfm.panel2 <- ggarrange(fvfm.panel1, phen.plot2, labels = c("","B")) 
+
+  
+fvfm.panel2 <- annotate_figure(fvfm.panel2, 
+                left = text_grob(expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
+                                 rot = 90, vjust = 1, size = 14))
+             
+```
+
+```{r fvfm.figure5}
+ggsave(plot = fvfm.panel2, 
+       filename = "/Users/speroffs/Desktop/fvfm.panel.jpg", 
+       width = 8, height = 5, units = "in", dpi = 300)
+```
+
+
 
 ```{r}
 # Summarize by temperature
