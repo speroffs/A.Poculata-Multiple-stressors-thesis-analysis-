@@ -295,6 +295,41 @@ ggsave(plot = RGB.alltreat.plot,
        width = 9, height = 6, units = "in")
 ```
 
+```{r}
+# Same data, not-faceted
+
+rgb.fig8 <- ggplot(data = treat.sum.test,
+              aes(x = Time, 
+                  y = CoralR,
+                  color = Treatment,
+                  group = Treatment)) +
+  geom_point(size = 1.2) +
+  geom_line( size = 1.2) +
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1.2) +
+  scale_color_manual(name = "", 
+                     values = c("#F53100", "#FF8B47","#C39809","#F6CB3C","#0B8454", "#7BB12F","#3F88C5","#A33461")) +
+  scale_x_discrete(limits = c("Pre_Treat", "Post_Treat"),
+                   labels = c("1", "22")) +
+  labs(x = "Experimental Day", y = "Insentisty in the red channel\n(0 = darkest, 1 = brightest)") +
+  
+  theme_classic(base_size=14) +
+  theme(legend.position = c(0.95,0.5),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12),
+        axis.title.y = element_text(vjust = 2.5, face = "bold"),
+        axis.title.x = element_text(face = "bold"),
+        plot.margin = margin(10, 50, 10, 10)
+) 
+rgb.fig8
+```
+
+```{r}
+# Save plot for publication
+ggsave(plot = rgb.fig8, 
+       filename = "/Users/speroffs/Desktop/rgb.fig8.jpg", 
+       width = 8, height = 6, units = "in", dpi = 300)
+```
+
 ###########################################################################################################################
 #
 #                                Question 3 : Does phenotype affect coral color in each treatment?
@@ -467,9 +502,9 @@ ggplot(data = exp.sum,
   geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1.2) +
   
   scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"),
-                     values=c("black", "black")) +
+                     values=c("tan", "coral4")) +
   scale_linetype_manual(labels = c("Aposymbiotic", "Symbiotic"),
-                    values=c(5, 1)) +
+                    values=c(1, 1)) +
   
   facet_wrap(~Treatment) +
   scale_x_discrete(limits = c("Pre_Treat", "Post_Treat"),
@@ -477,7 +512,7 @@ ggplot(data = exp.sum,
   labs(x = "Day", y = "Insentisty in the red channel \n (0.35 = darkest, 0.55 = brightest)") +
   
   theme_classic(base_size=13) +
-  theme(legend.position = "top",
+   theme(legend.position = c(0.83,0.15),
         legend.title = element_blank(),
         legend.text = element_text(size = 12))
 
@@ -489,9 +524,10 @@ RGB.alltreat.phen.plot
 ```{r}
 # save plot
 ggsave(plot = RGB.alltreat.phen.plot,
-       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/RGB.alltreat.phen.plot.pdf", 
-       width = 8, height = 6, units = "in")
+       filename = "/Users/speroffs/Desktop/RGB.alltreat.phen.plot.jpg", 
+       width = 8, height = 6, units = "in", dpi = 300)
 ```
+
 
 ###########################################################################################################################
 #
@@ -1330,35 +1366,44 @@ summary(plastic.emm4.4)
 # summarize to plot
 plastic.sum4.4 <- summarySE(exp.data, measurevar = "CoralR", groupvars = c("Plastic", "Sym.State", "Time"))
 
+plastic.labs <- list("NOPLASTIC" = "No Plastic", "PLASTIC" = "Plastic")
+plastic_labeller <- function(variable,value){
+  return(plastic.labs[value])
+}
+
+
 #plot
 rbg.plastic.plot <-
 ggplot(data = plastic.sum4.4,
        aes(x = Time,
            y = CoralR,
            color = Sym.State,
-           group = Sym.State,
-           linetype = Sym.State)) +
-  geom_point(size = 1.5)+
-  geom_line(size = 1.2) +
+           group = Sym.State)) +
+  geom_point(size = 2)+
+  geom_line(size = 1.2)  +
   geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1.2, lty = 1) +
   
-  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c("black","black")) +
-  scale_linetype_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(5,1)) +
-  scale_x_discrete(name = "", limits = c("Pre_Treat", "Post_Treat"),
-                   labels = c("1", "22")) +
-  scale_y_continuous(name = "", limits = c(0.4, 0.55), breaks = seq(0.4, 0.55, by = 0.05)) + # set y axis intervals
+  scale_color_manual(labels = c("Aposymbiotic","Symbiotic"), values=c("tan","coral4")) +
+  scale_x_discrete(name = "", limits = c("Pre_Treat", "Post_Treat"), labels = c("1", "22")) +
+  scale_y_continuous(name = "", limits = c(0.39, 0.55), breaks = seq(0.4, 0.55, by = 0.05)) + # set y axis intervals
+  ggtitle ("A. Plastic") +
   
-  facet_grid(~Plastic) +
+  facet_grid(~Plastic, labeller = plastic_labeller) +
   theme_classic(base_size=13) +
-  theme(legend.position = "none",
+  theme(legend.position = c(0.7,1.3),
         legend.title = element_blank(),
-        legend.text = element_text(size = 12))
+        legend.text = element_text(size = 16),
+        strip.text= element_text(size=12, face = "bold"),
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold"),
+        plot.margin=margin(40,5,0,5)) +
+    guides(color = guide_legend(direction = "horizontal")) 
+
 rbg.plastic.plot
 ```
 ```{r}
 # save plot
 ggsave(plot = rbg.plastic.plot, 
-       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/rbg.plastic.plot.pdf", 
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB/Plots/rbg.plastic.plot.pdf",
        width = 6, height = 4, units = "in")
 
 ```
@@ -1406,29 +1451,34 @@ summary(light.emm4.4)
 # summarize to plot
 light.sum4.4 <- summarySE(exp.data, measurevar = "CoralR", groupvars = c("Light", "Sym.State", "Time"))
 
+light.labs <- list("DARK" = "Dark", "LIGHT" = "Light")
+light_labeller <- function(variable,value){
+  return(light.labs[value])
+}
+
 #plot
 rbg.light.plot <-
 ggplot(data = light.sum4.4,
        aes(x = Time,
            y = CoralR,
-           color = Sym.State,
-           group = Sym.State,
-           linetype = Sym.State)) +
-  geom_point(size = 1.5)+
-  geom_line(size = 1.2) +
+            color = Sym.State,
+           group = Sym.State)) +
+  geom_point(size = 2)+
+  geom_line(size = 1.2)  +
   geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1.2, lty = 1) +
   
-  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c("black","black")) +
-  scale_linetype_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(5,1)) +
-  scale_x_discrete(name = "", limits = c("Pre_Treat", "Post_Treat"),
-                   labels = c("1", "22")) +
+  scale_color_manual(values=c("tan","coral4")) +
+  scale_x_discrete(name = "", limits = c("Pre_Treat", "Post_Treat"), labels = c("1", "22")) +
   scale_y_continuous(name = "", limits = c(0.39, 0.55), breaks = seq(0.4, 0.55, by = 0.05)) + # set y axis intervals
-
-  facet_grid(~Light) +
+  ggtitle ("B. Light") +
+  
+  facet_grid(~Light, labeller = light_labeller) +
   theme_classic(base_size=13) +
   theme(legend.position = "none",
         legend.title = element_blank(),
-        legend.text = element_text(size = 12))
+        legend.text = element_text(size = 14),
+        strip.text= element_text(size=12, face = "bold"),
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold")) 
 rbg.light.plot
 ```
 ```{r}
@@ -1480,29 +1530,36 @@ summary(food.emm4.4)
 # summarize to plot
 food.sum4.4 <- summarySE(exp.data, measurevar = "CoralR", groupvars = c("Food", "Sym.State", "Time"))
 
+
+food.labs <- list("FED" = "Fed", "STARVED" = "Starved")
+food_labeller <- function(variable,value){
+  return(food.labs[value])
+}
+
+
 #plot
 rbg.food.plot <-
 ggplot(data = food.sum4.4,
        aes(x = Time,
            y = CoralR,
            color = Sym.State,
-           group = Sym.State,
-           linetype = Sym.State)) +
-  geom_point(size = 1.5)+
-  geom_line(size = 1.2) +
+           group = Sym.State)) +
+  geom_point(size = 2)+
+  geom_line(size = 1.2)  +
   geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1.2, lty = 1) +
   
-  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c("black","black")) +
-  scale_linetype_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(5,1)) +
-  scale_x_discrete(name = "", limits = c("Pre_Treat", "Post_Treat"),
-                   labels = c("1", "22")) +
+  scale_color_manual(values=c("tan","coral4")) +
+  scale_x_discrete(name = "", limits = c("Pre_Treat", "Post_Treat"), labels = c("1", "22")) +
   scale_y_continuous(name = "", limits = c(0.39, 0.55), breaks = seq(0.4, 0.55, by = 0.05)) + # set y axis intervals
+  ggtitle ("C. Food") +
   
-  facet_grid(~Food) +
+  facet_grid(~Food, labeller = food_labeller) +
   theme_classic(base_size=13) +
   theme(legend.position = "none",
         legend.title = element_blank(),
-        legend.text = element_text(size = 12))
+        legend.text = element_text(size = 14),
+        strip.text= element_text(size=12, face = "bold"),
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold")) 
 rbg.food.plot
 ```
 ```{r}
@@ -1512,6 +1569,19 @@ ggsave(plot = rbg.food.plot,
        width = 6, height = 4, units = "in")
 ```
 
+# Arrange Plastic, Light, and Food plots
+```{r}
+rgb.panel1 <- ggarrange(rbg.plastic.plot, rbg.light.plot, rbg.food.plot, common.legend = FALSE, labels=NA, ncol = 1)
+
+rgb.panel1 <-annotate_figure(rgb.panel1, bottom = text_grob("Experimental Day", 
+                            hjust = 0.4, vjust = -0.5, size = 18, face = "bold"),
+                            left = text_grob("Intensity in the red channel (0 = darkest, 1 = brightest)", 
+                                 rot = 90, vjust = 1, size = 18, face = "bold")) 
+
+ggsave(rgb.panel1, 
+       filename = "/Users/speroffs/Desktop/rgb.panel1.jpg",
+       width = 6.5, height = 11, units = "in", dpi = 300)
+```
 
 ###########################################################################################################################
 #
