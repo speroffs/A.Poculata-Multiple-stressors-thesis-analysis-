@@ -22,6 +22,7 @@ library(lme4)
 library(lmerTest)
 library(emmeans)
 library(e1071)
+library(ggpubr)
 ```
 
 ```{r}
@@ -133,13 +134,13 @@ ggplot(explore.sum,
   geom_line(size=1.2) +
   geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1.2, lty = 1) +
   
-   scale_y_continuous(name = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")),
+   scale_y_continuous(name = expression(paste("Rate O2 Consumption (umol min"^"-1"~"g"^"-1"~")")),
                       limits = c(0, 0.08), breaks=seq(0.0, 0.08, by = 0.01)) +
   scale_color_manual(name = "", 
                      values = c("#131513","#F53100", "#FF8B47","#C39809","#F6CB3C","#0B8454","#7BB12F","#3F88C5","#A33461")) +
   
   facet_wrap(vars(Bacteria)) +
-  theme_classic(base_size=13) +
+  theme_classic(base_size=16) +
   theme(legend.position = "right",
         legend.title = element_blank(),
         legend.text = element_text(size = 12))
@@ -197,17 +198,18 @@ ctrl.resp.A <-
   geom_point(size = 2) +
   geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1.2) +
   
-  scale_color_manual(labels = c("", ""), values = c("black", "black")) +
+  scale_color_manual(labels = c("", ""), values = c("black", "gray47")) +
   scale_x_discrete(name = "", limits = c("EC", "SW"), labels = c("Acute", "Basal")) +
-  scale_y_continuous(name= expression(paste("Rate O2 Consumption(umol*min"^"-1"~"*g"^"-1"~")")),
-                     limits = c(0, 0.06), breaks = seq(0, 0.06, by = 0.03)) +
-  theme_classic(base_size = 14) +
+  scale_y_continuous(limits = c(0.01, 0.074), breaks = seq(0.01, 0.075, by = 0.015)) +
+    ylab(bquote(Metabolic~Rate~(mu~mol ~CO[2]~ min^-1~g^-1))) +
+  ggtitle("A") +
+
+  theme_classic(base_size = 12) +
   theme(legend.position = "none",
         legend.title = element_blank(),
-        legend.text = element_text(size = 14),
-        axis.text.y = element_text(size = 14),
-        axis.title.y = element_text(size = 12))
-        #axis.title.y = element_text(hjust=0.2))
+        axis.title.y = element_text(size = 12, face = "bold"),
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold"))
+ctrl.resp.A
 ```
 
 
@@ -387,27 +389,28 @@ ggplot(data = bac.day.sum,
   geom_line(size = 1.2) +
   geom_errorbar(aes(ymin=rate-se, ymax=rate+se),width=0.1, size = 1, lty=1) +
   
-  scale_linetype_manual(labels = c("Acute Challenge", "Basal"),values = c(5, 1)) +
-  scale_color_manual(labels = c("Acute Challenge", "Basal"), values=c("black","black")) +
+  scale_linetype_manual(labels = c("Acute Challenge (EC)", "Basal (SW)"),values = c(1, 1)) +
+  scale_color_manual(labels = c("Acute Challenge (EC)", "Basal (SW)"), values=c("black","gray47")) +
   facet_wrap(vars(Treatment)) +
 
   labs(x = "\nDay") +
-  scale_y_continuous(name= expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")")),
-                     limits = c(0, 0.075), breaks = seq(0, 0.075, by = 0.025)) +
+  scale_y_continuous(limits = c(0, 0.075), breaks = seq(0, 0.075, by = 0.025)) +
+  ylab(bquote(Metabolic~Rate~(mu~mol ~CO[2]~ min^-1~g^-1))) +
 
   theme_classic(base_size = 13) +
    theme(legend.position = c(0.83,0.15),
         legend.title = element_blank(),
         legend.text = element_text(size = 12),
-        axis.text.y = element_text(size = 12))
-  
+        axis.text.y = element_text(size = 12),
+        axis.text.x = element_text(size = 14)) 
+
 resp.treat.time.plot
 ```
 ```{r}
 # save plot
 ggsave(plot = resp.treat.time.plot,
        filename = "/Users/speroffs/Desktop/resp.treat.time.plot.jpg", 
-       width = 8, height = 6, units = "in")
+       width = 8, height = 6, units = "in", dpi = 300)
 
 ```
 
@@ -504,15 +507,14 @@ ggplot(data = phen.means,
   
   facet_wrap(vars(Treatment)) +
   scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"), values = c("tan", "coral4")) +
-  #scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values = c(1, 19)) +
-  scale_x_discrete(limits = c("EC", "SW"),
+  scale_x_discrete(name = "Bacterial Challenge",
+                   limits = c("EC", "SW"),
                    labels = c("Acute", "Basal")) +
-
-  labs(x = "\nBacterial Challenge", 
-       y = expression(paste("Rate O2 Consumption (umol*min"^"-1"~"*g"^"-1"~")"))) +
   
+    ylab(bquote(Metabolic~Rate~(mu~mol ~CO[2]~ min^-1~g^-1))) +
+
   theme_classic(base_size = 13) +
-  theme(legend.position = c(0.85,0.1),
+   theme(legend.position = c(0.83,0.15),
         legend.title = element_blank(),
         legend.text = element_text(size = 13),
         axis.text.y = element_text(size = 13))
@@ -539,17 +541,29 @@ ctrl.resp.B <-
   geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1.2) +
   scale_color_manual(labels = c("Apo", "Sym"), values = c("tan", "coral4")) +
   scale_x_discrete(name = "", limits = c("EC", "SW"), labels = c("Acute", "Basal")) +
-  scale_y_continuous(name= "",limits = c(0, 0.075), breaks = seq(0, 0.075, by = 0.025)) +
+  scale_y_continuous(name = "", limits = c(0.01, 0.074), breaks = seq(0.01, 0.075, by = 0.015)) +
+  ggtitle("B") +
 
-  theme_classic(base_size = 14) +
-  theme(legend.position = c(0.8,0.85),
-        legend.title = element_blank(),
-        legend.text = element_text(size = 14),
-        axis.text.y = element_text(size = 14))
+  theme_classic(base_size = 12) +
+  theme(
+    #panel.border = element_rect(fill=NA),
+    legend.position = c(0.75,0.9),
+    legend.title = element_blank(),
+    legend.text = element_text(size = 10),
+    legend.box.background = element_rect(color="black", size=0.5),
+    plot.title = element_text(vjust = 1.1, size = 18, face="bold"),
+        )
 ctrl.resp.B
 ```
+
 ```{r}
-amb.ctrl.resp <- ggarrange(ctrl.resp.A, ctrl.resp.B, labels = "AUTO", widths = c(2,2.2), align = "v")
+amb.ctrl.resp <- ggarrange(ctrl.resp.A, ctrl.resp.B, 
+                           nrow = 1, labels = NA, widths = c(2, 2.2), align = "v") +
+                theme(plot.margin = margin(10, 10, 10, 15))
+
+amb.ctrl.resp <- annotate_figure(amb.ctrl.resp, 
+                              bottom = text_grob("Bacterial Challenge", 
+                              hjust = 0.4, vjust = -1.8, size = 12, face = "bold"))
 # save plot
 ggsave(plot = amb.ctrl.resp,
        filename = "/Users/speroffs/Desktop/amb.ctrl.resp.jpg", 
