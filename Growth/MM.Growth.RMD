@@ -249,6 +249,7 @@ skewness(decaydat$cubemass) # nope
 ```
 
 # Since the Log-transformed data helps with normality - we will use the Log-transformed Mass for STATISTICAL testing and reporting. But we will use the untransformed mass for graphing and rate reporting. 
+
 ```{r}
 # summarize the mass at each interval by treatment 
 decay_means <- summarySE(decaydat, measurevar = "Massmg", groupvars = c("Treatment", "Day"))
@@ -296,13 +297,11 @@ ggplot(data = decay_means2,
   scale_x_continuous(breaks=seq(1, 22, by = 7)) + # change x axis intervals 
   theme(panel.border = element_rect(colour = "black", fill = NA, size = 1)) +
   theme_classic()
-
 ```
 
 # Since we are most interested in the change of weight over time, let's look at the rate of change over time, or the slope
 ```{r}
 # plot growth of overall polyps
-
 ggplot(data = decay_means, 
        aes(x = Day, 
            y = Massmg,)) +
@@ -319,8 +318,6 @@ ggplot(data = decay_means,
   theme(legend.position = "none",
         legend.title = element_blank(),
         legend.text = element_text(size = 12))
-
-
 ```
 
 ```{r}
@@ -345,7 +342,6 @@ ggplot(data = decay_means2,
   theme(legend.position = "top",
         legend.title = element_blank(),
         legend.text = element_text(size = 12))
-
 ```
 
 ###########################################################################################################################
@@ -355,8 +351,7 @@ ggplot(data = decay_means2,
 ############################################################################################################################
 
 ```{r}
-# Run simple LM for the change in log(mass) over time by each individual 
-
+# Run simple LM for the change in log(mass) over time by each individual: 
 # create grouping factor
 by_ID <- group_by(decaydat, B.TAG)
 ```
@@ -366,7 +361,6 @@ ID.slope <-
   do(by_ID, 
    tidy(                     
      lm(Massmg~Day, data= .)))
-ID.slope
 
 # keep the intercept term 
 ID.slope <- filter(ID.slope, term == "Day")
@@ -374,8 +368,8 @@ ID.slope <- filter(ID.slope, term == "Day")
 names(ID.slope)[names(ID.slope) == "estimate"] <- "Slope"
 ```
 
-## Run linear model with the log-transformed Mass data for statistical comparisons
 ```{r}
+## Run linear model with the log-transformed Mass data for statistical comparisons
 ID.log.slope <-
   do(by_ID,
      tidy(
@@ -391,7 +385,7 @@ ID.slope <- left_join(ID.slope, ID.log.slope, by = "B.TAG")
 ```
 
 ```{r}
-# Add treatment and sym.state values to ID.test dataframe by BTag
+# Add treatment and sym.state values to ID.test dataframe by BTag:
 
 # Select variables from original data to keep
 decaydat2 <- decaydat %>%
@@ -450,8 +444,7 @@ summary(treat.emmeans)
 ```{r}
 # Summarise
 treat.means <- summarySE(ID.slope, measurevar = "Slope", groupvars = "Treatment")
-summarySE(ID.slope, measurevar = "Slope", groupvars = "Temperature")
-
+#summarySE(ID.slope, measurevar = "Slope", groupvars = "Temperature")
 ```
 ```{r}
 # plot
@@ -483,7 +476,34 @@ all.treat.growth.plot
 ggsave(plot = all.treat.growth.plot,
        filename = "/Users/speroffs/Desktop/all.treat.growth.plot.jpg", 
        width = 8, height = 6, units = "in", dpi = 300)
+```
 
+# What about phenotype within each treatment?
+```{r}
+# Summarise
+phen.means <- summarySE(ID.slope, measurevar = "Slope", groupvars = c("Treatment", "Sym.State"))
+
+# Plot
+ggplot(data = phen.means,
+       aes(x = Treatment, 
+           y = Slope,
+           color = Sym.State)) +
+  geom_point(size=2) +
+  geom_errorbar(aes(ymax = Slope+se, ymin = Slope-se), width = 0.2, size=1.2) +
+  
+  geom_hline(yintercept = -0.8740205, col="tan", lty=2) + 
+  geom_hline(yintercept = -0.7277167, col="coral4", lty=2) +
+  
+  scale_y_continuous(name = "Average growth rate (mg day"^"-1"~")", 
+                     limits = c(-4,0), breaks = seq(-4, 0, by = 0.5)) + # set y axis intervals
+
+  labs(x = "Treatment") +
+  scale_color_manual(name = "", values = c("tan", "coral4")) +
+  
+  theme_classic(base_size=14) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
 ```
 
 ###########################################################################################################################
@@ -509,10 +529,10 @@ summary(temp.means)
 ```
 
 ```{r}
-# sum
+# Summarize
 temp.sum <- summarySE(ID.slope, measurevar = "Slope", groupvars = "Temperature")
-# plot it 
 
+# Plot
 growth.temp.plot <-
 ggplot(data = temp.sum,
        aes(x = Temperature,
@@ -552,15 +572,28 @@ ggsave(plot = growth.temp.plot,
 #
 ############################################################################################################################
 
+# For plastic, light, and food stressors: compare the effects within elevated temperature treatments
+```{r}
+# Subset ID.slope data to exclude ambient control polyps
+exp.dat <- filter(ID.slope, Treatment != "Control")
+
+# Sample size per treatment
+summary(exp.dat)
+
+# Plastic (146), No plastic (148)
+# Light (146), Dark, (148)
+# Fed (142), Starved (152)
+```
+
 ```{r}
 # Run a liner effects mixed model to determine if the treatment affects the growth rate of polyps while taking coral colony into account
 
-plastic.lmer <- lmer(Log.Slope~Plastic + (1|Colony), data = ID.slope)
+plastic.lmer <- lmer(Log.Slope~Plastic + (1|Colony), data = exp.dat)
 summary(plastic.lmer)
 ```
 ```{r}
 # Run an anova to compare this model to a null model 
-null <- lmer(Log.Slope ~ 1 + (1|Colony), data = ID.slope)
+null <- lmer(Log.Slope ~ 1 + (1|Colony), data = exp.dat)
 anova(null, plastic.lmer) 
 ```
 ```{r}
@@ -571,7 +604,7 @@ summary(plastic.means)
 
 ```{r}
 # sum
-plastic.sum <- summarySE(ID.slope, measurevar = "Slope", groupvars = "Plastic")
+plastic.sum <- summarySE(exp.dat, measurevar = "Slope", groupvars = "Plastic")
 
 # plot it 
 growth.plastic.plot <- 
@@ -614,13 +647,13 @@ ggsave(plot = growth.plastic.plot,
 ```{r}
 # Run a liner effects mixed model to determine if the treatment affects the growth rate of polyps while taking coral colony into account
 
-light.lmer <- lmer(Log.Slope~Light + (1|Colony), data = ID.slope)
+light.lmer <- lmer(Log.Slope~Light + (1|Colony), data = exp.dat)
 summary(light.lmer)
 ```
 ```{r}
 # Run an anova to compare this model to a null model 
 
-null <- lmer(Log.Slope ~ 1 + (1|Colony), data = ID.slope)
+null <- lmer(Log.Slope ~ 1 + (1|Colony), data = exp.dat)
 anova(null, light.lmer) 
 ```
 ```{r}
@@ -631,7 +664,7 @@ summary(light.means)
 
 ```{r}
 # sum
-light.sum <- summarySE(ID.slope, measurevar = "Slope", groupvars = "Light")
+light.sum <- summarySE(exp.dat, measurevar = "Slope", groupvars = "Light")
 
 # plot it 
 growth.light.plot <- 
@@ -674,13 +707,13 @@ ggsave(plot = growth.light.plot,
 ```{r}
 # Run a liner effects mixed model to determine if the treatment affects the growth rate of polyps while taking coral colony into account
 
-food.lmer <- lmer(Log.Slope~Food + (1|Colony), data = ID.slope)
+food.lmer <- lmer(Log.Slope~Food + (1|Colony), data = exp.dat)
 summary(food.lmer)
 ```
 ```{r}
 # Run an anova to compare this model to a null model 
 
-null <- lmer(Log.Slope ~ 1 + (1|Colony), data = ID.slope)
+null <- lmer(Log.Slope ~ 1 + (1|Colony), data = exp.dat)
 anova(null, food.lmer) 
 ```
 ```{r}
@@ -691,7 +724,7 @@ summary(food.means)
 
 ```{r}
 # sum
-food.sum <- summarySE(ID.slope, measurevar = "Slope", groupvars = "Food")
+food.sum <- summarySE(exp.dat, measurevar = "Slope", groupvars = "Food")
 
 # plot it 
 growth.food.plot <-
@@ -722,7 +755,6 @@ growth.food.plot
 # Save plot
 ggsave(plot = growth.food.plot,
        filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Plots/growth.food.plot.pdf", width = 8, height = 6, units = "in")
-
 ```
 
 
@@ -798,7 +830,7 @@ m0 <- lmer(Log.Slope ~ 1 + (1|Colony), data=ID.slope)
 summary(m0)
 ```
 
-# Start with our 4 stressors
+# Start with our 4 stressors (data includes ambient temperature controls)
 ```{r}
 # Full model
 m1 <- lmer(Log.Slope ~ Temperature + Plastic + Light + Food + (1|Colony), data = ID.slope)
@@ -822,20 +854,35 @@ summary(m3)
 m4 <- lmer(Log.Slope ~ Temperature + Light + Food + Sym.State + (1|Colony), data = ID.slope)
 summary(m4) # sym not significant, if we drop we're at the same model as m2
 ```
-
-# Let's see if there are any interactions between these significant factors 
 ```{r}
-m5 <- lmer(Log.Slope ~ Temperature + Light + Food + Light*Food + (1|Colony), data = ID.slope)
+anova(m0, m1, m2, m3, m4)
+```
+
+# Compare chronic stressors within elevated temperature treatment (no ambient control) 
+```{r}
+m0.0 <- lmer(Log.Slope ~ 1 + (1|Colony), data=exp.dat)
+m5 <- lmer(Log.Slope ~ Plastic + Light + Food + (1|Colony), data = exp.dat)
 summary(m5)
 ```
 ```{r}
-anova(m0, m1, m2, m3, m4, m5)
+# drop plastic term
+m6 <- lmer(Log.Slope ~ Light + Food + (1|Colony), data = exp.dat)
+summary(m6)
+```
+```{r}
+m7 <- lmer(Log.Slope ~ Light + Food + Light*Food + (1|Colony), data = exp.dat)
+summary(m7) # no interaction between factors 
+```
+
+```{r}
+anova(m0.0, m5, m6, m7)
 ```
 
 # Let's check our m2 model for model assumptions
 ```{r}
 library(performance)
-check_model(m2) # actually looks alright
+check_model(m2) 
+check_model(m6)
 ```
 
 ```{r}
