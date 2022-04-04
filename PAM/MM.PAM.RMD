@@ -173,6 +173,7 @@ for (t in 1:length(Exp.Treatments)) {
 expt.data <- filter(data, Treatment != "control")
 # Summarize to plot
 day.means <- summarySE(expt.data, measurevar = "fvfm", groupvars = c("Treatment", "Day"))
+summarySE(expt.data, measurevar = "fvfm", groupvars = "Treatment")
 ```
 ```{r}
 # Plot
@@ -333,7 +334,6 @@ ggplot(phen.means,
 ```
 ```{r}
 # a non facet plot
-
 phen.plot2 <- 
 ggplot(phen.means, 
        aes(x = Sym.State,
@@ -347,17 +347,17 @@ ggplot(phen.means,
   scale_y_continuous(limits=c(0.1, 0.42), breaks = seq(0.1,0.4, by = 0.05)) +
 
   labs(x = "Symbiotic Phenotype", 
-#     y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")"))) +
-       y = "") +
+     y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")"))) +
+      # y = "") +
 
   theme_classic() +
   theme_classic(base_size=12) +
-  theme(legend.position = "top",
+  theme(legend.position = "right",
         legend.title = element_blank(),
-        legend.text = element_text(size = 10)) +
-  guides(col = guide_legend(nrow = 3))
-  
-phen.plot2
+        legend.text = element_text(size = 10)) 
+  #guides(col = guide_legend(nrow = 2)) 
+
+phen.plot2 
 ```
 
 ###########################################################################################################################
@@ -469,7 +469,6 @@ ggsave(plot = phen.treat.fvfm.plot,
        width = 8, height = 6, units = "in")
 ```
 
-
 ```{r}
 # Take a look at the model comparisons once more to determine which models fits best for each treatment 
 
@@ -495,8 +494,10 @@ for (t in 1:length(Exp.Treatments)) {
 #
 ###########################################################################################################################
 
+## For plastic, light, and food stressors: analyze the difference WITHIN elevated temperature treatments (excluding ambient controls
+)
 ```{r}
-# For Thermal stress comparisons, perform LM at day 22 for accurate analysis 
+# For Thermal stress comparisons, perform LM at day 22 for accurate analysis: 
 
 # Isolate day 22 for thermal stress to run simple lm (ambient temp only 1 obs/ID)
 temp22.data <- filter(data, Day == "22")
@@ -521,6 +522,8 @@ ctrl.tukey1.1
 ```{r}
 # Create string of stressors 
 stressors <- c("Plastic", "Light", "Food", "Sym.State")
+
+summary(expt.data)
 ```
 ```{r}
 # Run lmer mixed effects models on experimental stressors with Polyp ID as a random effect to account for repeat measures 
@@ -572,15 +575,17 @@ PN.fvfm.plot<-
        aes(x = Plastic,
            y = fvfm,
        col = Plastic)) +
-  geom_point(size=1.2) +
+  geom_point(size=2) +
   geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
   
   labs(x = "", y = "") + # remove axes text for paneling plots
   scale_x_discrete(limits = c("NoPlastic", "Plastic"),
-                   labels = c("No Plastic", "Plastic")) +
-  scale_y_continuous(limits = c(0.15, 0.31), breaks = seq(0.15, 0.3, by = 0.05)) +
+                  labels = c("No Plastic", "Plastic")) +
+  scale_y_continuous(limits = c(0.175, 0.2)) + #breaks = seq(0.175, 0.2, by = 0.05)) +
   scale_color_manual(values = c("black", "forestgreen")) +
-  ggtitle("B. Plastic") +
+ # ggtitle("B. Plastic") +
+  ggtitle("Plastic") +
+
 
   theme_classic() +
   theme_classic(base_size=16) +
@@ -611,13 +616,15 @@ ggplot(data = light.sum1,
        aes(x = Light,
            y = fvfm,
            color = Light)) +
-  geom_point(size=1.2) +
+  geom_point(size=2) +
   geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
   
   labs(x="",y="") +
-  scale_y_continuous(limits = c(0.15, 0.31), breaks = seq(0.15, 0.3, by = 0.05)) +
+  scale_y_continuous(limits = c(0.175, 0.2)) + #breaks = seq(0.175, 0.2, by = 0.05)) +
+  #scale_y_continuous(limits = c(0.15, 0.31), breaks = seq(0.15, 0.3, by = 0.05)) +
     scale_color_manual(values = c("black", "darkgoldenrod1")) +
-  ggtitle("C. Light") +
+  #ggtitle("C. Light") +
+  ggtitle("Light") +
 
   theme_classic(base_size=16) +
   theme(legend.position = "none",
@@ -648,13 +655,15 @@ ggplot(data = food.sum1,
        aes(x = Food,
            y = fvfm,
        col = Food)) +
-  geom_point(size=1.2) +
+  geom_point(size=2) +
   geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
   
-  labs(x="",y="") +
-  scale_y_continuous(limits = c(0.15, 0.31), breaks = seq(0.15, 0.3, by = 0.05)) +
+  labs(x="",y="") +  
+  scale_y_continuous(limits = c(0.175, 0.2)) + #breaks = seq(0.175, 0.2, by = 0.05)) +
+  #scale_y_continuous(limits = c(0.15, 0.31), breaks = seq(0.15, 0.3, by = 0.05)) +
   scale_color_manual(values = c("orangered4", "black")) +
-  ggtitle("D. Food") +
+  #ggtitle("D. Food") +
+  ggtitle("Food") +
 
 
   theme_classic(base_size=16) +
@@ -662,7 +671,6 @@ ggplot(data = food.sum1,
         legend.title = element_blank(),
         legend.text = element_text(size = 12),
         plot.title = element_text(vjust = 1.1, size = 18, face="bold"))
-
 
 FS.fvfm.plot
 ```
@@ -704,13 +712,13 @@ ggplot(data = temp.sum1,
        aes(x = Temperature,
            y = fvfm,
            col = Temperature)) +
-  geom_point(size=1.2) +
+  geom_point(size=2) +
   geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
   
-  labs(x="",y="") +
+  labs(x="",y=expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")"))) +
   scale_y_continuous(limits = c(0.15, 0.31), breaks = seq(0.15, 0.3, by = 0.05)) +
   scale_color_manual(values = c("royalblue4","firebrick2")) +
-  ggtitle("A. Temperature") +
+ # ggtitle("A. Temperature") +
 
 theme_classic(base_size=16) +
   theme(legend.position = "none",
@@ -877,7 +885,6 @@ ggplot(data = plastic.sum2,
 NP.time.fvfm.plot
 ```
 
-
 ```{r}
 # Save plot 
 ggsave(plot = NP.time.fvfm.plot,
@@ -997,16 +1004,18 @@ ggplot(data = phen.sum2,
   scale_linetype_manual(labels = c("Apo", "Sym"), values = c(1,2)) +
   scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"), values = c("tan","coral4")) +
   scale_x_continuous(name = "Day", breaks=seq(1, 22, by = 7)) +
+  scale_y_continuous(name = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")),
+                     limits = c(0.13, 0.24), breaks=seq(0.14, 0.24, by =0.02)) +
   
-  #labs(y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")"))) +
-  labs(y="")+
+
   theme_classic(base_size=12) +
-  theme(legend.position = c(0.5,1),
+  theme(legend.position ="top",
         legend.title = element_blank(),
-        legend.text = element_text(size = 10)) + 
+        legend.text = element_text(size = 12)) + 
   guides(color = guide_legend(direction = "horizontal")) 
 phen.fvfm.plot
-
+```
+```{r}
 ggsave(plot = phen.fvfm.plot,
        filename = "/Users/speroffs/Desktop/phen.fvfm.plot.jpg", 
        width = 8, height = 6, units = "in", dpi=300)
@@ -1034,8 +1043,6 @@ ggsave(plot = fvfm.panel2,
        filename = "/Users/speroffs/Desktop/fvfm.panel.jpg", 
        width = 8, height = 5, units = "in", dpi = 300)
 ```
-
-
 
 ```{r}
 # Summarize by temperature
