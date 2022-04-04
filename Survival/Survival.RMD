@@ -144,7 +144,10 @@ Km.surv.fig
 
 ```{r exp data}
 exp.data <- filter(surv.dat, Treatment != "amb.ctrl")
+summary(exp.data) # 42 per treat, 168 per stress
 exp.graph.data <- filter(graph.dat, Treatment != "amb.ctrl")
+summary(exp.graph.data) # 40 indiv per treat, 160 per stress
+
 ```
 
 ###########
@@ -187,7 +190,7 @@ km.plastic.fig <-
           legend.labs = c("No plastic", "Plastic"), 
           legend.title = "", legend = c(0.2, 0.2), font.legend = 20,
           xlab = "", xlim = c(0, 23),break.x.by = 2, font.x = 14,
-          ylab = "", ylim = c(0.75,1),font.y= 14,
+          ylab = "", ylim = c(0.7,1),font.y= 14,
           font.tickslab = 14,
           censor.size = 6,
           ggtheme = theme_classic2(),
@@ -221,7 +224,7 @@ ggsurvplot(plastic1,
           legend.labs = c("No plastic", "Plastic"), 
           legend.title = "", legend = c(0.2, 0.2), font.legend = 20,
           xlab = "", xlim = c(0, 23),break.x.by = 2, font.x = 14,
-          ylab = "", ylim = c(0.75,1),font.y= 14,
+          ylab = "", ylim = c(0.7,1),font.y= 14,
           font.tickslab = 14,
           censor.size = 6,
           ggtheme = theme_classic2(),
@@ -579,7 +582,7 @@ km.light.fig
 light.mod1 <- coxph(Surv(Time, Death) ~ Light, data=exp.data)
 summary(light.mod1)
 ```
-```{r exp.food km}
+```{r exp.light km}
 # plot graph data (also subsetted for elevated temp)
 light1 <- survfit(Surv(Time, Death) ~ Light, data = exp.graph.data)
 
@@ -590,7 +593,7 @@ ggsurvplot(light1,
           legend.labs = c("Dark", "Light"), 
           legend.title = "", legend = c(0.2, 0.2), font.legend = 20,
           xlab = "", xlim = c(0, 23),break.x.by = 2, font.x = 14,
-          ylab = "", ylim = c(0.75,1),font.y= 14,
+          ylab = "", ylim = c(0.7,1),font.y= 14,
           font.tickslab = 14,
           censor.size = 6,
           ggtheme = theme_classic2(),
@@ -598,7 +601,6 @@ ggsurvplot(light1,
           palette = c("black","darkgoldenrod1")) +
   guides(shape = guide_legend(override.aes = list(shape=NA)))
 ```
-
 
 #########
 # Light: Apo frags
@@ -828,7 +830,6 @@ sym_diff
 # df = 1
 # p = 0.003
 ```
-
 ```{r}
 # surv fit 
 symfit <- survfit(Surv(Time, Death) ~ Sym.State, data = graph.dat)
@@ -849,6 +850,32 @@ s.plot <- ggsurvplot(symfit,
           palette = c("tan","coral4")) 
 
 s.plot
+```
+
+## Phenotype in experimental conditions
+```{r}
+# CPH model
+phen.mod1 <- coxph(Surv(Time, Death) ~ Sym.State, data=exp.data)
+summary(phen.mod1)
+```
+```{r phen.light km}
+# plot graph data (also subsetted for elevated temp)
+phen1 <- survfit(Surv(Time, Death) ~ Sym.State, data = exp.graph.data)
+
+# plot
+#phen.exp.KM <- 
+ggsurvplot(phen1, 
+          conf.int = FALSE, pval = FALSE, surv.scale = "default", # or %
+          legend.labs = c("Aposymbiotic", "Symbiotic"), 
+          legend.title = "", legend = c(0.2, 0.2), font.legend = 16,
+          xlab = "Experimental Day", xlim = c(0, 23),break.x.by = 2, font.x = 14,
+          ylab = "Survival Probability", ylim = c(0.75,1),font.y= 14,
+         # title = "Symbiotic Phenotype", font.title = c(16,"bold"),
+          font.tickslab = 14,
+          censor.size = 6,
+          ggtheme = theme_classic2(),
+          linetype = c(1,1),
+          palette = c("tan","coral4")) 
 ```
 
 ```{r}
@@ -926,8 +953,6 @@ m1_diff
 ```
 ```{r}
 ggforest(m1, data=surv.dat)
-
-PLFT.fig <- ggforest(m1, data=surv.dat) # save as figure
 ```
 
 ```{r}
@@ -942,9 +967,15 @@ anova(multiv.mod, m1, test="LRT")
 tmp.mod <- coxph(Surv(Time, Death) ~ Plastic + Light + Food, data = surv.dat)
 summary(tmp.mod)
 ggforest(tmp.mod, data=surv.dat)
-
-PLF.fig <- ggforest(tmp.mod, data=surv.dat) # save as figure
 ```
+```{r}
+# Is it the same output if we use the exprimental data only?
+exp.mod <- coxph(Surv(Time, Death) ~ Plastic + Light + Food, data = exp.data)
+summary(exp.mod)
+ggforest(exp.mod, data=exp.data)
+
+```
+
 
 ```{r}
 # And finally, we'll break it down by sym state, starting off with our Apo frags
