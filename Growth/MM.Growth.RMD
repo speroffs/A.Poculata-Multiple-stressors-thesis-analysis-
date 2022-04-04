@@ -531,7 +531,8 @@ summary(temp.means)
 ```{r}
 # Summarize
 temp.sum <- summarySE(ID.slope, measurevar = "Slope", groupvars = "Temperature")
-
+```
+```{r}
 # Plot
 growth.temp.plot <-
 ggplot(data = temp.sum,
@@ -545,12 +546,12 @@ ggplot(data = temp.sum,
   scale_x_discrete(name = "", # remove labels for paneling 
                    limits = c("AMBIENT", "ELEVATED"),
                    labels = c("Ambient", "Elevated")) +
-  scale_y_continuous(name = "", 
+  scale_y_continuous(name = "Average growth rate (mg day"^"-1"~")", 
                      limits = c(-1.65, -0.6),
                      breaks = seq(-1.6, -0.6, by = 0.2)) +
   
   scale_color_manual(values = c("royalblue4","firebrick2")) +
-  ggtitle("A. Temperature") +
+  #ggtitle("A. Temperature") +
 
 theme_classic(base_size=16) +
   theme(legend.position = "none",
@@ -619,10 +620,11 @@ ggplot(data = plastic.sum,
                    limits = c("NOPLASTIC", "PLASTIC"),
                    labels = c("No Plastic", "Plastic")) +
  scale_y_continuous(name = "", 
-                     limits = c(-1.65, -0.6),
-                     breaks = seq(-1.6, -0.6, by = 0.2)) +
+                     limits = c(-1.7, -0.8),
+                     breaks = seq(-1.7, -0.8, by = 0.2)) +
   scale_color_manual(labels = c("No plastic", "Plastic"), values = c("black","forestgreen")) +
-  ggtitle("B. Plastic") +
+  #ggtitle("B. Plastic") +
+  ggtitle("Plastic") +
 
   theme_classic(base_size=16) +
   theme(legend.position = "none",
@@ -672,18 +674,19 @@ ggplot(data = light.sum,
        aes(x = Light,
            y = Slope,
            col = Light)) +
-  geom_point(size=2) +
+  geom_point(size=3) +
   geom_errorbar(aes(ymax = Slope+se, ymin = Slope-se), width = .1, size=1.2) +
   
   scale_x_discrete(name = "", # remove labels for paneling 
                    limits = c("DARK", "LIGHT"),
                    labels = c("Dark ", "Light")) +
  scale_y_continuous(name = "", 
-                     limits = c(-1.65, -0.6),
-                     breaks = seq(-1.6, -0.6, by = 0.2))  +
+                     limits = c(-1.7, -0.8),
+                     breaks = seq(-1.7, -0.8, by = 0.2)) +
   scale_color_manual(values = c("black","darkgoldenrod1")) +
-  ggtitle("C. Light") +
-
+ # ggtitle("C. Light") +
+ggtitle("Light")+
+  
   theme_classic(base_size=16) +
   theme(legend.position = "none",
         legend.title = element_blank(),
@@ -732,17 +735,18 @@ ggplot(data = food.sum,
        aes(x = Food,
            y = Slope,
            col = Food)) +
-  geom_point(size=2) +
+  geom_point(size=3) +
   geom_errorbar(aes(ymax = Slope+se, ymin = Slope-se), width = .1, size=1.2) +
   
   scale_x_discrete(name = "", # remove labels for paneling 
                    limits = c("FED", "STARVED"),
                    labels = c("Fed ", "Starved")) +
   scale_y_continuous(name = "", 
-                     limits = c(-1.65, -0.6),
-                     breaks = seq(-1.6, -0.6, by = 0.2)) +
+                     limits = c(-1.7, -0.8),
+                     breaks = seq(-1.7, -0.8, by = 0.2)) +
     scale_color_manual(values = c("orangered4", "black")) +
-  ggtitle("D. Food") +
+  #ggtitle("D. Food") +
+  ggtitle("Food")+
 
   theme_classic(base_size=16) +
   theme(legend.position = "none",
