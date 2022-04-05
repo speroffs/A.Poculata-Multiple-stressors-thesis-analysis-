@@ -43,7 +43,6 @@ meta.data <- read.csv("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-the
 # Change names in meta.data df to join 
 names(meta.data)[names(meta.data) == "B.TAG"] <- "B.Tag" 
 names(meta.data)[names(meta.data) == "Treat.ID"] <- "Treatment" 
-
 ```
 ```{r}
 # select variables from metadata to keep
@@ -1663,7 +1662,6 @@ amb.ctrl.data <- left_join(pam.ctrl.data, rgb.ctrl.data, by = "B.Tag")
 # remove two NAs
 amb.ctrl.data <- amb.ctrl.data[complete.cases(amb.ctrl.data),]
 amb.ctrl.data$B.Tag <- as.factor(amb.ctrl.data$B.Tag)
-
 ```
 
 # First let's plot the FvFm values 
@@ -1725,9 +1723,13 @@ ctrl.slope <- -coef(ctrl.lr)[2]/coef(ctrl.lr)[3] # for coral r
 ctrl.LR.plot <-
 ggplot(amb.ctrl.data, 
        aes(x = CoralR,
-           y = fvfm)) + 
+           y = fvfm,
+           col = Sym.State)) + 
   
-  geom_point(aes(shape=Sym.State), size = 3) +
+  geom_point(aes(shape=Sym.State, 
+                 fill=Sym.State), # for presentation
+             size = 3, 
+             alpha = 0.9) +
   
   expand_limits(x=0,y=0) + # sets plot origin
   scale_x_continuous(name = "Intensity in the red channel \n (0 = darkest, 1 = brightest)",
@@ -1740,9 +1742,10 @@ ggplot(amb.ctrl.data,
     # ctrl. slope = 0.809
     # ctrl.int = -0.0386
 
-  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic")) +
-  scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(1,19)) +
-  
+  scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c(21,21)) +
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"), values = c("black", "black")) +
+  scale_fill_manual(labels = c("Aposymbiotic", "Symbiotic"), values=c("tan","coral4")) +
+
   theme_classic(base_size = 13) +
   theme(legend.position = "top",
         legend.title = element_blank(),
@@ -1750,10 +1753,13 @@ ggplot(amb.ctrl.data,
     annotate("rect", xmin=0.01, xmax = 0.21, ymin = 0.01, ymax = 0.06, color = "white", fill = "white")
 
 
-ctrl.LR.plot<-annotate_figure(ctrl.LR.plot, bottom = text_grob("y = 0.809x - 0.0386", 
+ctrl.LR.plot<-annotate_figure(ctrl.LR.plot, 
+                              bottom = text_grob("y = 0.809x - 0.0386", 
                               hjust = 1.8, 
-                              vjust = -10,
+                              # vjust = -10,
+                              vjust = -9.2,
                               size = 12)) 
+ctrl.LR.plot
 ```
 ```{r}
 # Save plot for publication
