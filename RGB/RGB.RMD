@@ -11,24 +11,23 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r, message=FALSE}
-# Libraries 
-library(ggplot2)
-library(dplyr)
-library(Rmisc)
-library(e1071)
-
-library(lme4)
-library(lmerTest)
-library(emmeans)
-library(ggpubr)
-```
-
 ###########################################################################################################################
 #
 #                                                           Data Prep
 #
 ############################################################################################################################
+
+```{r, include=FALSE}
+# Libraries 
+library(ggplot2)
+library(dplyr)
+library(Rmisc)
+library(e1071)
+library(lme4)
+library(lmerTest)
+library(emmeans)
+library(ggpubr)
+```
 
 ```{r}
 setwd("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/RGB")
@@ -72,11 +71,11 @@ data$CoralB <- as.numeric(data$CoralB)
 data$CoralG <- as.numeric(data$CoralG)
 ```
 
-###########################################################################################################################
+######################################################################################################
 #
-#                                                     Normality testing and transformations
+#                                     Normality testing and transformations
 #
-############################################################################################################################
+######################################################################################################
 
 ```{r}
 # Let's look at the distribution of Coral R color values to test for normality
@@ -90,11 +89,11 @@ qqline(data$CoralR)
 skewness(data$CoralR) # fvfm data is almost centered at zero, no need for a transformation
 ```
 
-###########################################################################################################################
+######################################################################################################
 #
-#                                                                  Exploratory plots
-#
-############################################################################################################################
+#                                      Exploratory visualizations
+# 
+######################################################################################################
 
 ```{r}
 # Plot the R values by sym state at each time point
@@ -156,11 +155,11 @@ ggplot(data = data,
 
 ## Since we excluded data from NDF and NLF treatments after 16 and 17 days in the experiment due to the aquarium failure, should we also remove the post_treat data points for those two treatments as well?
 
-###########################################################################################################################
+###################################################################################################################
 #
-#                                           Question 1: Does Treatment affect coral color  
+#                                          Question 1: Does Treatment affect coral color  
 #
-############################################################################################################################
+###################################################################################################################
 
 ```{r}
 # Let's write a liner mixed effects model to determine the impact of  treatment  on coral Red intensity while using polpy B.tag ID as a random effect to account for repeat measures throughout the experiment 
@@ -197,11 +196,11 @@ ggplot(data = treatsum1,
 ## So, while taking into account all time periods, and individuals, all treatments except for NDF and NLF have significantly higher R intensity (aka brightness) than the control group.
 ```
 
-###########################################################################################################################
+###################################################################################################################
 #
 #                                     Question 2: Does time affect coral color in each treatment? 
 #
-############################################################################################################################
+###################################################################################################################
 
 ```{r}
 # write a string of all our treatments
@@ -240,8 +239,8 @@ ggplot(data = treatsum2,
   theme_classic()
 ```
 
-## How does it look for the experimental treatments from day 1-22 during the experiment?
 
+## How does it look for the experimental treatments from day 1-22 during the experiment?
 ```{r}
 # write a string of all our treatments
 exp.treats <- c("PDS","PLS","NDS","NLS","PDF","PLF","NDF","NLF")
@@ -259,6 +258,7 @@ for (t in 1:length(exp.treats)){
   print(summary(exptime.emm))
 }
 ```
+
 ```{r}
 # isolate experimental data
 exp.data <- filter(data, Treatment != "control", Time != "Post_Frag")
@@ -320,7 +320,6 @@ rgb.fig8 <- ggplot(data = treat.sum.test,
 ) 
 rgb.fig8
 ```
-
 ```{r}
 # Save plot for publication
 ggsave(plot = rgb.fig8, 
@@ -328,11 +327,49 @@ ggsave(plot = rgb.fig8,
        width = 8, height = 6, units = "in", dpi = 300)
 ```
 
-###########################################################################################################################
+# Re-plot figure 8, but reverse the Y axis 
+```{r}
+fig8.rev<-
+ggplot(data = treat.sum.test,
+              aes(x = Time, 
+                  y = CoralR,
+                  color = Treatment,
+                  group = Treatment)) +
+  
+  geom_point(size = 2) +
+  geom_line( size = 1.2) +
+  geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1.2) +
+  
+  scale_color_manual(name = "", 
+                     values = c("#F53100", "#FF8B47","#C39809","#F6CB3C","#0B8454", "#7BB12F","#3F88C5","#A33461")) +
+  scale_x_discrete(limits = c("Pre_Treat", "Post_Treat"),
+                   labels = c("1", "22")) +
+  labs(x = "Day", y = "Insentisty in the red channel") +
+  
+  scale_y_reverse() +
+  
+  theme_classic(base_size=14) +
+  theme(legend.position = c(0.95,0.5),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12),
+        axis.title.y = element_text(vjust = 2.5)
+                                    #, face = "bold"),
+        #axis.title.x = element_text(face = "bold"),
+) 
+fig8.rev
+```
+```{r}
+ggsave(plot = fig8.rev, 
+       filename = "/Users/speroffs/Desktop/fig8.rev.jpg", 
+       width = 8, height = 6, units = "in", dpi = 300)
+```
+
+
+#####################################################################################################################
 #
 #                                Question 3 : Does phenotype affect coral color in each treatment?
 #
-############################################################################################################################
+#####################################################################################################################
 
 ```{r}
 # A better way to write this model would be to look at the affect of phenotype on coral r color IN each treatment, let's write a loop to do just that
@@ -368,11 +405,11 @@ ggplot(data = phen.sum,
   theme_classic()
 ```
 
-###########################################################################################################################
+#####################################################################################################################
 #
 #                           Question 4 : Does phenotype affect coral color in each treatment over time?
 #
-############################################################################################################################
+#####################################################################################################################
 
 ```{r}
 # A better way to write this model would be to look at the affect of phenotype on coral r color IN each treatment, let's write a loop to do just that
@@ -413,11 +450,11 @@ ggplot(data = phen.sum2,
 # The passing of time is not shown here very accurately. The time between post_frag and pre_treat is ~ 60 days, while the difference between between pre_treat and post_treat is 21 days exactly. So, let's just look at the change in R color for experimental treatments at those two time points
 ```
 
-###########################################################################################################################
+#####################################################################################################################
 #
 #                       Question 5: Does phenotype affect coral color during the experimental time period?
 #
-############################################################################################################################
+#####################################################################################################################
 
 ## Since the time between post-frag and pre-treat is not an experimental time period, let's take a look at how phenotype and time affects coral R color in experimental fragments during the experimental period
 
@@ -459,11 +496,11 @@ ggplot(data = phen.ex.sum,
   theme_classic()
 ```
 
-###########################################################################################################################
+#####################################################################################################################
 #
 #                       Question 6 : Does phenotype affect coral color during the experiment over time?
 #
-############################################################################################################################
+#####################################################################################################################
 
 ```{r}
 # write a loop for the lmer
@@ -507,7 +544,9 @@ ggplot(data = exp.sum,
   facet_wrap(~Treatment) +
   scale_x_discrete(limits = c("Pre_Treat", "Post_Treat"),
                    labels = c("1", "22")) +
-  labs(x = "Day", y = "Insentisty in the red channel \n (0.35 = darkest, 0.55 = brightest)") +
+  labs(x = "Day", y = "Insentisty in the red channel") +
+  
+  scale_y_reverse() +
   
   theme_classic(base_size=13) +
    theme(legend.position = c(0.83,0.15),
@@ -527,11 +566,11 @@ ggsave(plot = RGB.alltreat.phen.plot,
 ```
 
 
-###########################################################################################################################
+#####################################################################################################################
 #
-#                Individual stressors; Question 1: Does temperature / plastic / food / light / phenotype affect RBG?
+#           Individual stressors; Question 1: Does temperature / plastic / food / light / phenotype affect RBG?
 # 
-############################################################################################################################
+#####################################################################################################################
 
 ## Temperature
 ```{r}
@@ -564,7 +603,7 @@ ggplot(data = temp.sum1,
 ## Thermal stress *clearly* impacts coral brightness (ie more bleached)
 ```
 
-## Plastic
+## Plastic 
 ```{r}
 # For plastic, we can use the full dataset
 plastic.mod1 <- lmer(CoralR ~ Plastic + (1|B.Tag), data = data)
@@ -592,8 +631,8 @@ ggplot(data = plastic.sum1,
 ## corals in plastic treatment significantly more bleached than no plastic. Howver, this includes all experimental and ambient control fragments. Do we still see a significant affect if we repeat this test with the experimental fragments only?
 ```
 
+# Plastic model using experimental data
 ```{r}
-# plastic model using experimental data
 plastic.mod1.1 <- lmer(CoralR ~ Plastic + (1|B.Tag), data = exp.data)
 summary(plastic.mod1.1)
 ```
@@ -787,12 +826,12 @@ ggplot(data = phen.sum1.1,
 ## corals that are apo are more bleached than corals that are sym 
 ```
 
-###########################################################################################################################
+#####################################################################################################################
 #
 #                                  Individual stressors; Question 2: Does phenotype affect RBG 
 #                                       in temperature / plastic / food / light / stress?
 # 
-############################################################################################################################
+#####################################################################################################################
 
 ## Temperature
 ```{r}
@@ -1226,12 +1265,12 @@ ggplot(data = phen.sum3.3,
   theme_classic()
 ```
 
-###########################################################################################################################
+#####################################################################################################################
 #
 #                       Individual stressors; Question 4: Does phenotype affect coral color at 
 #                       different temperature / plastic / food / light / stress over time?
 # 
-############################################################################################################################
+#####################################################################################################################
 
 ## Temperature
 ```{r}
@@ -1321,8 +1360,6 @@ ggplot(data = temp.sum4.4,
 
 ```
 
-
-
 ## Plastic
 ```{r}
 # lmer model
@@ -1384,8 +1421,9 @@ ggplot(data = plastic.sum4.4,
   
   scale_color_manual(labels = c("Aposymbiotic","Symbiotic"), values=c("tan","coral4")) +
   scale_x_discrete(name = "", limits = c("Pre_Treat", "Post_Treat"), labels = c("1", "22")) +
-  scale_y_continuous(name = "", limits = c(0.39, 0.55), breaks = seq(0.4, 0.55, by = 0.05)) + # set y axis intervals
-  #ggtitle ("A. Plastic") +
+ # scale_y_continuous(name = "", limits = c(0.39, 0.55), breaks = seq(0.4, 0.55, by = 0.05)) + # set y axis intervals
+  scale_y_reverse(name = "", limits = c(0.55,0.39), breaks = seq(0.55, 0.4, by = -0.05)) +
+  ggtitle ("A. Plastic") +
   
   facet_grid(~Plastic, labeller = plastic_labeller) +
   theme_classic(base_size=13) +
@@ -1466,10 +1504,12 @@ ggplot(data = light.sum4.4,
   geom_line(size = 1.2)  +
   geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1.2, lty = 1) +
   
-  scale_color_manual(values=c("tan","coral4")) +
+  scale_color_manual(labels = c("Aposymbiotic","Symbiotic"), values=c("tan","coral4")) +
   scale_x_discrete(name = "", limits = c("Pre_Treat", "Post_Treat"), labels = c("1", "22")) +
-  scale_y_continuous(name = "", limits = c(0.39, 0.55), breaks = seq(0.4, 0.55, by = 0.05)) + # set y axis intervals
-  #ggtitle ("B. Light") +
+ # scale_y_continuous(name = "", limits = c(0.39, 0.55), breaks = seq(0.4, 0.55, by = 0.05)) + # set y axis intervals
+  scale_y_reverse(name = "", limits = c(0.55,0.39), breaks = seq(0.55, 0.4, by = -0.05)) +
+
+  ggtitle ("B. Light") +
   
   facet_grid(~Light, labeller = light_labeller) +
   theme_classic(base_size=13) +
@@ -1545,10 +1585,12 @@ ggplot(data = food.sum4.4,
   geom_line(size = 1.2)  +
   geom_errorbar(aes(ymin=CoralR-se, ymax=CoralR+se), width=0.1, size = 1.2, lty = 1) +
   
-  scale_color_manual(values=c("tan","coral4")) +
+  scale_color_manual(labels = c("Aposymbiotic","Symbiotic"), values=c("tan","coral4")) +
   scale_x_discrete(name = "", limits = c("Pre_Treat", "Post_Treat"), labels = c("1", "22")) +
-  scale_y_continuous(name = "", limits = c(0.39, 0.55), breaks = seq(0.4, 0.55, by = 0.05)) + # set y axis intervals
-  #ggtitle ("C. Food") +
+  #scale_y_continuous(name = "", limits = c(0.39, 0.55), breaks = seq(0.4, 0.55, by = 0.05)) + # set y axis intervals
+  scale_y_reverse(name = "", limits = c(0.55,0.39), breaks = seq(0.55, 0.4, by = -0.05)) +
+
+  ggtitle ("C. Food") +
   
   facet_grid(~Food, labeller = food_labeller) +
   theme_classic(base_size=13) +
@@ -1568,16 +1610,29 @@ ggsave(plot = rbg.food.plot,
 
 # Arrange Plastic, Light, and Food plots
 ```{r}
-rgb.panel1 <- ggarrange(rbg.plastic.plot, rbg.light.plot, rbg.food.plot, common.legend = FALSE, labels=NA, ncol = 1)
+rgb.panel1 <- ggarrange(rbg.plastic.plot, ggplot()+theme_void(), 
+                        widths = c(2, 1), common.legend = TRUE, legend = "right")
 
-rgb.panel1 <-annotate_figure(rgb.panel1, bottom = text_grob("Experimental Day", 
-                            hjust = 0.4, vjust = -0.5, size = 18, face = "bold"),
-                            left = text_grob("Intensity in the red channel (0 = darkest, 1 = brightest)", 
-                                 rot = 90, vjust = 1, size = 18, face = "bold")) 
+rgb.panel2 <- ggarrange(rbg.light.plot, rbg.food.plot,
+                        common.legend = TRUE, 
+                        labels = NA, legend = "none",
+                        widths=c(1,1))
+
+panel <- ggarrange(rgb.panel1, rgb.panel2,
+                   common.legend = FALSE,
+                   labels = NA,
+                   ncol=1)
+
+rgb.panel1 <-annotate_figure(panel, bottom = text_grob("Day", 
+                            hjust = 0.4, vjust = -0.5, size = 18), 
+                            #face = "bold"),
+                            left = text_grob("Intensity in the red channel", 
+                                 rot = 90, vjust = 1, hjust = 0.4, size = 18))
+                                 #face = "bold")) 
 
 ggsave(rgb.panel1, 
-       filename = "/Users/speroffs/Desktop/rgb.panel1.jpg",
-       width = 6.5, height = 11, units = "in", dpi = 300)
+       filename = "/Users/speroffs/Desktop/rgb.panel.stressors.jpg",
+       width = 8, height = 6, units = "in", dpi = 300)
 ```
 
 ###########################################################################################################################
