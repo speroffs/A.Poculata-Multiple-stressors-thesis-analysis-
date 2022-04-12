@@ -166,31 +166,21 @@ ggsave(plot = resp.alltreat.plot,
 # Separate ambient control from experimental treatments
 ctrl.data <- filter(data, Treatment == "Control")
 
-ctrl.lm1 <- lm(Lograte~Bacteria, data = ctrl.data) # Run lm model (one obs per ID)
+# Run lm model (one obs per ID)
+ctrl.lm1 <- lm(Lograte~Bacteria, data = ctrl.data) 
 summary(ctrl.lm1) # summarize lm 
-
-# Save lm output to ModelOutputs folder
-#sink(
-#  paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # path
-#        file = "Control Q1 LM sum.txt")) # name txt
-summary(ctrl.lm1) # what to print
-#sink(file = NULL) 
 
 # tukey posthoc
 ctrl.aov1 <- aov(Lograte~Bacteria, data = ctrl.data)
 ctrl.tukey1 <- TukeyHSD(ctrl.aov1)
 ctrl.tukey1
-
-#sink(
-#  paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # path
-#        file = "Control Q1 TuKey sum.txt")) # name txt
-summary(ctrl.tukey1) # what to print
-#sink(file = NULL) 
 ```
 
 ```{r}
+# Summarize the means within our controls
 ctrl.means <- summarySE(ctrl.data, measurevar = "rate", groupvars = "Bacteria")
 
+# Plot
 ctrl.resp.A <-
   ggplot(data = ctrl.means, 
        aes(x = Bacteria,
@@ -203,7 +193,7 @@ ctrl.resp.A <-
   scale_x_discrete(name = "", limits = c("EC", "SW"), labels = c("Acute", "Basal")) +
   scale_y_continuous(limits = c(0.01, 0.074), breaks = seq(0.01, 0.075, by = 0.015)) +
     ylab(bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
-  #ggtitle("A") +
+  ggtitle("A") +
 
   theme_classic(base_size = 12) +
   theme(legend.position = "none",
@@ -213,6 +203,7 @@ ctrl.resp.A <-
 ctrl.resp.A
 ```
 
+# Now let's look within our experimental treatments only (no controls)
 ```{r}
 # Create a string of the experimental Treatment names 
 Exp.Treatments <- c("PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF")
@@ -227,12 +218,12 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q1 LMER sum:", sep = " ")) # name the summary output 
   print(summary(exp.treat.lmer1)) # print the summary output
   
-  sink(
-    paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # file path
-          paste(Exp.Treatments[t],"Q1 LMER sum.txt", sep = " "), # save file as with sep "" for summary
-             sep = ""))   
-  print(summary(exp.treat.lmer1)) # print summary output 
-  sink()
+#  sink(
+#    paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # file path
+#          paste(Exp.Treatments[t],"Q1 LMER sum.txt", sep = " "), # save file as with sep "" for summary
+#             sep = ""))   
+#  print(summary(exp.treat.lmer1)) # print summary output 
+#  sink()
   
   # Posthoc ANOVA to compare model to the null
   null <- lmer(Lograte ~ 1 + (1| B.TAG), data = tmp.data) # null model without effect of bacteria
@@ -240,35 +231,31 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q1 ANOVA sum:", sep = " ")) # name the summary output 
   print(exp.treat.lmer1.aov) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
-             paste(Exp.Treatments[t],"Q1 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
-  print(exp.treat.lmer1.aov)
-  sink()
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
+#             paste(Exp.Treatments[t],"Q1 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
+#  print(exp.treat.lmer1.aov)
+#  sink()
  
   # Emmmeans posthoc test 
   exp.treat.lmer1.means <- emmeans(exp.treat.lmer1, list(pairwise~Bacteria)) # run emmeans on lmer object 
   print(paste(Exp.Treatments[t],"Q1 EMMEANS sum:", sep = " ")) # print emmeans summary output 
   print(summary(exp.treat.lmer1.means))
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
-             paste(Exp.Treatments[t],"Q1 EMMEANS sum.txt", sep = " "), sep = "")) # save emmeans summary as txt
-  print(summary(exp.treat.lmer1.means))
-  sink()
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
+#             paste(Exp.Treatments[t],"Q1 EMMEANS sum.txt", sep = " "), sep = "")) # save emmeans summary as txt
+#  print(summary(exp.treat.lmer1.means))
+#  sink()
   
 }
 ```
-```{r}
-# Maybe there is a way to concatenate the model outputs into a single document or data frame? 
-
-#Q1treat.data <- data.frame(coef(summary(exp.treat.lmer1)))
-#Q1treat.data$Treatment <- paste(Exp.Treatments[t])
-#anova(null, exp.treat.lmer1)
-```
 
 ```{r}
-# Summarize rates by Treatment to plot
+# Summarize rates by experimental reatment to plot
 bac.sum <- summarySE(data, measurevar = "rate", groupvars = c("Treatment", "Bacteria"))
-bac.sum$Treatment <- factor(bac.sum$Treatment, levels = c("Control", "PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF"))
+
+# Relevel 
+bac.sum$Treatment <- factor(bac.sum$Treatment, 
+                            levels = c("Control", "PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF"))
 ```
 ```{r}
 # Plot 
@@ -280,9 +267,8 @@ ggplot(data = bac.sum,
   geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
   facet_wrap(vars(Treatment)) +
   scale_color_manual(values = c("black", "royalblue3")) +
-  labs(x = "", 
-       y = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")), 
-      caption = "Data represent mean +/- SEM; Bacterial treatment significantly affects the metabolic response in all treatments \nexcept for NDF and NLF when compared to a null model (ANOVA posthoc of LMER, p > 0.05)") +
+  labs(x = "Bacterial Challenge", 
+       y = bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
   theme_classic() 
 ```
 
@@ -296,8 +282,7 @@ ggplot(bac.sum,
   geom_point(position = position_dodge(0.2)) +
   geom_line(lty=2,position = position_dodge(0.2)) +
   geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.3, size = 1, position = position_dodge(0.2)) +
-  #scale_y_continuous(name = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")),
-                     #limits = c(-5.9, -3.3), breaks=seq(-5.75, -3, by = 0.5)) +
+  scale_y_continuous(name = bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
 
   scale_color_manual(name = "", values = c("#131513", "#E02D00", "#FF7E33", 
                                                    "#D6A70A", "#ECDD09", "#075F3C", 
@@ -329,12 +314,11 @@ for (t in 1:length(Exp.Treatments)) { # use same Exp.treatments string
   print(paste(Exp.Treatments[t],"Q2 LMER sum:", sep = " ")) # name the summary output 
   print(summary(exp.treat.lmer2)) # print the summary output
   
-  sink(
-    paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # file path
-          paste(Exp.Treatments[t],"Q2 LMER sum.txt", sep = " "), # save file as with sep "" for summary
-             sep = ""))   
-  print(summary(exp.treat.lmer2)) # print summary output 
-  sink()
+#  sink( #   paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # file path
+#          paste(Exp.Treatments[t],"Q2 LMER sum.txt", sep = " "), # save file as with sep "" for summary
+#             sep = ""))   
+#  print(summary(exp.treat.lmer2)) # print summary output 
+#  sink()
   
   # Posthoc ANOVA to compare model to the null
   null <- lmer(Lograte ~ 1 + (1| B.TAG), data = tmp.data) # null model without effect of bacteria
@@ -343,15 +327,15 @@ for (t in 1:length(Exp.Treatments)) { # use same Exp.treatments string
   print(paste(Exp.Treatments[t],"Q2 ANOVA sum:", sep = " ")) # name the summary output 
   print(exp.treat.lmer2.aov) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
-             paste(Exp.Treatments[t],"Q2 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
-  print(exp.treat.lmer2.aov)
-  sink()
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
+#             paste(Exp.Treatments[t],"Q2 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
+#  print(exp.treat.lmer2.aov)
+#  sink()
 }
 ```
+
 ```{r}
 # look at post-hoc pairwise comparisons with day as a factor
-
 for (t in 1:length(Exp.Treatments)) { # use same Exp.treatments string
   
   tmp.data <- filter(data, Treatment == Exp.Treatments[t])
@@ -363,16 +347,18 @@ for (t in 1:length(Exp.Treatments)) { # use same Exp.treatments string
   print(paste(Exp.Treatments[t],"Q2 EMMEANS sum:", sep = " ")) # print emmeans summary output 
   print(summary(exp.treat.lmer2.means))
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
-             paste(Exp.Treatments[t],"Q2 EMMEANS sum.txt", sep = " "), sep = "")) # save emmeans summary as txt
-  print(summary(exp.treat.lmer2.means))
-  sink()
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
+#             paste(Exp.Treatments[t],"Q2 EMMEANS sum.txt", sep = " "), sep = "")) # save emmeans summary as txt
+#  print(summary(exp.treat.lmer2.means))
+#  sink()
 }
 ```
 
 ```{r}
+# Filter out experimental treatments
+exp.data <- filter(data, Treatment != "Control")  
+
 # Summarize means and sem to plot using the expt.data frame
-exp.data <- filter(data, Treatment != "Control") # Filter out experimental treatments 
 bac.day.sum <- summarySE(exp.data, measurevar = "rate", groupvars = c("Treatment", "Day", "Bacteria"))
 ```
 ```{r}
@@ -409,8 +395,7 @@ resp.treat.time.plot
 ```{r}
 # save plot
 ggsave(plot = resp.treat.time.plot,
-       filename = "/Users/speroffs/Desktop/resp.treat.time.plot.jpg", 
-       width = 8, height = 6, units = "in", dpi = 300)
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/Figures/treat.over.tine.EC.SW.jpg", width = 8, height = 6, units = "in", dpi = 300)
 ```
 
 ###########################################################################################################################
@@ -426,42 +411,77 @@ ctrl.lm3 <- lm(Lograte~Sym.state*Bacteria, data=ctrl.data)
 summary(ctrl.lm3) # view summary
 anova(ctrl.lm3)
 
-# Save aov output to ModelOutputs folder
-sink(
-  paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # path
-        file = "Control Q3 LM sum.txt")) # name txt
-summary(ctrl.lm3) # what to print
-sink(file = NULL) 
-
 # Tukey post hoc 
 ctrl.aov3 <- aov(Lograte~Sym.state*Bacteria, data=ctrl.data) # for tukey test
 ctrl.tukey3 <- TukeyHSD(ctrl.aov3, which = 'Sym.state:Bacteria')
 ctrl.tukey3 # view tukey output
-
-# Save Tukey to ModelOutputs folder
-sink(
-  paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # path
-        file = "Control Q3 TUKEY sum.txt")) # name txt
-(ctrl.tukey3) # what to print
-sink(file = NULL)
 ```
 
+## Plot the ambient controls
+```{r}
+# Summarize
+ctrl.phen.means <-summarySE(ctrl.data, measurevar = "rate", groupvars = c("Bacteria", "Sym.state"))
+
+# plot
+ctrl.resp.B <-
+  ggplot(ctrl.phen.means, aes(x = Bacteria, 
+                         y = rate, 
+                         col = Sym.state, 
+                         group = Sym.state)) +
+  geom_point(size = 2) +
+  geom_line() +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1.2) +
+  scale_color_manual(labels = c("Apo", "Sym"), values = c("tan", "coral4")) +
+  scale_x_discrete(name = "", limits = c("EC", "SW"), labels = c("Acute", "Basal")) +
+  scale_y_continuous(name = "", limits = c(0.01, 0.074), breaks = seq(0.01, 0.075, by = 0.015)) +
+  ggtitle("B") +
+
+  theme_classic(base_size = 12) +
+  theme(
+    #panel.border = element_rect(fill=NA),
+    legend.position = c(0.75,0.9),
+    legend.title = element_blank(),
+    legend.text = element_text(size = 10),
+   # legend.box.background = element_rect(color="black", size=0.5),
+    plot.title = element_text(vjust = 1.1, size = 18, face="bold"),
+        )
+ctrl.resp.B
+```
+
+# Arrange ambient-control figures A and B
+```{r}
+amb.ctrl.resp <- ggarrange(ctrl.resp.A, ctrl.resp.B, 
+                           nrow = 1, labels = NA, widths = c(2, 2.2), align = "v") 
+                #theme(plot.margin = margin(10, 10, 10, 15))
+
+amb.ctrl.resp <- annotate_figure(amb.ctrl.resp, 
+                              bottom = text_grob("Acute Stress Challenge", 
+                              hjust = 0.4, vjust = -1.5, size = 12, face = "bold"))
+amb.ctrl.resp
+```
+```{r}
+# save plot
+ggsave(plot = amb.ctrl.resp,
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/Figures/amb.ctrl.panel.jpg", width = 6, height = 4, units = "in", dpi=300)
+```
+
+# Now run the analysis with our experimental treatments 
 ```{r}
 # Run lmer mixed effects models on experimental treatments with Polyp ID as a random effect to account for repeat measures 
 
 for (t in 1:length(Exp.Treatments)) { # use same Exp.treatments string
   
   tmp.data <- filter(data, Treatment == Exp.Treatments[t])
-  exp.treat.lmer3 <- lmer(Lograte ~ Sym.state * Bacteria + (1|B.TAG), data = tmp.data) #write lmer with fixed and ID random effects
+  exp.treat.lmer3 <- lmer(Lograte ~ Sym.state * Bacteria + (1|B.TAG), data = tmp.data)
   print(paste(Exp.Treatments[t],"Q3 LMER sum:", sep = " ")) # name the summary output 
   print(summary(exp.treat.lmer3)) # print the summary output
   
-  sink(
-    paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # file path
-          paste(Exp.Treatments[t],"Q3 LMER sum.txt", sep = " "), # save file as with sep "" for summary
-             sep = ""))   
-  print(summary(exp.treat.lmer3)) # print summary output 
-  sink()
+#  sink(
+#    paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # file path
+#          paste(Exp.Treatments[t],"Q3 LMER sum.txt", sep = " "), # save file as with sep "" for summary
+#             sep = ""))   
+#  print(summary(exp.treat.lmer3)) # print summary output 
+#  sink()
   
   # Posthoc ANOVA to compare model to the null
   null <- lmer(Lograte ~ 1 + (1| B.TAG), data = tmp.data) # null model without effects
@@ -471,25 +491,25 @@ for (t in 1:length(Exp.Treatments)) { # use same Exp.treatments string
   print(paste(Exp.Treatments[t],"Q3 ANOVA sum:", sep = " ")) # name the summary output 
   print(exp.treat.lmer3.aov) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
-             paste(Exp.Treatments[t],"Q3 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
-  print(exp.treat.lmer3.aov)
-  sink()
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
+#             paste(Exp.Treatments[t],"Q3 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
+#  print(exp.treat.lmer3.aov)
+#  sink()
  
   # Emmmeans posthoc test 
   exp.treat.lmer3.means <- emmeans(exp.treat.lmer3, list(pairwise~Sym.state:Bacteria)) # run emmeans on lmer object 
   print(paste(Exp.Treatments[t],"Q3 EMMEANS sum:", sep = " ")) # print emmeans summary output 
   print(summary(exp.treat.lmer3.means))
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
-             paste(Exp.Treatments[t],"Q3 EMMEANS sum.txt", sep = " "), sep = "")) # save emmeans summary as txt
-  print(summary(exp.treat.lmer3.means))
-  sink()
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
+#             paste(Exp.Treatments[t],"Q3 EMMEANS sum.txt", sep = " "), sep = "")) # save emmeans summary as txt
+#  print(summary(exp.treat.lmer3.means))
+#  sink()
 }
 ```
 
 ```{r}
-# Summarize to plot
+# Summarize tmeans within experimental treatments
 phen.means <- summarySE(exp.data, measurevar = "rate", groupvars = c("Treatment", "Bacteria", "Sym.state"))
 ```
 ```{r}
@@ -502,6 +522,7 @@ ggplot(data = phen.means,
                          group = Sym.state)) +
   geom_point(size = 1.5) +
   geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1.2) +
+  geom_line()+
   
   facet_wrap(vars(Treatment)) +
   scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"), values = c("tan", "coral4")) +
@@ -521,51 +542,7 @@ resp.phen.plot
 ```{r}
 # save plot
 ggsave(plot = resp.phen.plot,
-       filename = "/Users/speroffs/Desktop/resp.phen.plot.jpg", 
-       width = 8, height = 6, units = "in", dpi = 300)
-
-```
-
-## Isolate ambient controls
-```{r}
-ctrl.phen.means <-summarySE(ctrl.data, measurevar = "rate", groupvars = c("Bacteria", "Sym.state"))
-ctrl.resp.B <-
-  ggplot(ctrl.phen.means, aes(x = Bacteria, 
-                         y = rate, 
-                         col = Sym.state, 
-                         group = Sym.state)) +
-  geom_point(size = 2) +
-  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1.2) +
-  scale_color_manual(labels = c("Apo", "Sym"), values = c("tan", "coral4")) +
-  scale_x_discrete(name = "", limits = c("EC", "SW"), labels = c("Acute", "Basal")) +
-  scale_y_continuous(name = "", limits = c(0.01, 0.074), breaks = seq(0.01, 0.075, by = 0.015)) +
-  #ggtitle("B") +
-
-  theme_classic(base_size = 12) +
-  theme(
-    #panel.border = element_rect(fill=NA),
-    legend.position = c(0.75,0.9),
-    legend.title = element_blank(),
-    legend.text = element_text(size = 10),
-   # legend.box.background = element_rect(color="black", size=0.5),
-    plot.title = element_text(vjust = 1.1, size = 18, face="bold"),
-        )
-ctrl.resp.B
-```
-
-```{r}
-amb.ctrl.resp <- ggarrange(ctrl.resp.A, ctrl.resp.B, 
-                           nrow = 1, labels = NA, widths = c(2, 2.2), align = "v") +
-                theme(plot.margin = margin(10, 10, 10, 15))
-
-amb.ctrl.resp <- annotate_figure(amb.ctrl.resp, 
-                              bottom = text_grob("Acute Stress Challenge", 
-                              hjust = 0.4, vjust = -1.8, size = 12, face = "bold"))
-# save plot
-ggsave(plot = amb.ctrl.resp,
-       filename = "/Users/speroffs/Desktop/amb.ctrl.resp.jpg", 
-       width = 6, height = 4, units = "in", dpi=300)
-
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/Figures/exp.phenotype.jpg", width = 8, height = 6, units = "in", dpi = 300)
 ```
 
 ###########################################################################################################################
@@ -583,16 +560,17 @@ for (t in 1:length(Exp.Treatments)) { # use same Exp.treatments string
   
   tmp.data <- filter(data, Treatment == Exp.Treatments[t])
   tmp.data$Day <- as.numeric(tmp.data$Day)
-  exp.treat.lmer4 <- lmer(Lograte ~ Sym.state * Day * Bacteria + (1|B.TAG), data = tmp.data) #write lmer with fixed and ID random effects
+  
+  exp.treat.lmer4 <- lmer(Lograte ~ Sym.state * Day * Bacteria + (1|B.TAG), data = tmp.data) 
   print(paste(Exp.Treatments[t],"Q4 LMER sum:", sep = " ")) # name the summary output 
   print(summary(exp.treat.lmer4)) # print the summary output
   
-  sink(
-    paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # file path
-          paste(Exp.Treatments[t],"Q4 LMER sum.txt", sep = " "), # save file as with sep "" for summary
-             sep = ""))   
-  print(summary(exp.treat.lmer4)) # print summary output 
-  sink()
+#  sink(
+#    paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # file path
+#          paste(Exp.Treatments[t],"Q4 LMER sum.txt", sep = " "), # save file as with sep "" for summary
+#             sep = ""))   
+#  print(summary(exp.treat.lmer4)) # print summary output 
+#  sink()
   
   # Posthoc ANOVA to compare model to the null and previous 
   null <- lmer(Lograte ~ 1 + (1| B.TAG), data = tmp.data) # null model without effects
@@ -604,15 +582,15 @@ for (t in 1:length(Exp.Treatments)) { # use same Exp.treatments string
   print(paste(Exp.Treatments[t],"Q4 ANOVA sum:", sep = " ")) # name the summary output 
   print(exp.treat.lmer4.aov) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
-             paste(Exp.Treatments[t],"Q4 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
-  print(exp.treat.lmer4.aov)
-  sink()
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
+#             paste(Exp.Treatments[t],"Q4 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
+#  print(exp.treat.lmer4.aov)
+#  sink()
 }
 ```
+
 ```{r}
 # Pairwise means with day as factor 
-
 for (t in 1:length(Exp.Treatments)) { # use same Exp.treatments string
   
   tmp.data <- filter(data, Treatment == Exp.Treatments[t])
@@ -624,15 +602,15 @@ for (t in 1:length(Exp.Treatments)) { # use same Exp.treatments string
   print(paste(Exp.Treatments[t],"Q4 EMMEANS sum:", sep = " ")) # print emmeans summary output 
   print(summary(exp.treat.lmer4.means))
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
-             paste(Exp.Treatments[t],"Q4 EMMEANS sum.txt", sep = " "), sep = "")) # save emmeans summary as txt
-  print(summary(exp.treat.lmer4.means))
-  sink() 
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
+#             paste(Exp.Treatments[t],"Q4 EMMEANS sum.txt", sep = " "), sep = "")) # save emmeans summary as txt
+#  print(summary(exp.treat.lmer4.means))
+#  sink() 
 }
 ```
 
 ```{r}
-# Summarize to plot
+# Summarize means within experimental controls
 time.phen.means <- summarySE(exp.data, measurevar = "rate", groupvars = c("Treatment", "Day", "Bacteria", "Sym.state"))
 ```
 ```{r}
@@ -647,22 +625,22 @@ ggplot(data = time.phen.means,
   facet_wrap(vars(Treatment)) +
   geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
   labs(x = "\nDay", 
-       y = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")), 
-       caption = "data represent mean +/- SEM; Phenotype did not affect metabolic rate over time for any experimental treatment.")+
+       y = bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1)))+
   theme_classic() +
   scale_color_manual(values = c("tan", "coral4")) 
+
+# Future troubleshoot: how to combine the legend for an interaction plot
 ```
 
-###########################################################################################################################
+#########################################################################################################################
 #
 #                 Question 1. Does plastic/food/light/temperature/Phenotype affect metabolic rate /
 #                            What is the effect of the stressor on metabolic rate?
 #
-###########################################################################################################################
+#########################################################################################################################
 
-```{r}
 # For all Thermal stress comparisons, perform LM at day 22 for accurate analysis 
-
+```{r}
 # Isolate day 22 for thermal stress to run simple lm (ambient temp only 1 obs/ID)
 temp22.data <- filter(data, Day == "22")
 
@@ -670,249 +648,276 @@ temp22.data <- filter(data, Day == "22")
 temp.lm1 <- lm(rate ~ Temperature, data = temp22.data)
 summary(temp.lm1)
 
-# Save aov output to ModelOutputs folder
-sink(
-  paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # path
-        file = "Temperature Q1 LM sum.txt")) # name txt
-summary(temp.lm1) # what to print
-sink(file = NULL) 
-
-# tukey
+# tukey post-hoc
 temp.aov1 <- aov(rate ~ Temperature, data = temp22.data)
 temp.tukey1 <- TukeyHSD(temp.aov1)
 temp.tukey1
 ```
 
+# Plot by temperature
+```{r}
+# Summarize means within temperature treatments 
+temperature.sum1 <- summarySE(temp22.data, measurevar = "rate", groupvars = "Temperature")
+
+# Plot
+ggplot(data = temperature.sum1,
+       aes(x = Temperature,
+           y = rate,
+           color = Temperature)) +
+  
+    geom_point(size = 2) +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1.5) +
+    labs(x = "\n", 
+         y = bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
+    ggtitle ("Temperature at Day 22") +
+    scale_color_manual(values = c("royalblue4","firebrick2")) +
+
+  
+   theme_classic(base_size=14) +
+   theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 16))
+```
+
+# Now let's look at our stressors (and phenotype) within our elevated experimental treatments
 ```{r}
 # Create string of stressors 
 stressors <- c("Plastic", "Food", "Light", "Sym.state")
 ```
 ```{r}
 # Run lmer mixed effects models on experimental stressors with Polyp ID as a random effect to account for repeat measures 
-
 for (s in 1:length(stressors)) {
 
-  s.lmer1 <- lmer(as.formula(paste("Lograte~",paste(stressors[s]), "+ (1|B.TAG)")), data = data) 
+  s.lmer1 <- lmer(as.formula(paste("Lograte~",paste(stressors[s]), "+ (1|B.TAG)")), data = exp.data) # experimental data
   print(paste(stressors[s],"Q1 LMER sum:", sep = " "))
   print(summary(s.lmer1)) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
-             paste(stressors[s],"Q1 LMER sum.txt", sep = " "), sep = ""))
-  print(summary(s.lmer1))
-  sink()
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
+#             paste(stressors[s],"Q1 LMER sum.txt", sep = " "), sep = ""))
+#  print(summary(s.lmer1))
+#  sink()
   
   # Posthoc ANOVA to compare model to the null
-  null <- lmer(rate ~ 1 + (1| B.TAG), data = data) # null model without effects using experimental treatments only 
+  null <- lmer(Lograte ~ 1 + (1| B.TAG), data = exp.data) # null model without effects using experimental treatments only
   s.lmer1.aov <- anova(null, s.lmer1) # model comparison 
   print(paste(stressors[s],"Q1 ANOVA sum:", sep = " ")) # name the summary output 
   print(s.lmer1.aov) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
-             paste(stressors[s],"Q1 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
-  print(s.lmer1.aov)
-  sink()
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
+#             paste(stressors[s],"Q1 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
+#  print(s.lmer1.aov)
+#  sink()
   
   # Emmmeans posthoc test 
   s.lmer1.means <- emmeans(s.lmer1, as.formula(paste("list(pairwise)~",stressors[s])))
   print(paste(stressors[s],"Q1 EMMEANS sum:", sep = " "))
   print(summary(s.lmer1.means))
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
-             paste(stressors[s],"Q1 EMMEANS sum.txt", sep = " "), sep = ""))
-  print(summary(s.lmer1.means))
-  sink()
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
+#             paste(stressors[s],"Q1 EMMEANS sum.txt", sep = " "), sep = ""))
+#  print(summary(s.lmer1.means))
+#  sink()
 }
-
 ```
 
 ```{r}
 # Summarize by plastic
-plastic.sum1 <- summarySE(data, measurevar = "rate", groupvars = "Plastic")
+plastic.sum1 <- summarySE(exp.data, measurevar = "rate", groupvars = "Plastic")
 
 # Visualize
 ggplot(data = plastic.sum1,
        aes(x = Plastic,
-           y = rate)) +
-    geom_point() +
-    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
-    ggtitle ("Plastic") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 12),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
+           y = rate,
+           color = Plastic)) +
+  
+    geom_point(size = 2) +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1.5) +
+  
     labs(x = "\n", 
-         y = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")), 
-         caption = "data represent mean +/- SEM" ) +
-    theme_classic()
+         y = bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
+    scale_x_discrete(name = "", # remove labels for paneling 
+                   limits = c("NoPlastic", "Plastic"),
+                   labels = c("No Plastic", "Plastic")) +
+    scale_color_manual(labels = c("No plastic", "Plastic"), 
+                     values = c("black","forestgreen")) +
+    ggtitle ("Plastic") +
+
+  
+   theme_classic(base_size=14) +
+   theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 16))
 ```
 
 ```{r}
 # Summarize by food
-food.sum1 <- summarySE(data, measurevar = "rate", groupvars = "Food")
+food.sum1 <- summarySE(exp.data, measurevar = "rate", groupvars = "Food")
 
 # Visualize
 ggplot(data = food.sum1,
        aes(x = Food,
-           y = rate)) +
-    geom_point() +
-    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
-    ggtitle ("Food") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 12),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
+           y = rate,
+           color = Food)) +
+  
+    geom_point(size = 2) +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1.5) +
     labs(x = "\n", 
-         y = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")), 
-         caption = "data represent mean +/- SEM" ) +
-    theme_classic()
+         y = bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
+    ggtitle ("Food") +
+    scale_color_manual(values = c("orangered4","black")) +
+  
+   theme_classic(base_size=14) +
+   theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 16))
 ```
 
 ```{r}
 # Summarize by light
-light.sum1 <- summarySE(data, measurevar = "rate", groupvars = "Light")
+light.sum1 <- summarySE(exp.data, measurevar = "rate", groupvars = "Light")
 
 # Visualize
 ggplot(data = light.sum1,
        aes(x = Light,
-           y = rate)) +
-    geom_point() +
-    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
-    ggtitle ("Light") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 12),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
+           y = rate,
+           color = Light)) +
+  
+    geom_point(size = 2) +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1.5) +
     labs(x = "\n", 
-         y = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")), 
-         caption = "data represent mean +/- SEM" ) +
-    theme_classic()
+         y = bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
+    ggtitle ("Food") +
+    scale_color_manual(values = c("black","darkgoldenrod1")) +
+  
+   theme_classic(base_size=14) +
+   theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 16))
 ```
 
 ```{r}
 # Summarize by phenotype
-phenotype.sum1 <- summarySE(data, measurevar = "rate", groupvars = "Sym.state")
+phenotype.sum1 <- summarySE(exp.data, measurevar = "rate", groupvars = "Sym.state")
 
 # Visualize
 ggplot(data = phenotype.sum1,
        aes(x = Sym.state,
-           y = rate)) +
-    geom_point() +
-    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+           y = rate,
+           color = Sym.state)) +
+  
+    geom_point(size = 2) +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1.5) +
+    labs(x = "\n", 
+         y = bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
+    scale_x_discrete(name = "", # remove labels for paneling 
+                   limits = c("apo", "sym"),
+                   labels = c("Aposymbiotic", "Symbiotic")) +
+    scale_color_manual(values = c("tan","coral4")) +
     ggtitle ("Phenotype") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 12),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
-    labs(x = "\n", 
-         y = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")), 
-         caption = "data represent mean +/- SEM" ) +
-    theme_classic()
+  
+   theme_classic(base_size=14) +
+   theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 16))
 ```
 
-```{r}
-# Summarize by temperataure
-temperature.sum1 <- summarySE(temp22.data, measurevar = "rate", groupvars = "Temperature")
-
-# Visualize
-ggplot(data = temperature.sum1,
-       aes(x = Temperature,
-           y = rate)) +
-    geom_point() +
-    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
-    ggtitle ("Temperature at Day 22") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 12),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
-    labs(x = "\n", 
-         y = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")), 
-         caption = "data represent mean +/- SEM" ) +
-    theme_classic()
-```
-
-###########################################################################################################################
+#########################################################################################################################
 #
 #                           Question 2. Does stressor impact the response to e.coli / 
 #                  What is the effect of the stressor in each bacterial treatment on metabolic rate?
 #
-###########################################################################################################################
+#########################################################################################################################
 
+# Isolate the temperature analysis to day 22
 ```{r}
-# Run lm for tempurature at day 22
+# Linear model
 temp.lm2 <- lm(Lograte ~ Temperature * Bacteria, data = temp22.data)
 summary(temp.lm2)
-
-# Save aov output to ModelOutputs folder
-sink(
-  paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # path
-        file = "Temperature Q2 LM sum.txt")) # name txt
-summary(temp.lm2) # what to print
-sink(file = NULL) 
 
 # Tukey post hoc 
 temp.aov2 <- aov(Lograte ~ Temperature * Bacteria, data = temp22.data) # for tukey test
 temp.tukey2 <- TukeyHSD(temp.aov2, which = 'Temperature:Bacteria')
 temp.tukey2 # view tukey output
+```
 
-# Save Tukey to ModelOutputs folder
-sink(
-  paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # path
-        file = "Temperature Q2 TUKEY sum.txt")) # name txt
-(temp.tukey2) # what to print
-sink(file = NULL)
+# Plot temperature
+```{r}
+# Summarize by Temperature and bacteria 
+temperature.sum2 <- summarySE(temp22.data, measurevar = "rate", groupvars = c("Temperature","Bacteria"))
+
+# Plot
+temp.plot.A <- 
+ggplot(data = temperature.sum2,
+       aes(x = Bacteria,
+           y = rate, 
+           col = Temperature, 
+           group = Temperature)) +
+    geom_point(size = 2) +
+    geom_line() +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+  
+    scale_x_discrete(
+     # name = "Acute stress challenge", 
+      limits = c("EC", "SW"), labels = c("Acute", "Basal")) +
+    scale_color_manual(labels = c("Ambient", "Elevated"), values = c("royalblue4","firebrick2")) +
+   # scale_y_continuous(limits = c(0, 0.041)) +
+
+  ggtitle ("A") +
+    
+  ylab(bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
+  xlab("")+
+
+  theme_classic() +
+  theme_classic(base_size=16) +
+  theme(legend.position = c(0.75, 0.9),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12),
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold"),
+        plot.margin = margin(1, 0, 1, 1)
+)
+temp.plot.A
+```
+```{r}
+# save
+#ggsave(plot = resp.temp.plot,
+#       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/Figures/temp.plot.A.jpg", width = 5, height = 6, units = "in")
 ```
 
 ```{r}
-# Run lmer mixed effects models on experimental stressors with Polyp ID as a random effect to account for repeat measures 
-
+# Run lmer mixed effects models on experimental stressors with Polyp ID as a random effect to account for repeat measures
 for (s in 1:length(stressors)) {
 
-  s.lmer2 <- lmer(as.formula(paste("Lograte ~", paste(stressors[s]), "* Bacteria + (1|B.TAG)")), data = data) 
+  s.lmer2 <- lmer(as.formula(paste("Lograte ~", paste(stressors[s]), "* Bacteria + (1|B.TAG)")), data = exp.data) 
   print(paste(stressors[s],"Q2 LMER sum:", sep = " "))
   print(summary(s.lmer2)) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
-             paste(stressors[s],"Q2 LMER sum.txt", sep = " "), sep = ""))
-  print(summary(s.lmer2))
-  sink()
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
+#             paste(stressors[s],"Q2 LMER sum.txt", sep = " "), sep = ""))
+#  print(summary(s.lmer2))
+#  sink()
   
   # Posthoc ANOVA to compare model to the null
-  null <- lmer(rate ~ 1 + (1| B.TAG), data = data) # null model without effects using experimental treatments only 
-  Q1 <- lmer(as.formula(paste("Lograte~",paste(stressors[s]), "+ (1|B.TAG)")), data = data)
+  null <- lmer(rate ~ 1 + (1| B.TAG), data = exp.data) # null model without effects using experimental treatments only 
+  Q1 <- lmer(as.formula(paste("Lograte~",paste(stressors[s]), "+ (1|B.TAG)")), data = exp.data)
   
   s.lmer2.aov <- anova(null, Q1, s.lmer2) # model comparison 
   print(paste(stressors[s],"Q2 ANOVA sum:", sep = " ")) # name the summary output 
   print(s.lmer2.aov) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
-             paste(stressors[s],"Q2 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
-  print(s.lmer2.aov)
-  sink()
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
+#             paste(stressors[s],"Q2 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
+# print(s.lmer2.aov)
+# sink()
   
   # Emmmeans posthoc test 
   s.lmer2.means <- emmeans(s.lmer2, as.formula(paste("list(pairwise)~",stressors[s],":Bacteria")))
   print(paste(stressors[s],"Q2 EMMEANS sum:", sep = " "))
   print(summary(s.lmer2.means))
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
-             paste(stressors[s],"Q2 EMMEANS sum.txt", sep = " "), sep = ""))
-  print(summary(s.lmer2.means))
-  sink()
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
+#             paste(stressors[s],"Q2 EMMEANS sum.txt", sep = " "), sep = ""))
+#  print(summary(s.lmer2.means))
+#  sink()
 }
 ```
 
@@ -921,6 +926,7 @@ for (s in 1:length(stressors)) {
 plastic.sum2 <- summarySE(data, measurevar = "rate", groupvars = c("Plastic","Bacteria"))
 
 # Plot
+plastic.plot.A <- 
 ggplot(data = plastic.sum2,
        aes(x = Bacteria,
            y = rate, 
@@ -935,18 +941,19 @@ ggplot(data = plastic.sum2,
     scale_color_manual(labels = c("No Plastic", "Plastic"), values = c("black", "forestgreen")) +
     scale_y_continuous(limits = c(0, 0.041)) +
 
-  ggtitle ("Plastic") +
+  ggtitle ("A. Plastic") +
     
- # ylab(bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
+  ylab(bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
   ylab("")+
   xlab("")+
 
   theme_classic() +
   theme_classic(base_size=16) +
-  theme(legend.position = "right",
+  theme(legend.position = c(0.75, 0.9),
         legend.title = element_blank(),
         legend.text = element_text(size = 12),
         plot.title = element_text(vjust = 1.1, size = 18, face="bold"))
+plastic.plot.A
 ```
 
 ```{r}
@@ -954,6 +961,7 @@ ggplot(data = plastic.sum2,
 light.sum2 <- summarySE(data, measurevar = "rate", groupvars = c("Light","Bacteria"))
 
 # Plot
+light.plot.A <-
 ggplot(data = light.sum2,
        aes(x = Bacteria,
            y = rate, 
@@ -967,7 +975,7 @@ ggplot(data = light.sum2,
     scale_color_manual(labels = c("Dark", "Light"), values = c("black", "goldenrod1")) +
     scale_y_continuous(limits = c(0, 0.041)) +
 
-  ggtitle ("Light") +
+  ggtitle ("B. Light") +
     
  # ylab(bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
   ylab("")+
@@ -975,10 +983,11 @@ ggplot(data = light.sum2,
 
   theme_classic() +
   theme_classic(base_size=16) +
-  theme(legend.position = "right",
+  theme(legend.position = c(0.75, 0.9),
         legend.title = element_blank(),
         legend.text = element_text(size = 12),
         plot.title = element_text(vjust = 1.1, size = 18, face="bold"))
+light.plot.A
 ```
 
 ```{r}
@@ -986,6 +995,7 @@ ggplot(data = light.sum2,
 food.sum2 <- summarySE(data, measurevar = "rate", groupvars = c("Food","Bacteria"))
 
 # Plot
+food.plot.A <-
 ggplot(data = food.sum2,
        aes(x = Bacteria,
            y = rate, 
@@ -999,7 +1009,7 @@ ggplot(data = food.sum2,
     scale_color_manual(labels = c("Fed", "Starved"), values = c("orangered4", "black")) +
     scale_y_continuous(limits = c(0, 0.041)) +
 
-  ggtitle ("Food") +
+  ggtitle ("C. Food") +
     
  # ylab(bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
   ylab("") +
@@ -1007,11 +1017,40 @@ ggplot(data = food.sum2,
 
   theme_classic() +
   theme_classic(base_size=16) +
-  theme(legend.position = "right",
+  theme(legend.position = c(0.75, 0.9),
         legend.title = element_blank(),
         legend.text = element_text(size = 12),
         plot.title = element_text(vjust = 1.1, size = 18, face="bold"))
+food.plot.A
 ```
+```{r}
+# Arrange plastic, light, and food
+
+local.panel1 <- ggarrange(plastic.plot.A, ggplot()+theme_void(), 
+                        widths = c(1, 1), common.legend = FALSE)
+
+local.panel2 <- ggarrange(light.plot.A, food.plot.A,
+                        common.legend = FALSE, 
+                        labels = NA, 
+                        widths=c(1,1))
+
+local.panel <- ggarrange(local.panel1, local.panel2,
+                   common.legend = FALSE,
+                   labels = NA,
+                   ncol=1)
+
+local.panel <-annotate_figure(local.panel, 
+                        bottom = text_grob("Acute Challenge",hjust = 0.4, vjust = -0.5, size = 18), 
+                        left = text_grob(bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1)), rot = 90, 
+                                         vjust = 1, hjust = 0.5, size = 18))
+local.panel
+```
+```{r}
+# Save plot
+ggsave(plot = local.panel,
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/Figures/local.panel.jpg", width = 8, height = 6, units = "in", dpi = 300)
+```
+
 
 ```{r}
 # Summarize by Phenotype and bacteria 
@@ -1022,46 +1061,19 @@ ggplot(data = phenotype.sum2,
        aes(x = Bacteria,
            y = rate, 
            color = Sym.state)) +
-    geom_point() +
-    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
-    scale_color_manual(values = c("tan", "coral4")) +
-    ggtitle ("Phenotype") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 12),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
-    labs(x = "\n", 
-         y = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")), 
-         caption = "data represent mean +/- SEM" ) +
-    theme_classic()
-```
-
-```{r}
-# Summarize by Temperature and bacteria 
-temperature.sum2 <- summarySE(temp22.data, measurevar = "rate", groupvars = c("Temperature","Bacteria"))
-
-# Plot
-resp.temp.plot <- 
-ggplot(data = temperature.sum2,
-       aes(x = Bacteria,
-           y = rate, 
-           col = Temperature)) +
     geom_point(size = 2) +
     geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
   
     scale_x_discrete(
-     # name = "Acute stress challenge", 
+      #name = "Acute stress challenge", 
       limits = c("EC", "SW"), labels = c("Acute", "Basal")) +
-    scale_color_manual(labels = c("Ambient", "Elevated"), values = c("royalblue4","firebrick2")) +
-   # scale_y_continuous(limits = c(0, 0.041)) +
+    scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"), values = c("tan", "coral4")) +
+    scale_y_continuous(limits = c(0, 0.041)) +
 
-  #ggtitle ("Temperature") +
+  ggtitle ("Phenotype") +
     
- ylab(bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
-  #ylab("") +
+ # ylab(bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
+  ylab("") +
   xlab("")+
 
   theme_classic() +
@@ -1070,79 +1082,79 @@ ggplot(data = temperature.sum2,
         legend.title = element_blank(),
         legend.text = element_text(size = 12),
         plot.title = element_text(vjust = 1.1, size = 18, face="bold"))
-resp.temp.plot
-```
-```{r}
-# save
-ggsave(plot = resp.temp.plot,
-       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/Plots/resp.temp.plot.pdf", 
-       width = 5, height = 6, units = "in")
 ```
 
-###########################################################################################################################
+# Arrange temp, plastic, food, and light plots
+```{r}
+stressor.panel1 <- ggarrange(temp.plot.A, plastic.plot.A, light.plot.A, food.plot.A, 
+          ncol = 1, common.legend = FALSE, heights = c(5,5,5,5)) 
+
+stressor.panel1
+```
+
+
+#########################################################################################################################
 #
 #                           Question 3. Does the stressor impact the response to e.coli over time / 
 #                    What is the effect of the stressor in each bacterial treatment on metabolic rate over time?
 #
-###########################################################################################################################
+#########################################################################################################################
 
-# Is there an affect of just elevated temperature over time?
+# Is there an affect of just elevated temperature over time? (does not include ambient)
 ```{r}
-# Filter out all elevated temperature data (experimental treatments)
-elev.dat <- filter(data, Temperature == "Elevated")
-elev.dat$Day <- as.numeric(elev.dat$Day)
+# Use experimental data set
 
 # Run lm for bacteria over time at thermal stress
-temp.lmer3 <- lmer(rate ~ Bacteria * Day + (1|B.TAG), data = elev.dat)
+temp.lmer3 <- lmer(rate ~ Bacteria * Day + (1|B.TAG), data = exp.data)
 summary(temp.lmer3)
 
-# Save output to ModelOutputs folder
-sink(
-  paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # path
-        file = "Temperature Q3 LMER sum.txt")) # name txt
-summary(temp.lmer3) # what to print
-sink(file = NULL) 
-
 # ANOVA model comparison
-null <- lmer(rate ~ 1 + (1| B.TAG), data = elev.dat) # null for this data set
-Q2 <- lmer(rate ~ Bacteria + (1|B.TAG), data = elev.dat) # model without day for this data set
+null <- lmer(rate ~ 1 + (1| B.TAG), data = exp.data) # null for this data set
+Q2 <- lmer(rate ~ Bacteria + (1|B.TAG), data = exp.data) # model without day for this data set
 temp.lmer3.aov <- anova(null, Q2, temp.lmer3) #model comparison 
-
-# Save Tukey to ModelOutputs folder
-sink(
-  paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # path
-        file = "Temperature Q3 ANOVA sum.txt")) # name txt
-(temp.lmer3.aov) # what to print
-sink(file = NULL)
   
 # Emmeans posthoc
-temp.lmer3.3 <- lmer(rate ~ Bacteria * as.factor(Day) + (1|B.TAG), data = elev.dat)
+temp.lmer3.3 <- lmer(rate ~ Bacteria * as.factor(Day) + (1|B.TAG), data = exp.data)
 temp.means3 <- emmeans(temp.lmer3.3, list(pairwise~"Bacteria:Day"))
 temp.means3 # view tukey output
+```
 
-# Save Tukey to ModelOutputs folder
-sink(
-  paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # path
-        file = "Temperature Q3 EMMEANS sum.txt")) # name txt
-(temp.means3) # what to print
-sink(file = NULL)
+# Visualize elev temp over time
+```{r}
+# Summarize by bacteria over time at elevated temperature 
+temp.sum3 <- summarySE(exp.data, measurevar = "rate", groupvars = c("Day", "Bacteria"))
+
+# Plot 
+ggplot(temp.sum3, 
+       aes(x = Day, 
+           y = rate, 
+           col = Bacteria,
+           group = Bacteria)) +
+  geom_line() +
+  geom_point() +
+  ggtitle("Elevated Temperature") +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  labs(x = "\nDay", 
+       y = bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
+  scale_color_manual(values = c("black", "royalblue")) +
+  theme_classic()
 ```
 
 ```{r}
-# Run lmer mixed effects models on experimental stressors with Polyp ID as a random effect to account for repeat measures 
+# Run lmer mixed effects models on experimental stressors with Polyp ID as a random effect to account for repeat measures
 
 for (s in 1:length(stressors)) {
   
-  tmp.data <- data
+  tmp.data <- exp.data
   tmp.data$Day <- as.numeric(tmp.data$Day)
   s.lmer3 <- lmer(as.formula(paste("rate ~", paste(stressors[s]), "* Bacteria * Day + (1|B.TAG)")), data = tmp.data) 
   print(paste(stressors[s],"Q3 LMER sum:", sep = " "))
   print(summary(s.lmer3)) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
-             paste(stressors[s],"Q3 LMER sum.txt", sep = " "), sep = ""))
-  print(summary(s.lmer3))
-  sink()
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
+#             paste(stressors[s],"Q3 LMER sum.txt", sep = " "), sep = ""))
+#  print(summary(s.lmer3))
+#  sink()
   
   # Posthoc ANOVA to compare model to the null
   null <- lmer(rate ~ 1 + (1| B.TAG), data = tmp.data) # null model without effects using experimental treatments only 
@@ -1153,17 +1165,17 @@ for (s in 1:length(stressors)) {
   print(paste(stressors[s],"Q3 ANOVA sum:", sep = " ")) # name the summary output 
   print(s.lmer3.aov) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
-             paste(stressors[s],"Q3 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
-  print(s.lmer3.aov)
-  sink()
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
+#             paste(stressors[s],"Q3 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
+#  print(s.lmer3.aov)
+#  sink()
 }
 ```
 ```{r}
 # emmeans post hoc day as factor
 for (s in 1:length(stressors)) {
   
-  tmp.data <- data
+  tmp.data <- exp.data
   tmp.data$Day <- as.factor(tmp.data$Day)
   s.lmer3 <- lmer(as.formula(paste("rate ~", paste(stressors[s]), "* Bacteria * Day + (1|B.TAG)")), data = tmp.data) 
 
@@ -1172,10 +1184,11 @@ for (s in 1:length(stressors)) {
   print(paste(stressors[s],"Q3 EMMEANS sum:", sep = " "))
   print(summary(s.lmer3.means))
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
-             paste(stressors[s],"Q3 EMMEANS sum.txt", sep = " "), sep = ""))
-  print(summary(s.lmer3.means))
-  sink()
+  
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
+#             paste(stressors[s],"Q3 EMMEANS sum.txt", sep = " "), sep = ""))
+#  print(summary(s.lmer3.means))
+#  sink()
 }
 ```
 
@@ -1195,8 +1208,7 @@ ggplot(plastic.sum3,
   facet_wrap(vars(Bacteria)) +
   geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
   labs(x = "\nDay", 
-       y = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")), 
-      caption = "data represent mean +/- SEM") +
+       y = bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
   scale_color_manual(values = c("black", "darkgreen")) +
   theme_classic()
 ```
@@ -1217,8 +1229,7 @@ ggplot(light.sum3,
   facet_wrap(vars(Bacteria)) +
   geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
   labs(x = "\nDay", 
-       y = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")), 
-      caption = "data represent mean +/- SEM") +
+       y = bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
   scale_color_manual(values = c("black", "goldenrod")) +
   theme_classic()
 ```
@@ -1239,9 +1250,8 @@ ggplot(food.sum3,
   facet_wrap(vars(Bacteria)) +
   geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
   labs(x = "\nDay", 
-       y = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")), 
-      caption = "data represent mean +/- SEM") +
-  scale_color_manual(values = c("brown", "black")) +
+       y = bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
+  scale_color_manual(values = c("orangered4", "black")) +
   theme_classic()
 ```
 
@@ -1261,186 +1271,31 @@ ggplot(phenotype.sum3,
   facet_wrap(vars(Bacteria)) +
   geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
   labs(x = "\nDay", 
-       y = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")), 
-      caption = "data represent mean +/- SEM") +
+       y = bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
   scale_color_manual(values = c("tan", "coral4")) +
   theme_classic()
 ```
 
-```{r}
-# Summarize by bacteria over time at elevated temperature 
-temp.sum3 <- summarySE(elev.dat, measurevar = "rate", groupvars = c("Day", "Bacteria"))
-
-# Plot 
-ggplot(temp.sum3, 
-       aes(x = Day, 
-           y = rate, 
-           col = Bacteria,
-           group = Bacteria)) +
-  geom_line() +
-  geom_point() +
-  ggtitle("Elevated Temperature") +
-  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
-  labs(x = "\nDay", 
-       y = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")), 
-      caption = "data represent mean +/- SEM") +
-  scale_color_manual(values = c("black", "royalblue")) +
-  theme_classic()
-```
-
-###########################################################################################################################
+#########################################################################################################################
 #
 #                           Question 4. Is there a differential response to the stressor by phenotype / 
 #                            What is the effect of phenotype exposed to this stressor on metabolic rate?
 #
-###########################################################################################################################
+#########################################################################################################################
 
 ```{r}
 # Run lm for temperature at day 22
 temp.lm4 <- lm(Lograte ~ Sym.state * Temperature, data = temp22.data)
 summary(temp.lm4)
 
-# Save aov output to ModelOutputs folder
-sink(
-  paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # path
-        file = "Temperature Q4 LM sum.txt")) # name txt
-summary(temp.lm4) # what to print
-sink(file = NULL) 
-
 # Tukey post hoc 
 temp.aov4 <- aov(Lograte ~ Sym.state * Temperature, data = temp22.data) # for tukey test
 temp.tukey4 <- TukeyHSD(temp.aov4, which = 'Sym.state:Temperature')
 temp.tukey4 # view tukey output
 
-# Save Tukey to ModelOutputs folder
-sink(
-  paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # path
-        file = "Temperature Q4 TUKEY sum.txt")) # name txt
-(temp.tukey4) # what to print
-sink(file = NULL)
 ```
 
-```{r}
-# Create stressor value that excludes phenotype
-stressors2 <- c("Plastic", "Light", "Food")
-```
-```{r}
-# Run lmer mixed effects models on experimental stressors with Polyp ID as a random effect to account for repeat measures 
-
-for (s in 1:length(stressors2)) {
-
-  s.lmer4 <- lmer(as.formula(paste("Lograte ~ Sym.state *", paste(stressors2[s]), "+ (1|B.TAG)")), data = data) 
-  print(paste(stressors2[s],"Q4 LMER sum:", sep = " "))
-  print(summary(s.lmer4)) 
-  
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
-             paste(stressors2[s],"Q4 LMER sum.txt", sep = " "), sep = ""))
-  print(summary(s.lmer4))
-  sink()
-  
-  # Posthoc ANOVA to compare model to the null
-  null <- lmer(rate ~ 1 + (1| B.TAG), data = data) # null model without effects using experimental treatments only 
-  Q1 <- lmer(as.formula(paste("Lograte~",paste(stressors2[s]), "+ (1|B.TAG)")), data = data) 
-  
-  s.lmer4.aov <- anova(null, Q1, s.lmer4) # model comparison 
-  print(paste(stressors2[s],"Q4 ANOVA sum:", sep = " ")) # name the summary output 
-  print(s.lmer4.aov) 
-  
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
-             paste(stressors2[s],"Q4 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
-  print(s.lmer4.aov)
-  sink()
-  
-  # Emmmeans posthoc test 
-  s.lmer4.means <- emmeans(s.lmer4, as.formula(paste("list(pairwise)~",stressors2[s],":Sym.state")))
-  print(paste(stressors2[s],"Q4 EMMEANS sum:", sep = " "))
-  print(summary(s.lmer4.means))
-  
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
-             paste(stressors2[s],"Q4 EMMEANS sum.txt", sep = " "), sep = ""))
-  print(summary(s.lmer4.means))
-  sink()
-}
-```
-
-```{r}
-# Summarize by plastic 
-plastic.sum4 <- summarySE(data, measurevar = "rate", groupvars = c("Plastic","Sym.state"))
-
-# Plot
-ggplot(data = plastic.sum4,
-       aes(x = Plastic,
-           y = rate, 
-           col = Sym.state)) +
-    geom_point() +
-    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
-    scale_color_manual(values = c("tan", "coral4")) +
-    ggtitle ("Plastic") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 12),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
-    labs(x = "\n", 
-         y = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")), 
-         caption = "data represent mean +/- SEM" ) +
-    theme_classic()
-```
-
-```{r}
-# Summarize by Light 
-light.sum4 <- summarySE(data, measurevar = "rate", groupvars = c("Light","Sym.state"))
-
-# Plot
-ggplot(data = light.sum4,
-       aes(x = Light,
-           y = rate, 
-           col = Sym.state)) +
-    geom_point() +
-    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
-    scale_color_manual(values = c("tan", "coral4")) +
-    ggtitle ("Light") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 12),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
-    labs(x = "\n", 
-         y = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")), 
-         caption = "data represent mean +/- SEM" ) +
-    theme_classic()
-```
-
-```{r}
-# Summarize by Food 
-food.sum4 <- summarySE(data, measurevar = "rate", groupvars = c("Food","Sym.state"))
-
-# Plot
-ggplot(data = food.sum4,
-       aes(x = Food,
-           y = rate, 
-           col = Sym.state)) +
-    geom_point() +
-    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
-    scale_color_manual(values = c("tan", "coral4")) +
-    ggtitle ("Light") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 12),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
-    labs(x = "\n", 
-         y = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")), 
-         caption = "data represent mean +/- SEM" ) +
-    theme_classic()
-```
-
+# Visualize temperature
 ```{r}
 # Summarize by Temperature 
 temperature.sum4 <- summarySE(temp22.data, measurevar = "rate", groupvars = c("Temperature","Sym.state"))
@@ -1450,53 +1305,163 @@ ggplot(data = temperature.sum4,
        aes(x = Temperature,
            y = rate, 
            col = Sym.state)) +
-    geom_point() +
-    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
-    scale_color_manual(values = c("tan", "coral4")) +
-    ggtitle ("Temperature at day 22") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 12),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
-    labs(x = "\n", 
-         y = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")), 
-         caption = "data represent mean +/- SEM" ) +
-    theme_classic()
+   
+  geom_point(size = 2) +
+  geom_line() +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1.2) +
+  scale_color_manual(name = "",
+                     labels = c("Aposymbiotic", "Symbiotic"),
+                     values = c("tan","coral4")) +
+
+  scale_y_continuous(name = "", limits = c(0, 0.052), breaks = seq(0.0, 0.05, by = 0.01)) +
+  xlab("")+
+  ggtitle("") +
+
+  theme_classic(base_size=16) +
+  theme(legend.position = c(0.75, 0.9),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12),
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold"))
 ```
 
-###########################################################################################################################
+```{r}
+# Create stressor value that excludes phenotype
+stressors2 <- c("Plastic", "Light", "Food")
+```
+```{r}
+# Run lmer mixed effects models on experimental stressors with Polyp ID as a random effect to account for repeat measures 
+for (s in 1:length(stressors2)) {
+
+  s.lmer4 <- lmer(as.formula(paste("Lograte ~ Sym.state *", paste(stressors2[s]), "+ (1|B.TAG)")), data = exp.data) 
+  print(paste(stressors2[s],"Q4 LMER sum:", sep = " "))
+  print(summary(s.lmer4)) 
+  
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
+#             paste(stressors2[s],"Q4 LMER sum.txt", sep = " "), sep = ""))
+#  print(summary(s.lmer4))
+#  sink()
+  
+  # Posthoc ANOVA to compare model to the null
+  null <- lmer(rate ~ 1 + (1| B.TAG), data = exp.data) # null model without effects using experimental treatments only 
+  Q1 <- lmer(as.formula(paste("Lograte~",paste(stressors2[s]), "+ (1|B.TAG)")), data = exp.data) 
+  
+  s.lmer4.aov <- anova(null, Q1, s.lmer4) # model comparison 
+  print(paste(stressors2[s],"Q4 ANOVA sum:", sep = " ")) # name the summary output 
+  print(s.lmer4.aov) 
+  
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
+#             paste(stressors2[s],"Q4 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
+#  print(s.lmer4.aov)
+#  sink()
+  
+  # Emmmeans posthoc test 
+  s.lmer4.means <- emmeans(s.lmer4, as.formula(paste("list(pairwise)~",stressors2[s],":Sym.state")))
+  print(paste(stressors2[s],"Q4 EMMEANS sum:", sep = " "))
+  print(summary(s.lmer4.means))
+  
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
+#             paste(stressors2[s],"Q4 EMMEANS sum.txt", sep = " "), sep = ""))
+#  print(summary(s.lmer4.means))
+#  sink()
+}
+```
+
+```{r}
+# Summarize by plastic 
+plastic.sum4 <- summarySE(exp.data, measurevar = "rate", groupvars = c("Plastic","Sym.state"))
+
+# Plot
+ggplot(data = plastic.sum4,
+       aes(x = Plastic,
+           y = rate, 
+           col = Sym.state)) +
+   
+  geom_point(size = 2) +
+  geom_line() +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1.2) +
+  scale_color_manual(name = "",
+                     labels = c("Aposymbiotic", "Symbiotic"),
+                     values = c("tan","coral4")) +
+   scale_x_discrete(name = "", # remove labels for paneling 
+                   limits = c("NoPlastic", "Plastic"),
+                   labels = c("No Plastic", "Plastic")) +
+  ylab(bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
+  xlab("")+
+
+  theme_classic(base_size=16) +
+  theme(legend.position = "top",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12),
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold"))
+```
+
+```{r}
+# Summarize by Light 
+light.sum4 <- summarySE(exp.data, measurevar = "rate", groupvars = c("Light","Sym.state"))
+
+# Plot
+ggplot(data = light.sum4,
+       aes(x = Light,
+           y = rate, 
+           col = Sym.state)) +
+     geom_point(size = 2) +
+  geom_line() +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1.2) +
+  scale_color_manual(name = "",
+                     labels = c("Aposymbiotic", "Symbiotic"),
+                     values = c("tan","coral4")) +
+   
+  ylab(bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
+  xlab("")+
+
+  theme_classic(base_size=16) +
+  theme(legend.position = "top",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12),
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold"))
+```
+
+```{r}
+# Summarize by Food 
+food.sum4 <- summarySE(exp.data, measurevar = "rate", groupvars = c("Food","Sym.state"))
+
+# Plot
+ggplot(data = food.sum4,
+       aes(x = Food,
+           y = rate, 
+           col = Sym.state)) +
+     geom_point(size = 2) +
+  geom_line() +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1.2) +
+  scale_color_manual(name = "",
+                     labels = c("Aposymbiotic", "Symbiotic"),
+                     values = c("tan","coral4")) +
+  ylab(bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
+  xlab("")+
+
+  theme_classic(base_size=16) +
+  theme(legend.position = "top",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12),
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold"))
+```
+
+#########################################################################################################################
 #
 #                Question 5. Is there a differential metabolic response to bacteria by plastic and phenotype /
 #                  What is the effect of phenotype when exposed to the stressor and bacteria on metabolic rate? 
 #
-###########################################################################################################################
+#########################################################################################################################
 
 ```{r}
 # Run lm for tempurature at day 22
 temp.lm5 <- lm(Lograte ~ Sym.state * Temperature * Bacteria, data = temp22.data)
 summary(temp.lm5)
 
-# Save aov output to ModelOutputs folder
-sink(
-  paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # path
-        file = "Temperature Q5 LM sum.txt")) # name txt
-summary(temp.lm5) # what to print
-sink(file = NULL) 
-
 # Tukey post hoc 
 temp.aov5 <- aov(Lograte ~ Sym.state * Temperature * Bacteria, data = temp22.data) # for tukey test
 temp.tukey5 <- TukeyHSD(temp.aov5, which = 'Sym.state:Temperature:Bacteria')
 temp.tukey5 # view tukey output
-
-# Save Tukey to ModelOutputs folder
-sink(
-  paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # path
-        file = "Temperature Q5 TUKEY sum.txt")) # name txt
-(temp.tukey5) # what to print
-sink(file = NULL)
 ```
 
 ```{r}
@@ -1504,157 +1469,35 @@ sink(file = NULL)
 amb.lm <- lm(Lograte ~ Sym.state * Bacteria, data = ctrl.data)
 summary(amb.lm)
 
-amb.aov <- aov(Lograte ~ Sym.state * Bacteria, data = amb.data)
+amb.aov <- aov(Lograte ~ Sym.state * Bacteria, data = ctrl.data)
 summary(amb.aov)
 amb.tukey <- TukeyHSD(amb.aov)
-summary(amb.tukey)
 ```
 
 ```{r}
 # Does phenotype affect MR within the elevated temperatures?
-elev.lm <- lm(Lograte ~ Sym.state * Bacteria, data = elev.dat)
+elev.lm <- lm(Lograte ~ Sym.state * Bacteria, data = exp.data)
 summary(elev.lm)
 
-elev.aov <- aov(Lograte ~ Sym.state * Bacteria, data = elev.dat)
-elev.tukey <- TukeyHSD(elev.aov)
-summary(elev.tukey, which = "Sym.state:Bacteria")
+elev.aov <- aov(Lograte ~ Sym.state * Bacteria, data = exp.data)
+elev.tukey <- TukeyHSD(elev.aov, which = "Sym.state:Bacteria")
+elev.tukey
 ```
 
-```{r}
-# Run lmer mixed effects models on experimental stressors with Polyp ID as a random effect to account for repeat measures 
-
-for (s in 1:length(stressors2)) {
-
-  s.lmer5 <- lmer(as.formula(paste("Lograte ~ Sym.state *", paste(stressors2[s]), "* Bacteria + (1|B.TAG)")), data = data) 
-  print(paste(stressors2[s],"Q5 LMER sum:", sep = " "))
-  print(summary(s.lmer5)) 
-  
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
-             paste(stressors2[s],"Q5 LMER sum.txt", sep = " "), sep = ""))
-  print(summary(s.lmer5))
-  sink()
-  
-  # Posthoc ANOVA to compare model to the null
-  null <- lmer(rate ~ 1 + (1| B.TAG), data = data) # null model without effects using experimental treatments only 
-  Q1 <- lmer(as.formula(paste("Lograte~",paste(stressors2[s]), "+ (1|B.TAG)")), data = data) 
-  Q4 <- lmer(as.formula(paste("Lograte ~ Sym.state *", paste(stressors2[s]), "* (1|B.TAG)")), data = data)
-  
-  s.lmer5.aov <- anova(null, Q1, Q4, s.lmer5) # model comparison 
-  print(paste(stressors2[s],"Q5 ANOVA sum:", sep = " ")) # name the summary output 
-  print(s.lmer5.aov) 
-  
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
-             paste(stressors2[s],"Q5 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
-  print(s.lmer5.aov)
-  sink()
-  
-  # Emmmeans posthoc test 
-  s.lmer5.means <- emmeans(s.lmer5, as.formula(paste("list(pairwise)~",stressors2[s],":Sym.state:Bacteria")))
-  print(paste(stressors2[s],"Q5 EMMEANS sum:", sep = " "))
-  print(summary(s.lmer5.means))
-  
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
-             paste(stressors2[s],"Q5 EMMEANS sum.txt", sep = " "), sep = ""))
-  print(summary(s.lmer5.means))
-  sink()
-}
-```
-
-```{r}
-# Summarize by plastic, phenotype, and bacteria
-plastic.sum5 <- summarySE(data, measurevar = "rate", groupvars = c("Plastic","Sym.state","Bacteria"))
-
-# Plot
-ggplot(data = plastic.sum5,
-       aes(x = Plastic,
-           y = rate, 
-           col = Sym.state)) +
-    geom_point() +
-  
-    facet_grid(~Bacteria) +
-    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
-    scale_color_manual(values = c("tan", "coral4")) +
-    ggtitle ("Plastic") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 12),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
-    labs(x = "\n", 
-         y = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")), 
-         caption = "data represent mean +/- SEM" ) +
-    theme_classic()
-```
-
-```{r}
-# Summarize by light, phenotype, and bacteria
-light.sum5 <- summarySE(data, measurevar = "rate", groupvars = c("Light","Sym.state","Bacteria"))
-
-# Plot
-ggplot(data = light.sum5,
-       aes(x = Light,
-           y = rate, 
-           col = Sym.state)) +
-    geom_point() +
-  
-    facet_grid(~Bacteria) +
-    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
-    scale_color_manual(values = c("tan", "coral4")) +
-    ggtitle ("Light") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 12),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
-    labs(x = "\n", 
-         y = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")), 
-         caption = "data represent mean +/- SEM" ) +
-    theme_classic()
-```
-
-```{r}
-# Summarize by food, phenotype, and bacteria
-food.sum5 <- summarySE(data, measurevar = "rate", groupvars = c("Food","Sym.state","Bacteria"))
-
-# Plot
-ggplot(data = food.sum5,
-       aes(x = Food,
-           y = rate, 
-           col = Sym.state)) +
-    geom_point() +
-  
-    facet_grid(~Bacteria) +
-    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
-    scale_color_manual(values = c("tan", "coral4")) +
-    ggtitle ("Food") +
-    theme(legend.position = "right",
-          legend.title = element_text(size=12),
-          axis.title = element_text(size = 12),
-          legend.background = element_blank(),
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.text = element_text(size = 12)) +
-    labs(x = "\n", 
-         y = expression(paste("Rate O2 Consumption [log(umol*min"^"-1"~"*g"^"-1"~")]")), 
-         caption = "data represent mean +/- SEM" ) +
-    theme_classic()
-```
-
+# Visualize temperature
 ```{r}
 # Summarize by temperature, phenotype, and bacteria
 temperature.sum5 <- summarySE(temp22.data, measurevar = "rate", groupvars = c("Temperature","Sym.state","Bacteria"))
 
 # Plot
-resp.temp.phen.plot <-
+temp.plot.B <-
 ggplot(data = temperature.sum5,
        aes(x = Bacteria,
            y = rate, 
-           col = Sym.state)) +
+           col = Sym.state,
+           group =Sym.state)) +
   geom_point(size = 2, position=position_dodge(0.1)) +
+  geom_line()+
   geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.15, size = 1.2, position=position_dodge(0.1)) +
   
   scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"),
@@ -1667,21 +1510,210 @@ ggplot(data = temperature.sum5,
 
   ylab("") +
   xlab("")+
+  ggtitle("B") +
   facet_grid(~Temperature) +
   
-
-    theme_classic(base_size=13) +
-    theme(legend.position = "top",
+    theme_classic(base_size=16) +
+    theme(legend.position = c(0.75,0.88),
         legend.title = element_blank(),
-        legend.text = element_text(size = 12))
+        legend.text = element_text(size = 12),
+       # legend.background = element_rect(fill='transparent'),
+       # legend.box.background = element_rect(fill='transparent'),
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold"),
+        plot.margin = margin(1, 1, 1, 1)) 
+    #guides(color = guide_legend(direction = "horizontal"))      
 
-resp.temp.phen.plot 
+temp.plot.B
 ```
 ```{r}
-ggsave(plot = resp.temp.phen.plot,
-       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/Plots/resp.temp.phen.plot.pdf", 
-       width = 6, height = 6, units = "in")
+#ggsave(plot = resp.temp.phen.plot,
+#       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/Plots/temp.plot.B.jpg", width = 6, height = 6, units = "in", dpi=300)
 ```
+
+# Panel temp A and temp B
+```{r}
+temp.resp.panel <- ggarrange(temp.plot.A, temp.plot.B,
+          nrow = 1, common.legend = FALSE, labels = NA)
+
+temp.resp.panel <-
+annotate_figure(temp.resp.panel, 
+                bottom = text_grob("Acute Challenge", hjust = 0.3, vjust = -1, size = 18))
+```
+```{r}
+ggsave(plot = temp.resp.panel,
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/Figures/temp.resp.panel.jpg", width = 8, height = 5, units = "in", dpi = 300)
+```
+
+
+```{r}
+# Run lmer mixed effects models on experimental stressors with Polyp ID as a random effect to account for repeat measures
+
+for (s in 1:length(stressors2)) {
+
+  s.lmer5 <- lmer(as.formula(paste("Lograte ~ Sym.state *", paste(stressors2[s]), "* Bacteria + (1|B.TAG)")), data = exp.data) 
+  print(paste(stressors2[s],"Q5 LMER sum:", sep = " "))
+  print(summary(s.lmer5)) 
+  
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
+#             paste(stressors2[s],"Q5 LMER sum.txt", sep = " "), sep = ""))
+#  print(summary(s.lmer5))
+#  sink()
+  
+  # Posthoc ANOVA to compare model to the null
+  null <- lmer(rate ~ 1 + (1| B.TAG), data = exp.data) # null model without effects using experimental treatments only 
+  Q1 <- lmer(as.formula(paste("Lograte~",paste(stressors2[s]), "+ (1|B.TAG)")), data = exp.data) 
+  Q4 <- lmer(as.formula(paste("Lograte ~ Sym.state *", paste(stressors2[s]), "* (1|B.TAG)")), data = exp.data)
+  
+  s.lmer5.aov <- anova(null, Q1, Q4, s.lmer5) # model comparison 
+  print(paste(stressors2[s],"Q5 ANOVA sum:", sep = " ")) # name the summary output 
+  print(s.lmer5.aov) 
+  
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
+#             paste(stressors2[s],"Q5 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
+#  print(s.lmer5.aov)
+#  sink()
+  
+  # Emmmeans posthoc test 
+  s.lmer5.means <- emmeans(s.lmer5, as.formula(paste("list(pairwise)~",stressors2[s],":Sym.state:Bacteria")))
+  print(paste(stressors2[s],"Q5 EMMEANS sum:", sep = " "))
+  print(summary(s.lmer5.means))
+  
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", 
+#             paste(stressors2[s],"Q5 EMMEANS sum.txt", sep = " "), sep = ""))
+#  print(summary(s.lmer5.means))
+#  sink()
+}
+```
+
+```{r}
+# Summarize by plastic, phenotype, and bacteria
+plastic.sum5 <- summarySE(exp.data, measurevar = "rate", groupvars = c("Plastic","Sym.state","Bacteria"))
+
+# To re-label the facet strip labels 
+plastic.labs <- list("NoPlastic" = "No Plastic", "Plastic" = "Plastic")
+plastic_labeller <- function(variable,value){
+  return(plastic.labs[value])
+}
+
+# Plot
+plastic.plot.B <-
+ggplot(data = plastic.sum5,
+       aes(x = Bacteria,
+           y = rate, 
+           col = Sym.state,
+           group = Sym.state)) +
+  geom_point(size = 2, position=position_dodge(0.1)) +
+  geom_line() +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.15, size = 1.2, position=position_dodge(0.1)) +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"),
+                     values = c("tan", "coral4")) +
+  scale_x_discrete(limits = c("EC", "SW"), labels = c("Acute", "Basal")) +
+  scale_y_continuous(limits = c(0, 0.05), breaks = seq(0, 0.05, by = 0.025)) +
+
+  ylab("") +
+  xlab("")+
+  ggtitle("") +
+  facet_grid(~Plastic, labeller = plastic_labeller) +
+  
+    theme_classic(base_size=16) +
+    theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12)) 
+plastic.plot.B
+```
+
+```{r}
+# Summarize by light, phenotype, and bacteria
+light.sum5 <- summarySE(exp.data, measurevar = "rate", groupvars = c("Light","Sym.state","Bacteria"))
+
+# Plot
+light.plot.B <-
+ggplot(data = light.sum5,
+       aes(x = Bacteria,
+           y = rate, 
+           col = Sym.state,
+           group = Sym.state)) +
+  geom_point(size = 2, position=position_dodge(0.1)) +
+  geom_line() +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.15, size = 1.2, position=position_dodge(0.1)) +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"),
+                     values = c("tan", "coral4")) +
+  scale_x_discrete(limits = c("EC", "SW"), labels = c("Acute", "Basal")) +
+  scale_y_continuous(limits = c(0, 0.05), breaks = seq(0, 0.05, by = 0.025)) +
+
+  ylab("") +
+  xlab("")+
+  ggtitle("") +
+  facet_grid(~Light) +
+  
+    theme_classic(base_size=16) +
+    theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12)) 
+      
+light.plot.B
+```
+
+```{r}
+# Summarize by food, phenotype, and bacteria
+food.sum5 <- summarySE(exp.data, measurevar = "rate", groupvars = c("Food","Sym.state","Bacteria"))
+
+# Plot
+food.plot.B <-
+ggplot(data = food.sum5,
+       aes(x = Bacteria,
+           y = rate, 
+           col = Sym.state,
+           group = Sym.state)) +
+  geom_point(size = 2, position=position_dodge(0.1)) +
+  geom_line() +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.15, size = 1.2, position=position_dodge(0.1)) +
+  
+  scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"),
+                     values = c("tan", "coral4")) +
+  scale_x_discrete(limits = c("EC", "SW"), labels = c("Acute", "Basal")) +
+  scale_y_continuous(limits = c(0, 0.05), breaks = seq(0, 0.05, by = 0.025)) +
+
+  ylab("") +
+  xlab("")+
+  ggtitle("") +
+  facet_grid(~Food) +
+  
+    theme_classic(base_size=16) +
+    theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12)) 
+food.plot.B
+```
+# Arrange temperature, plastic, light, and food plots
+```{r}
+stressor.panel2 <- ggarrange(temp.plot.B, ggplot()+theme_void(), 
+                             plastic.plot.B, ggplot()+theme_void(), 
+                             light.plot.B, ggplot()+theme_void(), 
+                             food.plot.B,
+                             heights = c(5, 0, 
+                                         5, 0,
+                                         5, 0,
+                                         5),
+                             ncol = 1, 
+                             common.legend = TRUE) 
+                             #legend = c(1,1)) 
+
+stressor.panel.comb <- ggarrange(stressor.panel1, stressor.panel2, align = 'h')
+
+stressor.panel.comb <- annotate_figure(stressor.panel.comb, 
+                left = text_grob(bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1)), 
+                                 rot = 90, vjust = 1, size = 18),
+                bottom = text_grob("Acute Challenge", hjust = 0.5, size = 18))
+```
+```{r}
+# Save stressor panel figure
+ggsave(plot = stressor.panel.comb,
+filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/Figures/stressor.panel.comb.jpg", width = 8.5, height = 11, units = "in", dpi=300)
+```
+
 
 
 ###########################################################################################################################
