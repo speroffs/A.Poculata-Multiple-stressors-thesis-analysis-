@@ -5,13 +5,14 @@ date: "2/11/2022"
 output: html_document
 ---
 
-###########################################################################################################################
+######################################################################################################
 #
-#                                                           Data Prep
+#                                               Data prep
 #
-############################################################################################################################
+######################################################################################################
 
-```{r, message=FALSE}
+
+```{r, include=FALSE}
 # Libraries 
 library(ggplot2)
 library(Rmisc)
@@ -56,11 +57,11 @@ data$Treatment <- factor(data$Treatment, levels = c("Control", "PDS", "PLS", "ND
 #data$Day <- factor(data$Day, levels = c("8", "15", "22"))
 ```
 
-###########################################################################################################################
+#####################################################################################################################
 #
 #                                                Normality testing and transformations 
 #
-############################################################################################################################
+#####################################################################################################################
 
 ```{r}
 # Plot the distribution of respiration rate data
@@ -111,16 +112,15 @@ skewness(data$cuberate) # definitely not the best value here
 ## It looks like our metabolic rate data could benefit from being log-transformed 
 ## We'll use the log-transformed MR for modelling and statistical testing, and the untransformed MR for plotting and data reporting
 
-###########################################################################################################################
+#####################################################################################################################
 #
 #                                                Exploratory plots
 #
-###########################################################################################################################
+#####################################################################################################################
 
 ```{r}
 # Let's look at the rate of O2 consumption in EC vs SW for all treatments 
 explore.sum <- summarySE(data, measurevar = "rate", groupvars = c("Treatment", "Day", "Bacteria"))
-#test <- summarySE(data, measurevar = "rate", groupvars = c("Day","Bacteria"))
 ```
 ```{r}
 # plot
@@ -151,8 +151,8 @@ resp.alltreat.plot
 ```{r}
 # save plot
 ggsave(plot = resp.alltreat.plot,
-       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/Plots/resp.alltreat.plot.pdf", 
-       width = 8, height = 6, units = "in")
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/Figures/alltreat.EC.SW.jpg", 
+       width = 8, height = 6, units = "in", dpi = 300)
 ```
 
 ###########################################################################################################################
@@ -170,22 +170,22 @@ ctrl.lm1 <- lm(Lograte~Bacteria, data = ctrl.data) # Run lm model (one obs per I
 summary(ctrl.lm1) # summarize lm 
 
 # Save lm output to ModelOutputs folder
-sink(
-  paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # path
-        file = "Control Q1 LM sum.txt")) # name txt
+#sink(
+#  paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # path
+#        file = "Control Q1 LM sum.txt")) # name txt
 summary(ctrl.lm1) # what to print
-sink(file = NULL) 
+#sink(file = NULL) 
 
 # tukey posthoc
 ctrl.aov1 <- aov(Lograte~Bacteria, data = ctrl.data)
 ctrl.tukey1 <- TukeyHSD(ctrl.aov1)
 ctrl.tukey1
 
-sink(
-  paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # path
-        file = "Control Q1 TuKey sum.txt")) # name txt
+#sink(
+#  paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/ModelOutputs/", # path
+#        file = "Control Q1 TuKey sum.txt")) # name txt
 summary(ctrl.tukey1) # what to print
-sink(file = NULL) 
+#sink(file = NULL) 
 ```
 
 ```{r}
