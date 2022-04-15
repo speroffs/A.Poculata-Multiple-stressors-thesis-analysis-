@@ -351,84 +351,99 @@ ggplot(data = decay_means2,
 
 ################################################################
 #
-#   Calculate growth rate (slope) per fragment                                             
+#        Calculate growth rate (slope) per fragment                                             
 #
 ################################################################
 
+# This section calculates the growth rate and log-transformed growth rate for all coral fragments, and stores the output in a new csv dataframe, called ID.SLOPE. The next section begins with importing the saved DF. 
+# Uncomment (ctrl-shift-c) to run, if wanted (but not necesary)
+
 # Run simple LM for the change in log(mass) over time by each individual: 
 ```{r}
-# create grouping factor
-by_ID <- group_by(decaydat, B.TAG)
-```
-```{r}
-# Create a df with the parameter coefficients of every treatment Linear model 
-ID.slope <- 
-  do(by_ID, 
-   tidy(                     
-     lm(Massmg~Day, data= .)))
-
-# keep the intercept term 
-ID.slope <- filter(ID.slope, term == "Day")
-#rename the estimate 
-names(ID.slope)[names(ID.slope) == "estimate"] <- "Slope"
-```
-
-```{r}
-## Run linear model with the log-transformed Mass data for statistical comparisons
-ID.log.slope <-
-  do(by_ID,
-     tidy(
-       lm(Logmassmg~Day, data=.))) 
-
-ID.log.slope <- filter(ID.log.slope, term == "Day")
-names(ID.log.slope)[names(ID.log.slope) == "estimate"] <- "Log.Slope"
-names(ID.log.slope)[names(ID.log.slope) == "std.error"] <- "Log.std.error"
-names(ID.log.slope)[names(ID.log.slope) == "statistic"] <- "Log.statistic"
-names(ID.log.slope)[names(ID.log.slope) == "p.value"] <- "Log.pvalue"
-
-ID.slope <- left_join(ID.slope, ID.log.slope, by = "B.TAG")
+# # create grouping factor
+# by_ID <- group_by(decaydat, B.TAG)
+# ```
+# ```{r}
+# # Create a df with the parameter coefficients of every treatment Linear model 
+# ID.slope <- 
+#   do(by_ID, 
+#    tidy(                     
+#      lm(Massmg~Day, data= .)))
+# 
+# # keep the intercept term 
+# ID.slope <- filter(ID.slope, term == "Day")
+# #rename the estimate 
+# names(ID.slope)[names(ID.slope) == "estimate"] <- "Slope"
 ```
 
 ```{r}
-# Add treatment and sym.state values to ID.test dataframe by BTag:
+# ## Run linear model with the log-transformed Mass data for statistical comparisons
+# ID.log.slope <-
+#   do(by_ID,
+#      tidy(
+#        lm(Logmassmg~Day, data=.))) 
+# 
+# ID.log.slope <- filter(ID.log.slope, term == "Day")
+# names(ID.log.slope)[names(ID.log.slope) == "estimate"] <- "Log.Slope"
+# names(ID.log.slope)[names(ID.log.slope) == "std.error"] <- "Log.std.error"
+# names(ID.log.slope)[names(ID.log.slope) == "statistic"] <- "Log.statistic"
+# names(ID.log.slope)[names(ID.log.slope) == "p.value"] <- "Log.pvalue"
+# 
+# ID.slope <- left_join(ID.slope, ID.log.slope, by = "B.TAG")
+```
 
-# Select variables from original data to keep
-decaydat2 <- decaydat %>%
-  select(Colony, Sym.State, B.TAG, Treatment, Plastic, Temperature, Food, Light) 
-
-# add variables to new df based on ID
-ID.slope <- left_join(decaydat2, ID.slope, by = "B.TAG")
-
-# Remove NAs
-ID.slope %>%
-  drop_na(Slope)
+```{r}
+# # Add treatment and sym.state values to ID.test dataframe by BTag:
+# # Select variables from original data to keep
+# decaydat2 <- decaydat %>%
+#   select(Colony, Sym.State, B.TAG, Treatment, Plastic, Temperature, Food, Light) 
+# 
+# # add variables to new df based on ID
+# ID.slope <- left_join(decaydat2, ID.slope, by = "B.TAG")
+# 
+# # Remove NAs
+# ID.slope %>%
+#   drop_na(Slope)
 ```
 ```{r}
-# Inspect ID.slope D
-ID.slope$Colony <- as.factor(ID.slope$Colony)
-ID.slope$Sym.State <- as.factor(ID.slope$Sym.State)
-ID.slope$Plastic <- as.factor(ID.slope$Plastic)
-ID.slope$Temperature <- as.factor(ID.slope$Temperature)
-ID.slope$Food <- as.factor(ID.slope$Food)
-ID.slope$Light <- as.factor(ID.slope$Light)
-ID.slope$B.TAG <- as.factor(ID.slope$B.TAG)
-
-#remove duplicates (should be 1 value per ID)
-duplicated(ID.slope)
-ID.slope = ID.slope %>% 
-  unique() # should be 480
-
-# Remove NAs
-ID.slope <- ID.slope %>%
-  drop_na(Slope)  %>% # should be 451 individuals 
-  drop_na(Log.Slope)
+# # Inspect ID.slope D
+# ID.slope$Colony <- as.factor(ID.slope$Colony)
+# ID.slope$Sym.State <- as.factor(ID.slope$Sym.State)
+# ID.slope$Plastic <- as.factor(ID.slope$Plastic)
+# ID.slope$Temperature <- as.factor(ID.slope$Temperature)
+# ID.slope$Food <- as.factor(ID.slope$Food)
+# ID.slope$Light <- as.factor(ID.slope$Light)
+# ID.slope$B.TAG <- as.factor(ID.slope$B.TAG)
+# 
+# #remove duplicates (should be 1 value per ID)
+# duplicated(ID.slope)
+# ID.slope = ID.slope %>% 
+#   unique() # should be 480
+# 
+# # Remove NAs
+# ID.slope <- ID.slope %>%
+#   drop_na(Slope)  %>% # should be 451 individuals 
+#   drop_na(Log.Slope)
+```
+```{r}
+# # Save ID.Slope df as a csv file
+# path <- "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth"
+# write.csv(ID.slope, file.path(path, "ID.slope.csv"))
 ```
 
-#####################################################################################################################
+
+####################################################################################################################
 #
 #                                    Question: Does treatment affect growth rate?
 #
-#####################################################################################################################
+####################################################################################################################
+
+```{r}
+# Load ID.slope dataframe that we created in the past section
+ID.slope <-read.csv("~/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/ID.slope.csv", header=TRUE)
+ID.slope <- ID.slope %>%
+  select(-"X")
+```
 
 ```{r}
 # Run a liner effects mixed model to determine if the treatment affects the growth rate of polyps while taking coral colony into account
