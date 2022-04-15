@@ -8,11 +8,11 @@ output:
   html_document: default
 ---
 
-###########################################################################################################################
+######################################################################################################
 #
-#                                                           Data Prep
+#                                               Data prep
 #
-############################################################################################################################
+######################################################################################################
 
 ```{r setup, include=FALSE}
 # Libraries
@@ -41,6 +41,7 @@ setwd("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PA
 #data <- read.csv("Full_Fv_Fm.data - FvFm.long.format.csv", header = TRUE) # full data
 data <- read.csv("Full_Fv_Fm.data - Edited.FvFm.csv", header = TRUE)  #edited data without day 22 for NDF/NLF
 ```
+
 ```{r}
 # Rename column headers
 names(data)[names(data) == "FvFm.AVG"] <- "fvfm"
@@ -65,27 +66,30 @@ data$Sym.State <- as.factor(data$Sym.State)
 data$B.Tag <- as.factor(data$B.Tag)
 ```
 
-###########################################################################################################################
+######################################################################################################
 #
-#                                                   Normality testing and transformations 
+#                                     Normality testing and transformations
 #
-############################################################################################################################
+######################################################################################################
 
 ```{r}
 # look at distribution of raw data
 hist(data$fvfm)
 skewness(data$fvfm) # fvfm data is moderately right-skewed ( > 0.05)
-
+```
+```{r}
 # let's log transform to see if that helps
 data$Logfvfm = log(data$fvfm)
 hist(data$Logfvfm)
 skewness(data$Logfvfm) # now it is somewhat left skewed
-
+```
+```{r}
 # lets square root transform 
 data$SQfvfm = sqrt(data$fvfm)
 hist(data$SQfvfm)
 skewness(data$SQfvfm) # is the lowest skew so far
-
+```
+```{r}
 # let's try the last option, cube root, to see if that is best 
 data$cubefvfvm = (data$fvfm^1/3)
 hist(data$cubefvfvm)
@@ -105,12 +109,12 @@ qqline(data$SQfvfm)
 # even though square root transforming helped to normalize the distribution of my data, the theoretical quantiles do not appear to be improved much compared to the untransformed data. We'll move forward with the FvFm data as is without transformation.
 ```
 
-###########################################################################################################################
+###################################################################################################################
 #
 #                     Question 1. Does photosynthetic efficiency change over time in every treatment / 
 #                       What is the effect of treatment over time on fvfm, regardless of phenotype?
 #
-###########################################################################################################################
+###################################################################################################################
 
 ```{r}
 # Create a string of the experimental Treatment names without ambient control to run lmer 
@@ -143,7 +147,6 @@ for (t in 1:length(Exp.Treatments)) {
   print(exp.treat.lmer1.aov)
   sink()
 }
-
 ```
 
 ```{r}
@@ -165,19 +168,17 @@ for (t in 1:length(Exp.Treatments)) {
   print(summary(exp.treat.lmer1.means))
   sink()
 }
-
 ```
  
 ```{r}
 # Filter out control data to plot
 expt.data <- filter(data, Treatment != "control")
+
 # Summarize to plot
 day.means <- summarySE(expt.data, measurevar = "fvfm", groupvars = c("Treatment", "Day"))
-summarySE(expt.data, measurevar = "fvfm", groupvars = "Treatment")
 ```
 ```{r}
 # Plot
-
 alltreat.fvfm.plot <-
   ggplot(day.means, 
        aes(x = Day,
@@ -203,6 +204,7 @@ alltreat.fvfm.plot <-
 
 alltreat.fvfm.plot
 ```
+
 ```{r}
 # Save plot for publication
 ggsave(plot = alltreat.fvfm.plot, 
@@ -248,12 +250,12 @@ ggsave(plot = all.treat.fvfm.plot.2,
        width = 8, height = 6, units = "in")
 ```
 
-###########################################################################################################################
+###################################################################################################################
 #
 #                      Question 2. Does photosynthetic efficiency vary by phenotype in every treatment /  
 #                              What is the effect of phenotype on photosynthetic efficiency?
 #
-###########################################################################################################################
+###################################################################################################################
 
 ```{r}
 # Isolate ambient control group to run lm (1 obs per ID)
@@ -312,10 +314,8 @@ for (t in 1:length(Exp.Treatments)) {
 ```{r}
 # Summarise to plot
 phen.means <- summarySE(data, measurevar = "fvfm", groupvars = c("Treatment", "Sym.State"))
-```
-```{r}
-# Plot
 
+# Plot
 ggplot(phen.means, 
        aes(x = Sym.State,
            y = fvfm,
@@ -360,12 +360,12 @@ ggplot(phen.means,
 phen.plot2 
 ```
 
-###########################################################################################################################
+###################################################################################################################
 #
 #                 Question 3. Does photosynthetic efficiency vary by phenotype over time in every treatment / 
 #                   What is the effect of phenotype on photosynthetic efficiency over time in every treatment?
 #
-###########################################################################################################################
+###################################################################################################################
 
 ```{r}
 # Run lmer mixed effects models on experimental treatments with Polyp ID as a random effect to account for repeat measures 
@@ -427,8 +427,7 @@ for (t in 1:length(Exp.Treatments)) {
 ```{r}
 # Summarise to plot
 phen.means2 <- summarySE(expt.data, measurevar = "fvfm", groupvars = c("Treatment", "Sym.State", "Day"))
-```
-```{r}
+
 # Plot
 phen.treat.fvfm.plot <-
 ggplot(phen.means2, 
@@ -436,26 +435,26 @@ ggplot(phen.means2,
            y = fvfm,
            col = Sym.State,
            group = Sym.State,
-           shape = Sym.State, 
+          # shape = Sym.State, 
            linetype = Sym.State)) +
   
   geom_point(size = 1.2)+
-  geom_line(size = 0.5) +
-  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width = 1, size = 0.5, lty=1) +
+  geom_line(size = 1) +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width = 1, size = 1, lty=1) +
   
   scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"),
-                     values=c("black", "black")) +
+                     values=c("tan", "coral4")) +
   scale_linetype_manual(labels = c("Aposymbiotic", "Symbiotic"),
-                    values=c(5, 1)) +
-  scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"),
-                    values=c(2, 19)) +
+                    values=c(1, 1)) +
+ # scale_shape_manual(labels = c("Aposymbiotic", "Symbiotic"),
+  #                  values=c(2, 19)) +
   
   facet_wrap(~Treatment) +
   scale_x_continuous(name = "Day", breaks=seq(1, 22, by = 7)) +
   scale_y_continuous(name = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")))+
   
   theme_classic(base_size = 13) +
-  theme(legend.position = "top",
+   theme(legend.position = c(0.83,0.15),
         legend.title = element_blank(),
         legend.text = element_text(size = 12))
   
@@ -465,8 +464,8 @@ phen.treat.fvfm.plot
 ```{r}
 # save plot
 ggsave(plot = phen.treat.fvfm.plot,
-       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/phen.treat.fvfm.plot.pdf", 
-       width = 8, height = 6, units = "in")
+       filename = "/Users/speroffs/Desktop/phen.treat.fvfm.plot.jpg", 
+       width = 6, height = 4.5, units = "in", dpi = 300)
 ```
 
 ```{r}
@@ -487,12 +486,12 @@ for (t in 1:length(Exp.Treatments)) {
 }
 ```
 
-###########################################################################################################################
+###################################################################################################################
 #
 #                              Question 1. Does plastic/light/food/temperature/phenotype effect fvfm / 
 #                                What is the effect of the stressor on photosynthetic efficiency ?
 #
-###########################################################################################################################
+###################################################################################################################
 
 ## For plastic, light, and food stressors: analyze the difference WITHIN elevated temperature treatments (excluding ambient controls
 )
@@ -522,8 +521,6 @@ ctrl.tukey1.1
 ```{r}
 # Create string of stressors 
 stressors <- c("Plastic", "Light", "Food", "Sym.State")
-
-summary(expt.data)
 ```
 ```{r}
 # Run lmer mixed effects models on experimental stressors with Polyp ID as a random effect to account for repeat measures 
@@ -1173,6 +1170,10 @@ for (s in 1:length(stressors2)) {
   print(summary(s.lmer3.means))
   sink()
 }
+```
+```{r}
+test1 <- emmeans(test, list(pairwise~'Sym.State:Temperature'))
+summary(test)
 ```
 
 ```{r}
