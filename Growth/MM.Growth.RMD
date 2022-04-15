@@ -10,13 +10,13 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-###########################################################################################################################
+######################################################################################################
 #
-#                                                           Data Prep
+#                                               Data prep
 #
-############################################################################################################################
+######################################################################################################
 
-```{r, message=FALSE}
+```{r, include=FALSE}
 # Libraries
 library(Rmisc)
 library(ggplot2)
@@ -30,18 +30,19 @@ library(emmeans)
 library(Rmisc)
 library(e1071)
 library(ggpubr)
+library(sjPlot)
 ```
 
 ```{r}
+# Set working directory
 setwd("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth")
 ```
 ```{r}
 #Load data
-mass.dat <- read.csv("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Full.ID.Metadata.Frag.metadata.(xrack&control).csv", header = TRUE)
+data <- read.csv("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Full.ID.Metadata.Frag.metadata.(xrack&control).csv", header = TRUE)
 
 # Subset relevant data
-data <- subset(mass.dat, select = c("B.TAG", "Sym.State","Treat.ID", "Temperature", "Plastic", "Light", "Food",
-                                    "Initial.Mass..g.", "Final.Mass..g.", "Days.In.Treatment"))
+data <- subset(data, select = c("B.TAG", "Sym.State","Treat.ID", "Temperature", "Plastic", "Light", "Food","Initial.Mass..g.", "Final.Mass..g.", "Days.In.Treatment"))
 
 # change column names 
 names(data)[names(data) == "Initial.Mass..g."] <- "Initial" 
@@ -56,11 +57,11 @@ data$Treatment <- factor(data$Treatment, levels = c("control", "PDS", "PLS", "ND
 data <- data[complete.cases(data),]
 ```
 
-###########################################################################################################################
+######################################################################################################
 #
-#                             Calculate average change in mass over time for all polyps
+#                         Calculate change in mass (Final - Initial mass)
 #
-############################################################################################################################
+######################################################################################################
 
 # Data collected in grams, converted to MG and noramlized to time spent in treatment
 ```{r}
@@ -109,7 +110,6 @@ skewness(data$cubechange) # the same position we started with.
 # Summarize the change in mass by treatment 
 mean.sum1 <- summarySE(data, measurevar="Change", groupvars="Treatment") 
 temp.sum <- summarySE(data, measurevar="Change", groupvars="Temperature") # what's the difference between ambient and elevated temperature conditions?
-
 ```
 ```{r}
 #and plot
@@ -138,9 +138,9 @@ ggplot(data = mean.sum1,
 change.mass.plot
 ```
 ```{r}
-# save plot
-ggsave(plot = change.mass.plot,
-       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Plots/change.mass.plot.pdf", width = 8, height = 6, units = "in")
+# # save plot
+# ggsave(plot = change.mass.plot,
+#        filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Figures/change.mass.plot.pdf", width = 8, height = 6, units = "in", dpi=300)
 ```
 
 ```{r}
@@ -173,11 +173,11 @@ ggplot(data = mean.sum2,
         legend.text = element_text(size = 12))
 ```
 
-###################################################################################################################################
-# 
-#                                   Calculate change in mass with all time points included 
+######################################################################################################
 #
-###################################################################################################################################
+#                      Calculate rate of change in mass (all time points included)
+#
+######################################################################################################
 
 ```{r}
 # load data
@@ -223,7 +223,6 @@ hist(decaydat$Logmassmg, main="Log Mass (mg)")
 qqnorm(decaydat$Logmassmg, main="Log Mass (mg)")
 qqline(decaydat$Logmassmg) # a much better histogram and quantiles! 
 skewness(decaydat$Logmassmg) # now less than moderately left skewed, much better.
-
 ```
 
 ```{r}
@@ -249,6 +248,12 @@ skewness(decaydat$cubemass) # nope
 ```
 
 # Since the Log-transformed data helps with normality - we will use the Log-transformed Mass for STATISTICAL testing and reporting. But we will use the untransformed mass for graphing and rate reporting. 
+
+################################################################
+#
+#   Summary / Exploratory plots of growth rate                                             
+#
+################################################################
 
 ```{r}
 # summarize the mass at each interval by treatment 
@@ -344,14 +349,14 @@ ggplot(data = decay_means2,
         legend.text = element_text(size = 12))
 ```
 
-###########################################################################################################################
+################################################################
 #
-#                                    Calculate growth rate for each individual polyp 
+#   Calculate growth rate (slope) per fragment                                             
 #
-############################################################################################################################
+################################################################
 
-```{r}
 # Run simple LM for the change in log(mass) over time by each individual: 
+```{r}
 # create grouping factor
 by_ID <- group_by(decaydat, B.TAG)
 ```
@@ -419,11 +424,11 @@ ID.slope <- ID.slope %>%
   drop_na(Log.Slope)
 ```
 
-###########################################################################################################################
+#####################################################################################################################
 #
 #                                    Question: Does treatment affect growth rate?
 #
-############################################################################################################################
+#####################################################################################################################
 
 ```{r}
 # Run a liner effects mixed model to determine if the treatment affects the growth rate of polyps while taking coral colony into account
@@ -444,7 +449,6 @@ summary(treat.emmeans)
 ```{r}
 # Summarise
 treat.means <- summarySE(ID.slope, measurevar = "Slope", groupvars = "Treatment")
-#summarySE(ID.slope, measurevar = "Slope", groupvars = "Temperature")
 ```
 ```{r}
 # plot
@@ -472,10 +476,18 @@ ggplot(data = treat.means,
 all.treat.growth.plot
 ```
 ```{r}
+# Annotate figure with TukeyHSD pairwise comparisons
+all.treat.growth.plot <- 
+all.treat.growth.plot + annotate("text", 
+                                 x = 1:9, 
+                                 y = c(-0.4, -0.4, -0.4, -0.4, -0.1, -0.4, -0.4, -2, -0.4),
+                                 label = c("A", "AB", "A", "A","A", "AB", "AB","B","A"),
+                                 size = 6)
+```
+```{r}
 # save plot
-ggsave(plot = all.treat.growth.plot,
-       filename = "/Users/speroffs/Desktop/all.treat.growth.plot.jpg", 
-       width = 8, height = 6, units = "in", dpi = 300)
+ ggsave(plot = all.treat.growth.plot,
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Figures/all.treat.growth.plot.jpg", width = 8, height = 6, units = "in", dpi=300)
 ```
 
 # What about phenotype within each treatment?
@@ -491,6 +503,7 @@ ggplot(data = phen.means,
   geom_point(size=2) +
   geom_errorbar(aes(ymax = Slope+se, ymin = Slope-se), width = 0.2, size=1.2) +
   
+  geom_hline(yintercept = 0, col="black", lty=1) +
   geom_hline(yintercept = -0.8740205, col="tan", lty=2) + 
   geom_hline(yintercept = -0.7277167, col="coral4", lty=2) +
   
@@ -506,11 +519,11 @@ ggplot(data = phen.means,
         legend.text = element_text(size = 12))
 ```
 
-###########################################################################################################################
+#####################################################################################################################
 #
 #                                    Question: Does temperature affect growth rate?
 #
-############################################################################################################################
+#####################################################################################################################
 
 ```{r}
 # Run a liner effects mixed model to determine if the treatment affects the growth rate of polyps while taking coral colony into account
@@ -546,32 +559,37 @@ ggplot(data = temp.sum,
   scale_x_discrete(name = "", # remove labels for paneling 
                    limits = c("AMBIENT", "ELEVATED"),
                    labels = c("Ambient", "Elevated")) +
-  scale_y_continuous(name = "Average growth rate (mg day"^"-1"~")", 
-                     limits = c(-1.65, -0.6),
+  scale_y_continuous(name ="",
+    #name = "Average growth rate (mg day"^"-1"~")", 
+                     limits = c(-1.7, -0.6),
                      breaks = seq(-1.6, -0.6, by = 0.2)) +
   
   scale_color_manual(values = c("royalblue4","firebrick2")) +
-  #ggtitle("A. Temperature") +
+  ggtitle("A. Temperature") +
 
-theme_classic(base_size=16) +
+  theme_classic(base_size=16) +
   theme(legend.position = "none",
         legend.title = element_blank(),
         legend.text = element_text(size = 16),
-        plot.title = element_text(vjust = 1.1, size = 18, face="bold")) 
+        plot.title = element_text(vjust = 1.1, size = 18)) +
+    annotate("text", x = 1.5, y = -0.6, label = "p < 0.001 ***", size = 4) + # ANOVA p value
+    annotate("text", x = 1, y = -1.7, label = "157", size = 3, colour = "grey30") + # sample size
+    annotate("text", x = 2, y = -1.7, label = "294", size = 3, colour = "grey30") # sample size 
 
 growth.temp.plot
 ```
 ```{r}
-# Save plot
-ggsave(plot = growth.temp.plot,
-       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Plots/growth.temp.plot.pdf", width = 8, height = 6, units = "in")
+# # Save plot
+# # ggsave(plot = growth.temp.plot,
+#        filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Figures/growth.temp.plot.pdf", 
+#        # width = 8, height = 6, units = "in", dpi= 300)
 ```
 
-###########################################################################################################################
+#####################################################################################################################
 #
 #                                    Question: Does Plastic affect growth rate?
 #
-############################################################################################################################
+#####################################################################################################################
 
 # For plastic, light, and food stressors: compare the effects within elevated temperature treatments
 ```{r}
@@ -588,7 +606,6 @@ summary(exp.dat)
 
 ```{r}
 # Run a liner effects mixed model to determine if the treatment affects the growth rate of polyps while taking coral colony into account
-
 plastic.lmer <- lmer(Log.Slope~Plastic + (1|Colony), data = exp.dat)
 summary(plastic.lmer)
 ```
@@ -620,31 +637,33 @@ ggplot(data = plastic.sum,
                    limits = c("NOPLASTIC", "PLASTIC"),
                    labels = c("No Plastic", "Plastic")) +
  scale_y_continuous(name = "", 
-                     limits = c(-1.7, -0.8),
-                     breaks = seq(-1.7, -0.8, by = 0.2)) +
+                     limits = c(-1.7, -0.6),
+                     breaks = seq(-1.6, -0.6, by = 0.2)) +
   scale_color_manual(labels = c("No plastic", "Plastic"), values = c("black","forestgreen")) +
-  #ggtitle("B. Plastic") +
-  ggtitle("Plastic") +
+  ggtitle("B. Plastic") +
 
   theme_classic(base_size=16) +
   theme(legend.position = "none",
         legend.title = element_blank(),
         legend.text = element_text(size = 16),
-        plot.title = element_text(vjust = 1.1, size = 18, face="bold")) 
+        plot.title = element_text(vjust = 1.1, size = 18,)) +
+    annotate("text", x = 1.5, y = -0.6, label = "p = 0.51", size = 4) + # ANOVA p value
+    annotate("text", x = 1, y = -1.7, label = "148", size = 3, colour = "grey30") + # sample size
+    annotate("text", x = 2, y = -1.7, label = "146", size = 3, colour = "grey30") # sample size 
 
 growth.plastic.plot
 ```
 ```{r}
-# Save plot
-ggsave(plot = growth.plastic.plot,
-       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Plots/growth.plastic.plot.pdf", width = 8, height = 6, units = "in")
+# # Save plot
+# ggsave(plot = growth.plastic.plot,
+#        filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Figures/growth.plastic.plot.pdf", width = 8, height = 6, units = "in", dpi = 300)
 ```
 
-###########################################################################################################################
+#####################################################################################################################
 #
 #                                    Question: Does Light affect growth rate?
 #
-############################################################################################################################
+#####################################################################################################################
 
 ```{r}
 # Run a liner effects mixed model to determine if the treatment affects the growth rate of polyps while taking coral colony into account
@@ -681,31 +700,32 @@ ggplot(data = light.sum,
                    limits = c("DARK", "LIGHT"),
                    labels = c("Dark ", "Light")) +
  scale_y_continuous(name = "", 
-                     limits = c(-1.7, -0.8),
-                     breaks = seq(-1.7, -0.8, by = 0.2)) +
+                     limits = c(-1.7, -0.6),
+                     breaks = seq(-1.6, -0.6, by = 0.2)) +
   scale_color_manual(values = c("black","darkgoldenrod1")) +
- # ggtitle("C. Light") +
-ggtitle("Light")+
+  ggtitle("C. Light")+
   
   theme_classic(base_size=16) +
   theme(legend.position = "none",
         legend.title = element_blank(),
         legend.text = element_text(size = 16),
-        plot.title = element_text(vjust = 1.1, size = 18, face="bold")) 
+        plot.title = element_text(vjust = 1.1, size = 18)) +
+   annotate("text", x = 1.5, y = -0.6, label = "p = 0.007 **", size = 4) + # ANOVA p value
+    annotate("text", x = 1, y = -1.7, label = "148", size = 3, colour = "grey30") + # sample size
+    annotate("text", x = 2, y = -1.7, label = "146", size = 3, colour = "grey30") # sample size 
 growth.light.plot
 ```
 ```{r}
-# Save plot
-ggsave(plot = growth.light.plot,
-       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Plots/growth.light.plot.pdf", width = 8, height = 6, units = "in")
-
+# # Save plot
+# ggsave(plot = growth.light.plot,
+#        filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Figures/growth.light.plot.pdf", width = 8, height = 6, units = "in", dpi = 300)
 ```
 
-###########################################################################################################################
+#####################################################################################################################
 #
 #                                    Question: Does Food affect growth rate?
 #
-############################################################################################################################
+#####################################################################################################################
 
 ```{r}
 # Run a liner effects mixed model to determine if the treatment affects the growth rate of polyps while taking coral colony into account
@@ -742,28 +762,29 @@ ggplot(data = food.sum,
                    limits = c("FED", "STARVED"),
                    labels = c("Fed ", "Starved")) +
   scale_y_continuous(name = "", 
-                     limits = c(-1.7, -0.8),
-                     breaks = seq(-1.7, -0.8, by = 0.2)) +
+                     limits = c(-1.7, -0.6),
+                     breaks = seq(-1.6, -0.6, by = 0.2)) +
     scale_color_manual(values = c("orangered4", "black")) +
-  #ggtitle("D. Food") +
-  ggtitle("Food")+
+   ggtitle("D. Food")+
 
   theme_classic(base_size=16) +
   theme(legend.position = "none",
         legend.title = element_blank(),
         legend.text = element_text(size = 12),
-        plot.title = element_text(vjust = 1.1, size = 18, face="bold"))
+        plot.title = element_text(vjust = 1.1, size = 18)) +
+  annotate("text", x = 1.5, y = -0.6, label = "p = 0.009 **", size = 4) + # ANOVA p value
+    annotate("text", x = 1, y = -1.7, label = "142", size = 3, colour = "grey30") + # sample size
+    annotate("text", x = 2, y = -1.7, label = "152", size = 3, colour = "grey30") # sample size 
 growth.food.plot
 ```
 ```{r}
-# Save plot
-ggsave(plot = growth.food.plot,
-       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Plots/growth.food.plot.pdf", width = 8, height = 6, units = "in")
+# # Save plot
+# ggsave(plot = growth.food.plot,
+#        filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Figures/growth.food.plot.jpg", width = 8, height = 6, units = "in", dpi = 300)
 ```
 
-
 ```{r}
-# Arrange 4 stressor plots 
+# Arrange 4 stressor plots [temperature, plastic, light, food]
 growth.panel.figure.12<- 
   ggarrange(growth.temp.plot, growth.plastic.plot, growth.light.plot, growth.food.plot,
           common.legend = FALSE, labels = NA)
@@ -771,33 +792,30 @@ growth.panel.figure.12<-
 growth.panel.figure.12<-
   annotate_figure(growth.panel.figure.12, 
                 bottom = text_grob("Stress Treatment", 
-                                   hjust = 0.35, vjust = -1, size = 18, face = "bold"),
+                                   hjust = 0.35, vjust = -1, size = 18),
                 left = text_grob("Average growth rate (mg day"^"-1"~")", 
-                                 rot = 90, vjust = 1.5, hjust = 0.4 , size = 18, face = "bold"))
+                                 rot = 90, vjust = 1.5, hjust = 0.4 , size = 18))
 growth.panel.figure.12
 ```
 ```{r}
 ggsave(plot = growth.panel.figure.12,
-       filename = "/Users/speroffs/Desktop/growth.panel.figure.12.jpg", 
-       width = 8, height = 6, units = "in", dpi= 300)
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Figures/stressor.growth.panel.jpg", width = 8, height = 6, units = "in", dpi= 300)
 ```
 
-###########################################################################################################################
+#####################################################################################################################
 #
 #                                    Question: Does Phenotype affect growth rate?
 #
-############################################################################################################################
+#####################################################################################################################
 
 ```{r}
 # Run a liner effects mixed model to determine if the treatment affects the growth rate of polyps while taking coral colony into account
-
-phen.lmer <- lmer(Log.Slope~Sym.State + (1|Colony), data = ID.slope)
+phen.lmer <- lmer(Log.Slope~Sym.State + (1|Colony), data = exp.dat)
 summary(phen.lmer)
 ```
 ```{r}
 # Run an anova to compare this model to a null model 
-
-null <- lmer(Log.Slope ~ 1 + (1|Colony), data = ID.slope)
+null <- lmer(Log.Slope ~ 1 + (1|Colony), data = exp.dat)
 anova(null, phen.lmer) 
 ```
 ```{r}
@@ -808,25 +826,45 @@ summary(phen.means)
 
 ```{r}
 # sum
-phen.sum <- summarySE(ID.slope, measurevar = "Slope", groupvars = "Sym.State")
+phen.sum <- summarySE(exp.dat, measurevar = "Slope", groupvars = "Sym.State")
 # plot it 
+growth.sym.plot <-
 ggplot(data = phen.sum,
        aes(x = Sym.State,
            y = Slope, 
            color = Sym.State)) +
-  geom_point() +
-  geom_errorbar(aes(ymax = Slope+se, ymin = Slope-se), width = .1) +
-  scale_color_manual(values = c("tan","coral4")) +
-  labs(y = "Growth rate log(mg*day"^"-1"~")", 
-       x = "") +
-  theme_classic()
+  geom_point(size=3) +
+  geom_errorbar(aes(ymax = Slope+se, ymin = Slope-se), width = .1, size=1.2) +
+  
+  scale_x_discrete(name = "Symbiotic State", 
+                   limits = c("APO", "SYM"),
+                   labels = c("Aposymbiotic", "Symbiotic")) +
+  scale_y_continuous(name = "Average growth rate (mg day"^"-1"~")", 
+                     limits = c(-1.7, -0.6),
+                     breaks = seq(-1.6, -0.6, by = 0.2)) +
+    scale_color_manual(values = c("tan", "coral4")) +
+
+  theme_classic(base_size=16) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12),
+        plot.title = element_text(vjust = 1.1, size = 18)) +
+  annotate("text", x = 1.5, y = -0.6, label = "p = 0.19", size = 6) + # ANOVA p value
+    annotate("text", x = 1, y = -1.7, label = "139", size = 4, colour = "grey30") + # sample size
+    annotate("text", x = 2, y = -1.7, label = "155", size = 4, colour = "grey30") # sample size 
+growth.sym.plot
+```
+```{r}
+# Save plot
+ggsave(plot = growth.sym.plot,
+        filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Growth/Figures/growth.sym.plot.jpg", width = 8, height = 6, units = "in", dpi = 300)
 ```
 
-###########################################################################################################################
+#####################################################################################################################
 #
 #                                                     Mixed effects models:
 #
-############################################################################################################################
+#####################################################################################################################
 
 ```{r}
 # Null model 
@@ -890,11 +928,7 @@ check_model(m6)
 ```
 
 ```{r}
-#libraries required
-library(lme4)
-library(sjPlot)
-
-# plot model outputs 
+# plot model outputs for full and reduced model (includes ambient fragments)
 tab_model(m1, m2,             # models to table
           show.intercept = TRUE,  # show intercept value
           p.val = "kr",           # p value method for lmer models, kenward-rogers
@@ -910,14 +944,12 @@ tab_model(m1, m2,             # models to table
           digits = 4,
           show.re.var = FALSE,
           title = "")
-          
 ```
 
 # Let's plot our model estimates
-```{r}
+```{r, include=FALSE}
 library(insight)
 library(sjstats)
-library(sjPlot)
 library(effects)
 ```
 ```{r}
@@ -990,7 +1022,6 @@ axis.title.y = element_text(color="black", size=12))+
           axis.text.y = element_text(size=12)) +
   scale_color_manual(values=c("black", "goldenrod"))
 ```
-
 
 ###########################################################################################################################
 #
