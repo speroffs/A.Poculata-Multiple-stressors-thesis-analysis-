@@ -427,10 +427,47 @@ ggsurvplot(PL, conf.int = FALSE,
            palette = c("orangered4", "black"),
            title = "Plastic / Light")
 ```
-```{r}
-# Can we combine all of our fed/starved plots by Light and Plastic treatments?
 
-#HERE
+
+#### New code (Speroff, 11/16/2022): The effects of plastic under starvation:
+```{r}
+# Subset data to isolate all starved polyps
+st.dat <- filter(surv.dat, Treatment == "PDS" | Treatment == "PLS" | 
+                  Treatment == "NDS"| Treatment == "NLS")
+```
+```{r}
+# CPH model
+pl_st.cox <- coxph(Surv(Time, Death) ~ Plastic, data=st.dat)
+summary(pl_st.cox)
+```
+```{r}
+# Perform Log-rank test 
+pl_st_diff <- survdiff(Surv(Time, Death) ~ Plastic, data=st.dat)
+pl_st_diff
+```
+```{r}
+# KM function
+pl_st <- survfit(Surv(Time, Death) ~ Plastic, data = st.dat)
+
+# plot 
+ggsurvplot(pl_st, 
+          conf.int = FALSE, # no confidence intervals 
+          # pval = TRUE,  # show p value, default as numeric
+          pval = "LRT: p = 0.005*", # custom p value string, from likelihood ratio test
+          pval.coord = c(16,0.72), 
+          pval.size = 6, # default size is 5
+          surv.scale = "default", # or %
+          legend.labs = c("No Plastic", "Plastic"), 
+          legend.title = "", legend = c(0.2, 0.2), font.legend = 20,
+          xlab = "Survival Probability", xlim = c(0, 23),break.x.by = 2, font.x = 14,
+          ylab = "Days", ylim = c(0.7,1),font.y= 14,
+          font.tickslab = 14,
+          censor.size = 6,
+          ggtheme = theme_classic2(),
+          title = "Effect of plastic exposure during starvation", 
+          font.title = c(20, "bold"),
+          linetype = c(1,1),
+          palette = c("black","darkgreen")) 
 ```
 
 #########
