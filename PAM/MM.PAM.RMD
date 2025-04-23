@@ -27,14 +27,10 @@ library(Rmisc)
 library(emmeans)
 library(e1071)
 library(ggpubr)
-
-#library(tidyr)
-#library(ggthemes)
-#library(RColorBrewer)
-#library(ggeffects)
 ```
 
 ```{r}
+# change wd to suit personal file path
 setwd("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/")
 
 # load the data 
@@ -121,7 +117,7 @@ qqline(data$SQfvfm)
 Exp.Treatments <- c("PDS", "PLS", "NDS", "NLS", "PDF", "PLF", "NDF", "NLF")
 ```
 ```{r}
-# Run lmer mixed effects models on experimental stressors with Polyp ID as a random effect to account for repeat measures 
+# Run lmer mixed effects models on experimental stressors with Polyp ID as a random effect to account for repeat measures, not including ambient control data 
 
 for (t in 1:length(Exp.Treatments)) {
   
@@ -130,10 +126,10 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q1 LMER sum:", sep = " "))
   print(summary(exp.treat.lmer1)) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
-    paste(Exp.Treatments[t],"Q1 LMER sum.txt", sep = " "), sep = ""))
-  print(summary(exp.treat.lmer1))
-  sink()
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
+#    paste(Exp.Treatments[t],"Q1 LMER sum.txt", sep = " "), sep = ""))
+#  print(summary(exp.treat.lmer1))
+#  sink()
   
   # Posthoc ANOVA to compare model to the null
   null <- lmer(fvfm ~ 1 + (1|B.Tag), data = tmp.data) # null model without effect 
@@ -142,10 +138,10 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q1 ANOVA sum:", sep = " ")) # name the summary output 
   print(exp.treat.lmer1.aov) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
-    paste(Exp.Treatments[t],"Q1 ANOVA sum.txt", sep = " "), sep = " ")) # save anova summary as txt
-  print(exp.treat.lmer1.aov)
-  sink()
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
+#    paste(Exp.Treatments[t],"Q1 ANOVA sum.txt", sep = " "), sep = " ")) # save anova summary as txt
+#  print(exp.treat.lmer1.aov)
+#  sink()
 }
 ```
 
@@ -163,10 +159,10 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q1 EMMEANS sum:", sep = " "))
   print(summary(exp.treat.lmer1.means))
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
-    paste(Exp.Treatments[t],"Q1 EMMEANS sum.txt", sep = " "), sep = " "))
-  print(summary(exp.treat.lmer1.means))
-  sink()
+  # sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
+  #   paste(Exp.Treatments[t],"Q1 EMMEANS sum.txt", sep = " "), sep = " "))
+  # print(summary(exp.treat.lmer1.means))
+  # sink()
 }
 ```
  
@@ -206,15 +202,48 @@ alltreat.fvfm.plot
 ```
 
 ```{r}
-# Save plot for publication
+# Save plot 
 ggsave(plot = alltreat.fvfm.plot, 
-       filename = "/Users/speroffs/Desktop/thesis_backup/PAM/Plots/",
-     # filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/alltreat.fvfm.plot.pdf", 
-       width = 9, height = 6, units = "in")
+      filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Figures/alltreat.fvfm.plot.jpg", 
+       width = 9, height = 6, units = "in", dpi = 300)
 ```
 
 ```{r}
 # maybe not a facet plot?
+all.fvfm.plot <-
+ggplot(day.means,
+       aes(x = Day, 
+           y = fvfm,
+           color = Treatment,
+           group = Treatment)) +
+  geom_point(size = 1.5)+
+  geom_line(size = 1) +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width = 0.5, size =1) +
+  
+  scale_x_continuous(breaks=seq(1, 22, by = 7)) +
+  scale_y_continuous(limits=c(0.07, 0.36), breaks = seq(0.05,0.35, by = 0.05)) +
+  scale_color_manual(name = "",values = c("#F53100", "#FF8B47", "#C39809", "#F6CB3C", 
+                                          "#0B8454", "#7BB12F", "#3F88C5","#A33461"))  +
+  labs(x = "Day", 
+      y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")"))) +
+  theme_classic() +
+  theme_classic(base_size=12) +
+  theme(legend.position = c(0.5,0.85),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12)) +
+  guides(color = guide_legend(direction = "horizontal"))
+                       
+all.fvfm.plot
+```
+```{r}
+# Save plot 
+ggsave(plot = all.fvfm.plot, 
+     filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Figures/all.fvfm.plot.jpg", 
+       width = 8, height = 6, units = "in", dpi = 300)
+```
+
+```{r}
+# Same plot, formatted for ggplot panneling 
 all.treat.fvfm.plot.2 <-
 ggplot(day.means,
        aes(x = Day, 
@@ -229,25 +258,16 @@ ggplot(day.means,
   scale_y_continuous(limits=c(0.07, 0.36), breaks = seq(0.05,0.35, by = 0.05)) +
   scale_color_manual(name = "",values = c("#F53100", "#FF8B47", "#C39809", "#F6CB3C", 
                                           "#0B8454", "#7BB12F", "#3F88C5","#A33461"))  +
- # labs(x = "Day", 
- #      y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")"))) +
+
   labs(x="Day", y="") +
   theme_classic() +
   theme_classic(base_size=12) +
   theme(legend.position = "none",
- # theme(legend.position = c(0.5,0.85),
         legend.title = element_blank(),
         legend.text = element_text(size = 12)) +
   guides(color = guide_legend(direction = "horizontal"))
                        
 all.treat.fvfm.plot.2
-```
-```{r}
-# Save plot for publication
-ggsave(plot = all.treat.fvfm.plot.2, 
-       filename = "/Users/speroffs/Desktop/thesis_backup/PAM/Plots/",
-    # filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/all.treat.fvfm.plot.2.pdf", 
-       width = 8, height = 6, units = "in")
 ```
 
 ###################################################################################################################
@@ -272,7 +292,7 @@ ctrl.tukey2
 ```
 
 ```{r}
-# Run lmer mixed effects models on experimental treatments with Polyp ID as a random effect to account for repeat measures 
+# Run lmer mixed effects models on experimental treatments with Polyp ID as a random effect to account for repeat measures, not including ambient control data
 
 for (t in 1:length(Exp.Treatments)) {
   
@@ -281,10 +301,10 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q2 LMER sum:", sep = " ")) # name the summary output 
   print(summary(exp.treat.lmer2)) # print the summary output
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/",
-    paste(Exp.Treatments[t],"Q2 LMER sum.txt", sep = " "), sep = " "))   
-  print(summary(exp.treat.lmer2)) # print summary output 
-  sink()
+  # sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/",
+  #   paste(Exp.Treatments[t],"Q2 LMER sum.txt", sep = " "), sep = " "))   
+  # print(summary(exp.treat.lmer2)) # print summary output 
+  # sink()
   
   # Posthoc ANOVA to compare model to the null
   null <- lmer(fvfm ~ 1 + (1| B.Tag), data = tmp.data) # null model without effect 
@@ -294,20 +314,20 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q2 ANOVA sum:", sep = " ")) # name the summary output 
   print(exp.treat.lmer2.aov) 
   
- sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/",
-    paste(Exp.Treatments[t],"Q2 ANOVA sum.txt", sep = " "), sep = " ")) # save anova summary as txt
-  print(exp.treat.lmer2.aov)
-  sink()
+ # sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/",
+ #    paste(Exp.Treatments[t],"Q2 ANOVA sum.txt", sep = " "), sep = " ")) # save anova summary as txt
+ #  print(exp.treat.lmer2.aov)
+ #  sink()
   
   # Emmmeans posthoc test 
   exp.treat.lmer2.means <- emmeans(exp.treat.lmer2, list(pairwise~'Sym.State')) # run emmeans on lmer object 
   print(paste(Exp.Treatments[t],"Q2 EMMEANS sum:", sep = " ")) # print emmeans summary output 
   print(summary(exp.treat.lmer2.means))
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/",
-    paste(Exp.Treatments[t],"Q2 EMMEANS sum.txt", sep = " "), sep = " ")) # save emmeans summary as txt
-  print(summary(exp.treat.lmer2.means))
-  sink()
+  # sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/",
+  #   paste(Exp.Treatments[t],"Q2 EMMEANS sum.txt", sep = " "), sep = " ")) # save emmeans summary as txt
+  # print(summary(exp.treat.lmer2.means))
+  # sink()
 }
 ```
 
@@ -324,14 +344,13 @@ ggplot(phen.means,
   geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1) +
   facet_wrap(~Treatment) +
   scale_color_manual(values = c("tan", "coral4")) +
-  labs(x = "", 
-       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
-      caption = 
-      "data rempresent mean +/- SEM. Phenotype significantly impacts FvFm in ambient control, PDS, 
-      NLS and PLF treatments (ANOVA on LMER, p < 0.05) " ) +
-  theme_classic() 
-
+  labs(x = "Symbiotic State", 
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")"))) +
+  theme_classic(base_size=12) +
+  theme(legend.position = "none",
+        legend.title = element_blank())
 ```
+
 ```{r}
 # a non facet plot
 phen.plot2 <- 
@@ -359,6 +378,12 @@ ggplot(phen.means,
 
 phen.plot2 
 ```
+```{r}
+# Save plot 
+ggsave(plot = phen.plot2, 
+     filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Figures/phen.plot2.jpg", 
+       width = 8, height = 6, units = "in", dpi = 300)
+```
 
 ###################################################################################################################
 #
@@ -377,10 +402,10 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q3 LMER sum:", sep = " ")) # name the summary output 
   print(summary(exp.treat.lmer3)) # print the summary output
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/",
-  paste(Exp.Treatments[t],"Q3 LMER sum.txt", sep = " "), sep = " "))   
-  print(summary(exp.treat.lmer3)) # print summary output 
-  sink()
+  # sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/",
+  # paste(Exp.Treatments[t],"Q3 LMER sum.txt", sep = " "), sep = " "))   
+  # print(summary(exp.treat.lmer3)) # print summary output 
+  # sink()
   
   # Posthoc ANOVA to compare model to the null
   null <- lmer(fvfm ~ 1 + (1| B.Tag), data = tmp.data) # null model without effect 
@@ -391,10 +416,10 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q3 ANOVA sum:", sep = " ")) # name the summary output 
   print(exp.treat.lmer3.aov) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/",
-    paste(Exp.Treatments[t],"Q3 ANOVA sum.txt", sep = " "), sep = " ")) # save anova summary as txt
-  print(exp.treat.lmer3.aov)
-  sink()
+  # sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/",
+  #   paste(Exp.Treatments[t],"Q3 ANOVA sum.txt", sep = " "), sep = " ")) # save anova summary as txt
+  # print(exp.treat.lmer3.aov)
+  # sink()
  
 }
 ```
@@ -415,11 +440,10 @@ for (t in 1:length(Exp.Treatments)) {
   print(paste(Exp.Treatments[t],"Q3 EMMEANS sum:", sep = " ")) # print emmeans summary output 
   print(summary(exp.treat.lmer3.means))
    
-  sink(paste("/Users/speroffs/Desktop/thesis_backup/PAM/Model.outputs/",
-# sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
-    paste(Exp.Treatments[t],"Q3 EMMEANS sum.txt", sep = " "), sep = " "))
-  print(summary(exp.treat.lmer3.means))
-  sink()
+#  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
+#     paste(Exp.Treatments[t],"Q3 EMMEANS sum.txt", sep = " "), sep = " "))
+#   print(summary(exp.treat.lmer3.means))
+#   sink()
   
 }
 ```
@@ -460,13 +484,13 @@ ggplot(phen.means2,
   
 phen.treat.fvfm.plot
 ```
-
 ```{r}
-# save plot
-ggsave(plot = phen.treat.fvfm.plot,
-       filename = "/Users/speroffs/Desktop/phen.treat.fvfm.plot.jpg", 
-       width = 6, height = 4.5, units = "in", dpi = 300)
+# Save plot 
+ggsave(plot = phen.treat.fvfm.plot, 
+     filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Figures/phen.treat.fvfm.plot.jpg", 
+       width = 8, height = 6, units = "in", dpi = 300)
 ```
+
 
 ```{r}
 # Take a look at the model comparisons once more to determine which models fits best for each treatment 
@@ -482,7 +506,6 @@ for (t in 1:length(Exp.Treatments)) {
   aov <- anova(m0, Q1, Q2, Q3)# model comparison to the null 
   print(paste(Exp.Treatments[t],"ANOVA", sep = " ")) # name the summary output 
   print(aov)
-  
 }
 ```
 
@@ -496,8 +519,7 @@ for (t in 1:length(Exp.Treatments)) {
 ## For plastic, light, and food stressors: analyze the difference WITHIN elevated temperature treatments (excluding ambient controls
 )
 ```{r}
-# For Thermal stress comparisons, perform LM at day 22 for accurate analysis: 
-
+# For Thermal stress, perform LM at day 22 for direct comparisons: 
 # Isolate day 22 for thermal stress to run simple lm (ambient temp only 1 obs/ID)
 temp22.data <- filter(data, Day == "22")
 
@@ -505,12 +527,12 @@ temp22.data <- filter(data, Day == "22")
 temp.lm1 <- lm(fvfm ~ Temperature, data = temp22.data)
 summary(temp.lm1)
 
-# Save aov output to ModelOutputs folder
-sink(
-  paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", # path
-        file = "Temperature Q1 LM sum.txt")) # name txt
-summary(temp.lm1) # what to print
-sink(file = NULL) 
+# # Save aov output to ModelOutputs folder
+# sink(
+#   paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", # path
+#         file = "Temperature Q1 LM sum.txt")) # name txt
+# summary(temp.lm1) # what to print
+# sink(file = NULL) 
 
 #post hoc tukey
 ctrl.aov1.1 <- aov(fvfm ~ Temperature, data = temp22.data)
@@ -531,10 +553,10 @@ for (s in 1:length(stressors)) {
   print(paste(stressors[s],"Q1 LMER sum:", sep = " "))
   print(summary(s.lmer1)) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
-             paste(stressors[s],"Q1 LMER sum.txt", sep = " "), sep = ""))
-  print(summary(s.lmer1))
-  sink()
+  # sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
+  #            paste(stressors[s],"Q1 LMER sum.txt", sep = " "), sep = ""))
+  # print(summary(s.lmer1))
+  # sink()
   
   # Posthoc ANOVA to compare model to the null
   null <- lmer(fvfm ~ 1 + (1| B.Tag), data = expt.data) # null model without effects using experimental treatments only 
@@ -543,20 +565,20 @@ for (s in 1:length(stressors)) {
   print(paste(stressors[s],"Q1 ANOVA sum:", sep = " ")) # name the summary output 
   print(s.lmer1.aov) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
-             paste(stressors[s],"Q1 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
-  print(s.lmer1.aov)
-  sink()
+  # sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
+  #            paste(stressors[s],"Q1 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
+  # print(s.lmer1.aov)
+  # sink()
   
   # Emmmeans posthoc test 
   s.lmer1.means <- emmeans(s.lmer1, as.formula(paste("list(pairwise)~",stressors[s])))
   print(paste(stressors[s],"Q1 EMMEANS sum:", sep = " "))
   print(summary(s.lmer1.means))
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
-             paste(stressors[s],"Q1 EMMEANS sum.txt", sep = " "), sep = ""))
-  print(summary(s.lmer1.means))
-  sink()
+  # sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
+  #            paste(stressors[s],"Q1 EMMEANS sum.txt", sep = " "), sep = ""))
+  # print(summary(s.lmer1.means))
+  # sink()
 }
 
 ```
@@ -583,23 +605,18 @@ PN.fvfm.plot<-
  # ggtitle("B. Plastic") +
   ggtitle("Plastic") +
 
-
   theme_classic() +
   theme_classic(base_size=16) +
   theme(legend.position = "none",
         legend.title = element_blank(),
         legend.text = element_text(size = 12),
-        plot.title = element_text(vjust = 1.1, size = 18, face="bold"))
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold")) +
+  
+    annotate("text", x = 2, y = 0.199, label = "p = 0.115", size = 4) + # LMER p value
+    annotate("text", x = 1, y = 0.175, label = "522", size = 3, colour = "grey30") + # sample size
+    annotate("text", x = 2, y = 0.175, label = "566", size = 3, colour = "grey30") # sample size 
 
 PN.fvfm.plot
-```
-
-```{r}
-# Save plot 
-ggsave(plot = PN.fvfm.plot,
-       filename = "/Users/speroffs/Desktop/PN.fvfm.plot.jpg", 
-       width = 4, height = 4, units = "in", dpi = 300)
-
 ```
 
 ```{r}
@@ -627,18 +644,14 @@ ggplot(data = light.sum1,
   theme(legend.position = "none",
         legend.title = element_blank(),
         legend.text = element_text(size = 12),
-        plot.title = element_text(vjust = 1.1, size = 18, face="bold"))
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold")) +
+  
+   annotate("text", x = 2, y = 0.199, label = "p = 0.752", size = 4) + # LMER p value
+   annotate("text", x = 1, y = 0.175, label = "547", size = 3, colour = "grey30") + # sample size
+   annotate("text", x = 2, y = 0.175, label = "541", size = 3, colour = "grey30") # sample size 
 
 
 LD.fvfm.plot
-```
-
-```{r}
-# Save plot 
-ggsave(plot = LD.fvfm.plot,
-       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/LD.fvfm.plot.jpg", 
-       width = 8, height = 6, units = "in")
-
 ```
 
 ```{r}
@@ -667,17 +680,13 @@ ggplot(data = food.sum1,
   theme(legend.position = "none",
         legend.title = element_blank(),
         legend.text = element_text(size = 12),
-        plot.title = element_text(vjust = 1.1, size = 18, face="bold"))
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold")) +
+  
+   annotate("text", x = 2, y = 0.199, label = "p = 0.041 *", size = 4) + # LMER p value
+   annotate("text", x = 1, y = 0.175, label = "494", size = 3, colour = "grey30") + # sample size
+   annotate("text", x = 2, y = 0.175, label = "594", size = 3, colour = "grey30") # sample size 
 
 FS.fvfm.plot
-```
-
-```{r}
-# Save plot 
-ggsave(plot = FS.fvfm.plot,
-       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/FS.fvfm.plot.jpg", 
-       width = 8, height = 6, units = "in")
-
 ```
 
 ```{r}
@@ -686,16 +695,37 @@ phen.sum1 <- summarySE(expt.data, measurevar="fvfm", groupvars="Sym.State")
 ```
 ```{r}
 # Plot
+phen.fvfm.plot <-
 ggplot(data = phen.sum1,
        aes(x = Sym.State,
-           y = fvfm)) +
-  geom_point() +
-  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1) +
+           y = fvfm, 
+           color = Sym.State)) +
+  
+  geom_point(size=2) +
+  geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
+  
+  labs(x="Symbiotic State",
+       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")"))) +  
+  scale_y_continuous(limits = c(0.175, 0.2)) +
   scale_color_manual(values = c("tan", "coral4")) +
-  labs(x = "", 
-       y = expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")")), 
-      caption = "" ) +
-  theme_classic() 
+
+
+  theme_classic(base_size=16) +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12),
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold")) +
+  
+   annotate("text", x = 2, y = 0.199, label = "p = 0.053", size = 4) + # LMER p value
+   annotate("text", x = 1, y = 0.175, label = "522", size = 3, colour = "grey30") + # sample size
+   annotate("text", x = 2, y = 0.175, label = "566", size = 3, colour = "grey30") # sample size 
+phen.fvfm.plot
+```
+```{r}
+# Save plot 
+ggsave(plot = phen.fvfm.plot,
+       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Figures/phen.fvfm.plot.jpg", 
+       width = 8, height = 6, units = "in", dpi = 300)
 ```
 
 ```{r}
@@ -712,48 +742,39 @@ ggplot(data = temp.sum1,
   geom_point(size=2) +
   geom_errorbar(aes(ymin=fvfm-se, ymax=fvfm+se), width=0.1, size = 1.2) +
   
-  labs(x="",y=expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")"))) +
+  labs(x="",
+       y = "") +
+       #y=expression(paste("Photosynthetic Efficiency (F"["v"]~"/F"["m"]~")"))) +
   scale_y_continuous(limits = c(0.15, 0.31), breaks = seq(0.15, 0.3, by = 0.05)) +
   scale_color_manual(values = c("royalblue4","firebrick2")) +
- # ggtitle("A. Temperature") +
+  ggtitle("Temperature") +
 
 theme_classic(base_size=16) +
   theme(legend.position = "none",
         legend.title = element_blank(),
         legend.text = element_text(size = 12),
-        plot.title = element_text(vjust = 1.1, size = 18, face="bold")) 
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold")) +
+  
+  annotate("text", x = 2, y = 0.3, label = "p < 0.001 ***", size = 4) + # LMER p value
+  annotate("text", x = 1, y = 0.15, label = "157", size = 3, colour = "grey30") + # sample size
+  annotate("text", x = 2, y = 0.15, label = "197", size = 3, colour = "grey30") # sample size 
 
 AE.fvfm.plot
 ```
 
-
+# Combine temperature, plastic, light, and food plots into one ggplot pannel - this will be the left side of a larger panel, so we will combine them vertically and forego the y axis for now
 ```{r}
-# Save plot 
-ggsave(plot = AE.fvfm.plot,
-       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Plots/AE.fvfm.plot.pdf", 
-       width = 8, height = 6, units = "in")
-
-```
-
-```{r}
+# arrange plots 
 fvfm.plot1 <- ggarrange(AE.fvfm.plot, PN.fvfm.plot, LD.fvfm.plot, FS.fvfm.plot, 
           ncol = 1, common.legend = FALSE) 
 
+# add x axis label 
 fvfm.plot1 <- annotate_figure(fvfm.plot1, 
                               bottom = text_grob("Stressor", 
                               hjust = 0.1, vjust = -1, size = 18, face = "bold"))
     
 fvfm.plot1
 ```
-
-```{r}
-# Save plot 
-ggsave(plot = fvfm.panel1,
-       filename = "/Users/speroffs/Desktop/fvfm.panel1.jpg", 
-       width = 6, height = 8, units = "in", dpi = 300)
-
-```
-
 
 ###########################################################################################################################
 #
@@ -762,7 +783,7 @@ ggsave(plot = fvfm.panel1,
 #
 ###########################################################################################################################
 
-# Let's look at the change in fvfm over time for the elevated temperatures only 
+# Let's look at the change in fvfm over time for the elevated temperatures only (since data for ambient control was only collected once)
 ```{r}
 # Filter out all elevated temperature data (experimental treatments)
 elev.dat <- filter(data, Temperature == "Elevated")
@@ -772,10 +793,10 @@ temp.lmer2 <- lmer(fvfm ~ Day + (1|B.Tag), data = elev.dat)
 summary(temp.lmer2)
 
 # Save output to ModelOutputs folder
-sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", # path
-        file = "Temperature Q2 LMER sum.txt")) # name txt
-summary(temp.lmer2) # what to print
-sink(file = NULL) 
+# sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", # path
+#         file = "Temperature Q2 LMER sum.txt")) # name txt
+# summary(temp.lmer2) # what to print
+# sink(file = NULL) 
 
 # ANOVA model comparison
 null <- lmer(fvfm ~ 1 + (1| B.Tag), data = elev.dat) # null for this data set
@@ -783,10 +804,10 @@ temp.lmer2.aov <- anova(null, temp.lmer2) #model comparison
 temp.lmer2.aov
 
 # Save output to ModelOutputs folder
-sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", # path
-        file = "Temperature Q2 ANOVA sum.txt")) # name txt
-summary(temp.lmer2.aov) # what to print
-sink(file = NULL) 
+# sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", # path
+#         file = "Temperature Q2 ANOVA sum.txt")) # name txt
+# summary(temp.lmer2.aov) # what to print
+# sink(file = NULL) 
 ```
 ```{r}
 # Let's treat day as a factor to compare the fvfm at different time points at elevated temperature 
@@ -797,10 +818,10 @@ temp.means2 <- emmeans(temp.lmer2.2, list(pairwise~"Day"))
 temp.means2 # view tukey output
 
 # Save Tukey to ModelOutputs folder
-sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", # path
-        file = "Temperature Q2 EMMEANS sum.txt")) # name txt
-(temp.means2) # what to print
-sink(file = NULL)
+# sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", # path
+#         file = "Temperature Q2 EMMEANS sum.txt")) # name txt
+# (temp.means2) # what to print
+# sink(file = NULL)
 ```
 
 ```{r}
@@ -812,10 +833,10 @@ for (s in 1:length(stressors)) {
   print(paste(stressors[s],"Q2 LMER sum:", sep = " "))
   print(summary(s.lmer2)) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
-             paste(stressors[s],"Q2 LMER sum.txt", sep = " "), sep = ""))
-  print(summary(s.lmer2))
-  sink()
+  # sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
+  #            paste(stressors[s],"Q2 LMER sum.txt", sep = " "), sep = ""))
+  # print(summary(s.lmer2))
+  # sink()
   
   # Posthoc ANOVA to compare model to the null
   null <- lmer(fvfm ~ 1 + (1| B.Tag), data = expt.data) # null model without effects using experimental treatments only 
@@ -825,15 +846,15 @@ for (s in 1:length(stressors)) {
   print(paste(stressors[s],"Q2 ANOVA sum:", sep = " ")) # name the summary output 
   print(s.lmer2.aov) 
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
-             paste(stressors[s],"Q2 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
-  print(s.lmer2.aov)
-  sink()
-  
+  # sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
+  #            paste(stressors[s],"Q2 ANOVA sum.txt", sep = " "), sep = "")) # save anova summary as txt
+  # print(s.lmer2.aov)
+  # sink()
 }
 ```
 
 ```{r}
+# Post-hoc test treating time as a factor
 for (s in 1:length(stressors)) {
   
   s.lmer2.2 <- lmer(as.formula(paste("fvfm~",paste(stressors[s]), "* as.factor(Day) + (1|B.Tag)")), data = expt.data) #use experimental treatments only
@@ -843,12 +864,14 @@ for (s in 1:length(stressors)) {
   print(paste(stressors[s],"Q2 EMMEANS sum:", sep = " "))
   print(summary(s.lmer2.means))
   
-  sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
-             paste(stressors[s],"Q2 EMMEANS sum.txt", sep = " "), sep = ""))
-  print(summary(s.lmer2.means))
-  sink()
+  # sink(paste("/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/PAM/Model.outputs/", 
+  #            paste(stressors[s],"Q2 EMMEANS sum.txt", sep = " "), sep = ""))
+  # print(summary(s.lmer2.means))
+  # sink()
 }
 ```
+
+## HERE ## 
 
 ```{r}
 # Summarize by plastic 
@@ -877,8 +900,10 @@ ggplot(data = plastic.sum2,
   theme(legend.position = c(0.5 , 0.9),
         legend.title = element_blank(),
         legend.text = element_text(size = 14)) +
-  guides(color = guide_legend(direction = "horizontal")) 
-
+  guides(color = guide_legend(direction = "horizontal")) +
+  
+  annotate("text", x = 20, y = 0.27, label = "p plastic:day = 0.83", size = 4)  # LMER p value for plastic:day
+ 
 NP.time.fvfm.plot
 ```
 
