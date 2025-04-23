@@ -453,7 +453,7 @@ pl_st <- survfit(Surv(Time, Death) ~ Plastic, data = st.dat)
 ggsurvplot(pl_st, 
           conf.int = FALSE, # no confidence intervals 
           # pval = TRUE,  # show p value, default as numeric
-          pval = "LRT: p = 0.005*", # custom p value string, from likelihood ratio test
+          pval = "LRT: p = 0.005**", # custom p value string, from likelihood ratio test
           pval.coord = c(16,0.72), 
           pval.size = 6, # default size is 5
           surv.scale = "default", # or %
