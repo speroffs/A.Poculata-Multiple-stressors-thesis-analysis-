@@ -24,6 +24,9 @@ library(lmerTest)
 library(emmeans)
 library(e1071)
 library(ggpubr)
+
+library(superb)
+library(ggsignif)
 ```
 
 ```{r}
@@ -203,6 +206,44 @@ ctrl.resp.A <-
 ctrl.resp.A
 ```
 
+```{r}
+## REFORMAT ABOVE FIGURE FOR PUBLICATION
+ambient.control.plot.A<-
+  ggplot() +
+  geom_boxplot(data = ctrl.data,aes(x = Bacteria, y = rate, fill = Bacteria), 
+               width =0.8, 
+               outlier.shape = NA,
+               lwd = 0.5, 
+               color = "black") +
+  geom_jitter(data = ctrl.data, aes(x = Bacteria, y = rate, fill = Bacteria), 
+              pch = 21, 
+              size = 1.5, 
+              stroke = 0.3, 
+              width = 0.05) +
+  ggtitle("1. MR of Control Coral Polyps exposed to E.coli (acute stress)") +
+  geom_signif(comparisons = list(c("EC", "SW")), map_signif_level = TRUE) +
+  #showSignificance()
+  
+  ylab(bquote(Oxygen~Consumption~(mu~mol ~O[2]~ min^-1~g^-1))) +
+  scale_fill_manual("", values = c("grey", "white")) +
+  scale_x_discrete("", limits = c("EC", "SW"), labels = c("+ EC (Acute Stress)", "- EC (Control)")) +
+  #scale_y_continuous(limits = c(0, 0.1), breaks = seq(0, 0.25, by = 0.01)) +
+  scale_y_continuous(limits = c(0, 0.25), breaks = seq(0, 0.25, by = 0.05)) + # for full figure incl outlier
+
+  theme_bw()+
+  theme(legend.position= "none",
+        axis.ticks=element_line(size=0.1),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", size = 0.2),
+        axis.line = element_line(colour = "black", size = 0.2),
+        strip.background = element_blank(),
+        axis.text = element_text(size=9),
+        axis.title.y = element_text(size=9)) 
+
+ambient.control.plot.A
+```
+
 # Now let's look within our experimental treatments only (no controls)
 ```{r}
 # Create a string of the experimental Treatment names 
@@ -292,7 +333,6 @@ ggplot(bac.sum,
         legend.title = element_blank(),
         legend.text = element_text(size = 12),
         axis.title.x = element_text(size = 11)) 
- 
 ```
 
 ###########################################################################################################################
@@ -429,7 +469,7 @@ ctrl.resp.B <-
                          col = Sym.state, 
                          group = Sym.state)) +
   geom_point(size = 2) +
-  geom_line() +
+  #geom_line() +
   geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1.2) +
   scale_color_manual(labels = c("Apo", "Sym"), values = c("tan", "coral4")) +
   scale_x_discrete(name = "", limits = c("EC", "SW"), labels = c("Acute", "Basal")) +
@@ -446,6 +486,49 @@ ctrl.resp.B <-
     plot.title = element_text(vjust = 1.1, size = 18, face="bold"),
         )
 ctrl.resp.B
+```
+
+```{r}
+## REFORMAT ABOVE FIGURE FOR PUBLICATION
+
+ambient.control.plot.B<-
+  ggplot(ctrl.data, aes(x = Bacteria, 
+                         y = rate, 
+                         color = Sym.state,
+                         fill = Sym.state)) +
+  geom_boxplot(width =0.8,
+               outlier.shape = NA,
+               lwd = 0.5,
+               color = "black") +
+  geom_point(pch = 21, 
+             size = 1.2, 
+             stroke = 0.3, 
+             width = 0.05,
+             color = "black",
+             position=position_jitterdodge()) +
+
+  ylab(bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
+  
+  scale_color_manual(labels = c("Apo", "Sym"), values = c("tan", "coral4")) +
+  scale_fill_manual(values=c("tan","coral4")) +
+  scale_x_discrete(name = "", limits = c("EC", "SW"), labels = c("+ EC (Acute Stress)", "- EC (Control)")) +
+#  scale_y_continuous(limits = c(0., 0.3), breaks = seq(0, 0.3, by = 0.1)) + #full scale with outliers
+  scale_y_continuous(limits = c(0.0, 0.1), breaks = seq(0, 0.1, by = 0.01)) + #cropped without outliers
+    
+  ggtitle("2. Influence of Phenotype on Acute Stress Response (Ambient Temp)") +
+
+  theme_bw()+
+  theme(legend.position= "none",
+        axis.ticks=element_line(size=0.1),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", size = 0.2),
+        axis.line = element_line(colour = "black", size = 0.2),
+        strip.background = element_blank(),
+        axis.text = element_text(size=9),
+        axis.title.y = element_text(size=9)) 
+
+ambient.control.plot.B
 ```
 
 # Arrange ambient-control figures A and B
@@ -526,7 +609,7 @@ ggplot(data = phen.means,
   
   facet_wrap(vars(Treatment)) +
   scale_color_manual(labels = c("Aposymbiotic", "Symbiotic"), values = c("tan", "coral4")) +
-  scale_x_discrete(name = "Bacterial Challenge",
+  scale_x_discrete(name = "Acute Challenge",
                    limits = c("EC", "SW"),
                    labels = c("Acute", "Basal")) +
   
@@ -786,7 +869,7 @@ ggplot(data = light.sum1,
     geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1.5) +
     labs(x = "\n", 
          y = bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
-    ggtitle ("Food") +
+    ggtitle ("Light") +
     scale_color_manual(values = c("black","darkgoldenrod1")) +
   
    theme_classic(base_size=14) +
@@ -853,7 +936,7 @@ ggplot(data = temperature.sum2,
            col = Temperature, 
            group = Temperature)) +
     geom_point(size = 2) +
-    geom_line() +
+   # geom_line() +
     geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
   
     scale_x_discrete(
@@ -881,6 +964,49 @@ temp.plot.A
 # save
 #ggsave(plot = resp.temp.plot,
 #       filename = "/Users/speroffs/Desktop/A.Poculata-Multiple-stressors-thesis-analysis-/Respiration/Figures/temp.plot.A.jpg", width = 5, height = 6, units = "in")
+```
+
+```{r}
+## REFORMAT ABOVE FIGURE FOR PUBLICATION
+
+temp.day.22.plot.A<-
+  ggplot(temp22.data, aes(x = Bacteria, 
+                         y = rate, 
+                         color = Temperature,
+                         fill = Temperature)) +
+  geom_boxplot(width =0.8,
+               outlier.shape = NA,
+               lwd = 0.5,
+               color = "black") +
+  geom_point(pch = 21, 
+             size = 1.2, 
+             stroke = 0.3, 
+             width = 0.05,
+             color = "black",
+             position=position_jitterdodge()) +
+
+  ylab(bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
+  
+  scale_color_manual(labels = c("Ambient", "Elevated"), values = c("royalblue4","firebrick2")) +
+  scale_fill_manual(values=c("royalblue4","firebrick2")) +
+  scale_x_discrete(name = "", limits = c("EC", "SW"), labels = c("+ EC (Acute Stress)", "- EC (Control)")) +
+#  scale_y_continuous(limits = c(0., 0.28), breaks = seq(0, 0.25, by = 0.05)) + #full scale with outliers
+  scale_y_continuous(limits = c(0, 0.1), breaks = seq(0, 0.1, by = 0.02)) + #cropped without outliers
+    
+  ggtitle("3. Chronic Thermal Stress Reduces Metabolic Response to Acute Stress") +
+
+  theme_bw()+
+  theme(legend.position= "right",
+        axis.ticks=element_line(size=0.1),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", size = 0.2),
+        axis.line = element_line(colour = "black", size = 0.2),
+        strip.background = element_blank(),
+        axis.text = element_text(size=9),
+        axis.title.y = element_text(size=9)) 
+
+temp.day.22.plot.A
 ```
 
 ```{r}
@@ -988,6 +1114,43 @@ ggplot(data = light.sum2,
         legend.text = element_text(size = 12),
         plot.title = element_text(vjust = 1.1, size = 18, face="bold"))
 light.plot.A
+```
+```{r}
+# ADDED Feb 8, 2025
+
+# Subset the above figure by sym state - 
+
+#create subset of our variables 
+light.sum3 <- summarySE(data, measurevar = "rate", groupvars = c("Light","Bacteria", "Sym.state"))
+
+# Plot
+light.plot.B <-
+ggplot(data = light.sum3,
+       aes(x = Bacteria,
+           y = rate, 
+           color = Sym.state)) +
+    geom_point(size = 2) +
+    geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.1, size = 1) +
+    facet_wrap(vars(Light)) +
+    scale_x_discrete(
+      #name = "Acute stress challenge", 
+      limits = c("EC", "SW"), labels = c("Acute", "Basal")) +
+    scale_color_manual(labels = c("Apo", "Sym"), values = c("tan","coral4")) +
+    scale_y_continuous(limits = c(0, 0.041)) +
+
+  #ggtitle ("B. Light") +
+    
+  ylab(bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
+ # ylab("")+
+  xlab("")+
+
+  theme_classic() +
+  theme_classic(base_size=16) +
+  theme(#legend.position = c(0.75, 0.9),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12),
+        plot.title = element_text(vjust = 1.1, size = 18, face="bold"))
+light.plot.B
 ```
 
 ```{r}
@@ -1139,6 +1302,168 @@ ggplot(temp.sum3,
   scale_color_manual(values = c("black", "royalblue")) +
   theme_classic()
 ```
+```{r}
+## REFORMAT ABOVE FIGURE FOR PUBLICATION
+
+AS.time.plot<-
+  ggplot(data = exp.data, aes(x = Day, y = rate, fill = Bacteria)) +
+  geom_boxplot(width =0.8, 
+               outlier.shape = NA,
+               lwd = 0.5, 
+               color = "black") +
+  geom_point(pch = 21, 
+             size = 1.2, 
+             stroke = 0.3, 
+             width = 0.05,
+             color = "black",
+             position=position_jitterdodge()) +
+  
+    ggtitle("4. Metabolic Response to Acute Stress through Chronic Thermal Stress") +
+  
+  ylab(bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
+  scale_fill_manual("", values = c("#EACB2B", "#3B99B1")) +
+#  scale_x_discrete("", limits = c("EC", "SW"), labels = c("+ EC (Acute Stress)", "- EC (Control)")) +
+#  scale_y_continuous(limits = c(0, 0.38), breaks = seq(0, 0.38, by = 0.05)) +
+ scale_y_continuous(limits = c(0, 0.075), breaks = seq(0, 0.075, by = 0.025)) + # for full figure incl outlier
+
+  theme_bw()+
+  theme(legend.position= "right",
+        axis.ticks=element_line(size=0.1),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", size = 0.2),
+        axis.line = element_line(colour = "black", size = 0.2),
+        strip.background = element_blank(),
+        axis.text = element_text(size=9),
+        axis.title.y = element_text(size=9)) 
+
+AS.time.plot
+```
+
+```{r}
+## This is just a place to experiment with the above figure to determine what style of graph makes the most sense to portray this time series data
+
+AS.time.test<-
+  ggplot(data = exp.data, aes(x = Day, y = rate, fill = Bacteria)) +
+  
+#  geom_boxplot(width =0.8, 
+ #              outlier.shape = NA,
+  #             lwd = 0.5, 
+   #            color = "black") +
+  geom_point(pch = 21, 
+             size = 1.2, 
+             stroke = 0.3, 
+             width = 0.05,
+             color = "black",
+             position=position_jitterdodge()) +
+ # geom_line(data = temp.sum3, aes(x = Day, 
+ #          y = rate, 
+ #          col = Bacteria,
+ #          group = Bacteria)) +
+  
+#    ggtitle("4. Metabolic Response to Acute Stress through Chronic Thermal Stress") +
+  
+#  ylab(bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
+#  scale_fill_manual("", values = c("#EACB2B", "#3B99B1")) +
+#  scale_x_discrete("", limits = c("EC", "SW"), labels = c("+ EC (Acute Stress)", "- EC (Control)")) +
+#  scale_y_continuous(limits = c(0, 0.38), breaks = seq(0, 0.38, by = 0.05)) + #for full figure incl outlier
+# scale_y_continuous(limits = c(0, 0.075), breaks = seq(0, 0.075, by = 0.025)) + 
+
+  theme_bw()+
+  theme(legend.position= "right",
+        axis.ticks=element_line(size=0.1),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", size = 0.2),
+        axis.line = element_line(colour = "black", size = 0.2),
+        strip.background = element_blank(),
+        axis.text = element_text(size=9),
+        axis.title.y = element_text(size=9)) 
+
+AS.time.test
+```
+
+```{r}
+# ADDED 2/24/2025
+
+# Looking to determine if symbiosis affects MR over time at elevated temperatures
+# Create linear model with 
+temp.lmertest <- lmer(rate ~ Bacteria * Day * Sym.state + (1|B.TAG), data = exp.data)
+summary(temp.lmertest)
+
+# ANOVA model comparison
+null <- lmer(rate ~ 1 + (1| B.TAG), data = exp.data) # null for this data set
+Qtest <- lmer(rate ~ Bacteria + (1|B.TAG), data = exp.data) # model without day for this data set
+temp.lmertest.aov <- anova(null, Qtest, temp.lmertest) #model comparison 
+  
+# Emmeans posthoc
+temp.lmertest <- lmer(rate ~ Bacteria * as.factor(Day) * Sym.state + (1|B.TAG), data = exp.data)
+temp.meanstest <- emmeans(temp.lmertest, list(pairwise~"Bacteria:Day:Sym.state"))
+temp.meanstest # view tukey output
+```
+
+```{r}
+# Summarize means within experimental controls
+phen.time.means <- summarySE(exp.data, measurevar = "rate", groupvars = c("Day", "Bacteria", "Sym.state"))
+
+# Plot 
+ggplot(data = phen.time.means, 
+                     aes(x = Day, 
+                         y = rate, 
+                         col = Sym.state, 
+                         group = interaction(Bacteria, Sym.state))) +
+  geom_line(aes(color = Sym.state, linetype = Bacteria)) +
+  geom_point() + #aes(color = Sym.state, shape = Bacteria)) +
+  geom_errorbar(aes(ymin=rate-se, ymax=rate+se), width=0.2, size = 1) +
+  labs(x = "\nDay", 
+       y = bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1)))+
+  theme_classic() +
+  scale_color_manual(values = c("tan", "coral4")) 
+```
+
+```{r}
+## REFORMAT ABOVE FIGURE FOR PUBLICATION
+
+AS.time.phenotype.plot<-
+  ggplot(data = exp.data, 
+                     aes(x = Day, 
+                         y = rate,
+                        col = Sym.state:Bacteria)) +
+                        # group = interaction(Bacteria, Sym.state))) +
+  geom_boxplot(aes(col = Sym.state:Bacteria, fill = Sym.state:Bacteria),
+               color = "black",
+               outlier.shape = NA) +
+  geom_point(aes(fill = Sym.state:Bacteria, 
+                 shape = Bacteria), 
+             size = 1.2, 
+             stroke = 0.3, 
+             width = 0.05,
+             color = "black",
+             position=position_jitterdodge()) +
+  scale_shape_manual(values = c(21,23)) +
+  
+  ggtitle("5. Effect of Phenotype on MR Over Time in Chronic Thermal Stress") +
+  
+  ylab(bquote(Metabolic~Rate~(mu~mol ~O[2]~ min^-1~g^-1))) +
+  scale_fill_manual("", values = c("tan", "tan", "coral4", "coral4")) +
+#  scale_x_discrete("", limits = c("EC", "SW"), labels = c("+ EC (Acute Stress)", "- EC (Control)")) +
+# scale_y_continuous(limits = c(0, 0.38), breaks = seq(0, 0.38, by = 0.05)) +
+ scale_y_continuous(limits = c(0, 0.075), breaks = seq(0, 0.075, by = 0.025)) + # for full figure incl outlier
+
+  theme_bw()+
+  theme(legend.position= "right",
+        axis.ticks=element_line(size=0.1),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", size = 0.2),
+        axis.line = element_line(colour = "black", size = 0.2),
+        strip.background = element_blank(),
+        axis.text = element_text(size=9),
+        axis.title.y = element_text(size=9)) 
+
+AS.time.phenotype.plot
+```
+
 
 ```{r}
 # Run lmer mixed effects models on experimental stressors with Polyp ID as a random effect to account for repeat measures
@@ -1472,6 +1797,7 @@ summary(amb.lm)
 amb.aov <- aov(Lograte ~ Sym.state * Bacteria, data = ctrl.data)
 summary(amb.aov)
 amb.tukey <- TukeyHSD(amb.aov)
+amb.tukey
 ```
 
 ```{r}
@@ -1538,6 +1864,8 @@ temp.resp.panel <- ggarrange(temp.plot.A, temp.plot.B,
 temp.resp.panel <-
 annotate_figure(temp.resp.panel, 
                 bottom = text_grob("Acute Challenge", hjust = 0.3, vjust = -1, size = 18))
+
+temp.resp.panel
 ```
 ```{r}
 ggsave(plot = temp.resp.panel,
@@ -1687,6 +2015,7 @@ ggplot(data = food.sum5,
         legend.text = element_text(size = 12)) 
 food.plot.B
 ```
+
 # Arrange temperature, plastic, light, and food plots
 ```{r}
 stressor.panel2 <- ggarrange(temp.plot.B, ggplot()+theme_void(), 
@@ -1798,6 +2127,7 @@ for (s in 1:length(stressors2)) {
   sink()
 }
 ```
+
 ```{r}
 for (s in 1:length(stressors2)) {
   
